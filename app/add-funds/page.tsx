@@ -1,3 +1,10 @@
 "use client";
-import { useState } from "react";import { PageShell } from "@/components/PageShell";
-export default function AddFunds(){const [amount,setAmount]=useState("500");return <PageShell title="Add Funds" subtitle="Fund your WickSpend wallet"><div className="panel formGrid"><div className="field"><label>Amount (NGN)</label><input type="number" min="500" value={amount} onChange={e=>setAmount(e.target.value)}/></div><button className="secondaryButton" onClick={()=>alert("Secure KoraPay initialization will be connected to the verified protected funding route.")}>Continue</button><p className="statusText">Minimum funding: ₦500.</p></div></PageShell>}
+import { FormEvent, useState } from "react";
+import { PageShell } from "@/components/PageShell";
+import { api } from "@/lib/api";
+const session=()=>localStorage.getItem("wickspend_session_token")||localStorage.getItem("wickspend_token")||"";
+export default function AddFunds(){
+ const[amount,setAmount]=useState("500");const[busy,setBusy]=useState(false);const[message,setMessage]=useState("");
+ async function submit(e:FormEvent){e.preventDefault();const token=session();if(!token)return setMessage("Please sign in first.");const value=Number(amount);if(!Number.isFinite(value)||value<500)return setMessage("Minimum funding is ₦500.");setBusy(true);setMessage("Creating secure payment…");try{const result:any=await api.wallet.initializeFunding(token,value);const url=result?.checkout_url||result?.payment_url||result?.authorization_url||result?.data?.checkout_url||result?.data?.payment_url||result?.data?.authorization_url;if(!url)throw new Error("Payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(String(url))}catch(err){setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{setBusy(false)}}
+ return <PageShell title="Add Funds" subtitle="Fund your WickSpend wallet"><form className="panel formGrid" onSubmit={submit}><div className="field"><label>Amount (NGN)</label><input type="number" min="500" step="1" inputMode="numeric" value={amount} onChange={e=>setAmount(e.target.value)}/></div><button className="primaryButton" disabled={busy} type="submit">{busy?"Preparing payment…":"Continue"}</button><p className="statusText">Minimum funding: ₦500. Payment is initialized through the protected WickSpend funding route.</p>{message&&<p className="statusText">{message}</p>}</form></PageShell>
+}
