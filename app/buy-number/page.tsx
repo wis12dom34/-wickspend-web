@@ -6,14 +6,137 @@ import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 
-const countryCodes: Record<string, string> = { Nigeria: "NG", USA: "US", UK: "GB", Germany: "DE", Canada: "CA", Poland: "PL" };
-const serviceCodes: Record<string, string> = { Telegram: "telegram", WhatsApp: "whatsapp", Instagram: "instagram", TikTok: "tiktok", Facebook: "facebook", Google: "google" };
-const priceNgn=(p:any)=>p?.price_ngn??p?.final_price_ngn??p?.amount_ngn??null;
+const countries = [
+  ["🇳🇬", "Nigeria", "NG"],
+  ["🇺🇸", "USA", "US"],
+  ["🇬🇧", "UK", "GB"],
+  ["🇩🇪", "Germany", "DE"],
+  ["🇨🇦", "Canada", "CA"],
+  ["🇵🇱", "Poland", "PL"],
+] as const;
+const services = [
+  ["✈️", "Telegram", "telegram"],
+  ["🟢", "WhatsApp", "whatsapp"],
+  ["📸", "Instagram", "instagram"],
+  ["♪", "TikTok", "tiktok"],
+  ["f", "Facebook", "facebook"],
+  ["G", "Google", "google"],
+] as const;
+const countryCodes: Record<string, string> = Object.fromEntries(countries.map(([, name, code]) => [name, code]));
+const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([, name, code]) => [name, code]));
+const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? null;
 
 export default function BuyNumberPage() {
- const router=useRouter();const[country,setCountry]=useState("Nigeria");const[service,setService]=useState("Telegram");const[prices,setPrices]=useState<any[]>([]);const[message,setMessage]=useState("");const[buying,setBuying]=useState(false);
- useEffect(()=>{const params=new URLSearchParams(window.location.search);const requestedCountry=params.get("country");const requestedService=params.get("service");if(requestedCountry&&countryCodes[requestedCountry])setCountry(requestedCountry);if(requestedService&&serviceCodes[requestedService])setService(requestedService)},[]);
- async function load(e:FormEvent){e.preventDefault();setMessage("Checking live prices…");try{const data:any=await api.numbers.prices("",countryCodes[country]||country,serviceCodes[service]||service);const list=Array.isArray(data)?data:(data?.prices||data?.items||data?.data||[]);setPrices(Array.isArray(list)?list:[]);setMessage(Array.isArray(list)&&list.length?"":"No numbers are available for this selection right now.")}catch(err){setPrices([]);setMessage(err instanceof Error?err.message:"Unable to load prices")}}
- async function buy(){if(buying)return;setBuying(true);setMessage("Purchasing number…");try{const token=getSessionToken();if(!token)throw new Error("Please sign in first");const result:any=await api.numbers.buy(token,{country_code:countryCodes[country]||country,service_code:serviceCodes[service]||service});const reference=result?.reference||result?.order?.reference||result?.data?.reference;setMessage("Number purchased successfully.");router.push(reference?`/orders?reference=${encodeURIComponent(reference)}`:"/orders")}catch(err){setMessage(err instanceof Error?err.message:"Unable to purchase this number")}finally{setBuying(false)}}
- return <PageShell title="Buy Number" subtitle="Choose a country and service"><form className="panel formGrid" onSubmit={load}><div className="field"><label>Country</label><select value={country} onChange={e=>setCountry(e.target.value)}><option>Nigeria</option><option>USA</option><option>UK</option><option>Germany</option><option>Canada</option><option>Poland</option></select></div><div className="field"><label>Service</label><select value={service} onChange={e=>setService(e.target.value)}><option>Telegram</option><option>WhatsApp</option><option>Instagram</option><option>TikTok</option><option>Facebook</option><option>Google</option></select></div><button className="secondaryButton" type="submit">View prices</button>{message&&<p className="statusText">{message}</p>}</form>{prices.length>0&&<section><div className="sectionTitle"><h2>Choose a number</h2></div><div className="list">{prices.map((p:any,i)=><div className="listItem" key={p.id||p.service_code||i}><div><div className="price">{priceNgn(p)!=null?`₦${Number(priceNgn(p)).toLocaleString()}`:"Price confirmed at checkout"}</div><small>{p.available??p.stock??"Available"}</small></div><button className="primaryButton" type="button" disabled={buying} onClick={buy} style={{border:"1px solid #ddd"}}>{buying?"Buying…":"Buy"}</button></div>)}</div></section>}</PageShell>;
+  const router = useRouter();
+  const [country, setCountry] = useState("Nigeria");
+  const [service, setService] = useState("Telegram");
+  const [prices, setPrices] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
+  const [buying, setBuying] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedCountry = params.get("country");
+    const requestedService = params.get("service");
+    if (requestedCountry && countryCodes[requestedCountry]) setCountry(requestedCountry);
+    if (requestedService && serviceCodes[requestedService]) setService(requestedService);
+  }, []);
+
+  async function load(e: FormEvent) {
+    e.preventDefault();
+    setMessage("Checking live prices…");
+    try {
+      const data: any = await api.numbers.prices("", countryCodes[country] || country, serviceCodes[service] || service);
+      const list = Array.isArray(data) ? data : (data?.prices || data?.items || data?.data || []);
+      const parsed = Array.isArray(list) ? list : [];
+      setPrices(parsed);
+      setMessage(parsed.length ? "" : "No numbers are available for this selection right now.");
+      setSheetOpen(parsed.length > 0);
+    } catch (err) {
+      setPrices([]);
+      setSheetOpen(false);
+      setMessage(err instanceof Error ? err.message : "Unable to load prices");
+    }
+  }
+
+  async function buy() {
+    if (buying) return;
+    setBuying(true);
+    setMessage("Purchasing number…");
+    try {
+      const token = getSessionToken();
+      if (!token) throw new Error("Please sign in first");
+      const result: any = await api.numbers.buy(token, {
+        country_code: countryCodes[country] || country,
+        service_code: serviceCodes[service] || service,
+      });
+      const reference = result?.reference || result?.order?.reference || result?.data?.reference;
+      setMessage("Number purchased successfully.");
+      router.push(reference ? `/orders?reference=${encodeURIComponent(reference)}` : "/orders");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Unable to purchase this number");
+    } finally {
+      setBuying(false);
+    }
+  }
+
+  const selectedCountry = countries.find(([, name]) => name === country);
+  const selectedService = services.find(([, name]) => name === service);
+
+  return (
+    <PageShell title="Buy Number" subtitle="Choose a country and service">
+      <form className="buyNumberPanel" onSubmit={load}>
+        <button type="button" className="selectorCard" onClick={() => document.getElementById("countrySelect")?.focus()}>
+          <span className="selectorIcon">{selectedCountry?.[0]}</span>
+          <span className="selectorCopy"><small>Country</small><strong>{country}</strong></span>
+          <span className="selectorChevron">⌄</span>
+          <select id="countrySelect" aria-label="Country" value={country} onChange={(e) => setCountry(e.target.value)}>
+            {countries.map(([, name]) => <option key={name}>{name}</option>)}
+          </select>
+        </button>
+
+        <button type="button" className="selectorCard" onClick={() => document.getElementById("serviceSelect")?.focus()}>
+          <span className="selectorIcon serviceSelectorIcon">{selectedService?.[0]}</span>
+          <span className="selectorCopy"><small>Service</small><strong>{service}</strong></span>
+          <span className="selectorChevron">⌄</span>
+          <select id="serviceSelect" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}>
+            {services.map(([, name]) => <option key={name}>{name}</option>)}
+          </select>
+        </button>
+
+        <div className="purchaseSummary">
+          <div><small>Wallet</small><strong>Live balance</strong></div>
+          <div><small>Validity</small><strong>20 min</strong></div>
+          <div><small>Avg. wait</small><strong>1–5 min</strong></div>
+        </div>
+
+        <button className="buyNumberCta" type="submit">View Prices</button>
+        {message && <p className="buyNumberMessage">{message}</p>}
+      </form>
+
+      {sheetOpen && prices.length > 0 && (
+        <div className="sheetBackdrop" role="presentation" onClick={() => setSheetOpen(false)}>
+          <section className="priceSheet" role="dialog" aria-modal="true" aria-label="Choose a number" onClick={(e) => e.stopPropagation()}>
+            <button className="sheetHandle" aria-label="Close" onClick={() => setSheetOpen(false)} />
+            <div className="priceSheetHeading">
+              <h2>Choose a number</h2>
+              <p>Select the best price for your purchase.</p>
+            </div>
+            <div className="priceSheetList">
+              {prices.map((p: any, i) => (
+                <div className="priceRow" key={p.id || p.service_code || i}>
+                  <div>
+                    <strong>{priceNgn(p) != null ? `₦${Number(priceNgn(p)).toLocaleString()}` : "Price at checkout"}</strong>
+                    <small>{p.available ?? p.stock ?? "Available"}</small>
+                  </div>
+                  <button className="priceBuyButton" type="button" disabled={buying} onClick={buy}>{buying ? "Buying…" : "Buy Number"}</button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+    </PageShell>
+  );
 }
