@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { api } from "@/lib/api";
 
 const actions = [
   ["☎️", "Buy Number", "/buy-number"],
@@ -12,7 +16,55 @@ const actions = [
   ["💳", "Wallet", "/wallet"],
 ] as const;
 
+function resolveBalance(payload: any): number | null {
+  const candidates = [
+    payload?.balance_ngn,
+    payload?.wallet_balance_ngn,
+    payload?.balance,
+    payload?.wallet?.balance_ngn,
+    payload?.wallet?.balance,
+    payload?.data?.balance_ngn,
+    payload?.data?.wallet_balance_ngn,
+    payload?.data?.balance,
+  ];
+  for (const value of candidates) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
+}
+
 export default function Home() {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [balanceState, setBalanceState] = useState<"loading" | "ready" | "signed-out" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWallet() {
+      const token = localStorage.getItem("wickspend_session_token") || localStorage.getItem("wickspend_token") || "";
+      if (!token) {
+        if (!cancelled) setBalanceState("signed-out");
+        return;
+      }
+      try {
+        const data = await api.wallet.get(token);
+        if (cancelled) return;
+        setBalance(resolveBalance(data));
+        setBalanceState("ready");
+      } catch {
+        if (!cancelled) setBalanceState("error");
+      }
+    }
+    loadWallet();
+    return () => { cancelled = true; };
+  }, []);
+
+  const balanceLabel = balanceState === "loading"
+    ? "Loading…"
+    : balance !== null
+      ? `₦${balance.toLocaleString()}`
+      : "—";
+
   return (
     <main className="shell">
       <header className="header">
@@ -21,7 +73,9 @@ export default function Home() {
       </header>
 
       <section className="balanceCard">
-        <p>Wallet balance</p><strong>—</strong>
+        <p>Wallet balance</p><strong>{balanceLabel}</strong>
+        {balanceState === "signed-out" && <small className="statusText">Sign in to view your balance.</small>}
+        {balanceState === "error" && <small className="statusText">Balance unavailable right now.</small>}
         <Link href="/add-funds" className="primaryButton">Add funds</Link>
       </section>
 
