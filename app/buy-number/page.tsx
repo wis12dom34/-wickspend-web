@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
@@ -35,8 +35,10 @@ export default function BuyNumberPage() {
   const [prices, setPrices] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [buying, setBuying] = useState(false);
+  const [loadingPrices, setLoadingPrices] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [balance, setBalance] = useState("—");
+  const priceRequest = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,24 +55,42 @@ export default function BuyNumberPage() {
         if (!cancelled) setBalance("—");
       });
     }
-    return () => { cancelled = true; };
+    return () => { cancelled = true; priceRequest.current++; };
   }, []);
+
+  function resetSelection(next: "country" | "service", value: string) {
+    priceRequest.current++;
+    setPrices([]);
+    setSheetOpen(false);
+    setLoadingPrices(false);
+    setMessage("");
+    if (next === "country") setCountry(value); else setService(value);
+  }
 
   async function load(e: FormEvent) {
     e.preventDefault();
-    if (buying) return;
+    if (buying || loadingPrices) return;
+    const requestId = ++priceRequest.current;
+    const selectedCountryCode = countryCodes[country] || country;
+    const selectedServiceCode = serviceCodes[service] || service;
+    setLoadingPrices(true);
+    setSheetOpen(false);
     setMessage("Checking live prices…");
     try {
-      const data: any = await api.numbers.prices("", countryCodes[country] || country, serviceCodes[service] || service);
+      const data: any = await api.numbers.prices("", selectedCountryCode, selectedServiceCode);
+      if (requestId !== priceRequest.current) return;
       const list = Array.isArray(data) ? data : (data?.prices || data?.items || data?.data || []);
       const parsed = Array.isArray(list) ? list : [];
       setPrices(parsed);
       setMessage(parsed.length ? "" : "No numbers are available for this selection right now.");
       setSheetOpen(parsed.length > 0);
     } catch (err) {
+      if (requestId !== priceRequest.current) return;
       setPrices([]);
       setSheetOpen(false);
       setMessage(err instanceof Error ? err.message : "Unable to load prices");
+    } finally {
+      if (requestId === priceRequest.current) setLoadingPrices(false);
     }
   }
 
@@ -105,7 +125,7 @@ export default function BuyNumberPage() {
           <span className="selectorIcon">{selectedCountry?.[0]}</span>
           <span className="selectorCopy"><small>Country</small><strong>{country}</strong></span>
           <span className="selectorChevron">⌄</span>
-          <select id="countrySelect" aria-label="Country" value={country} onChange={(e) => setCountry(e.target.value)}>
+          <select id="countrySelect" aria-label="Country" value={country} disabled={buying} onChange={(e) => resetSelection("country", e.target.value)}>
             {countries.map(([, name]) => <option key={name}>{name}</option>)}
           </select>
         </button>
@@ -114,7 +134,7 @@ export default function BuyNumberPage() {
           <span className="selectorIcon serviceSelectorIcon">{selectedService?.[0]}</span>
           <span className="selectorCopy"><small>Service</small><strong>{service}</strong></span>
           <span className="selectorChevron">⌄</span>
-          <select id="serviceSelect" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}>
+          <select id="serviceSelect" aria-label="Service" value={service} disabled={buying} onChange={(e) => resetSelection("service", e.target.value)}>
             {services.map(([, name]) => <option key={name}>{name}</option>)}
           </select>
         </button>
@@ -125,14 +145,14 @@ export default function BuyNumberPage() {
           <div><small>Avg. wait</small><strong>1–5 min</strong></div>
         </div>
 
-        <button className="buyNumberCta" type="submit">View Prices</button>
+        <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
         {message && <p className="buyNumberMessage" role="status">{message}</p>}
       </form>
 
       {sheetOpen && prices.length > 0 && (
-        <div className="sheetBackdrop" role="presentation" onClick={() => setSheetOpen(false)}>
+        <div className="sheetBackdrop" role="presentation" onClick={() => !buying && setSheetOpen(false)}>
           <section className="priceSheet" role="dialog" aria-modal="true" aria-label="Choose a number" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="sheetHandle" aria-label="Close" onClick={() => setSheetOpen(false)} />
+            <button type="button" className="sheetHandle" aria-label="Close" disabled={buying} onClick={() => setSheetOpen(false)} />
             <div className="priceSheetHeading">
               <h2>Choose a number</h2>
               <p>Select the best price for your purchase.</p>
