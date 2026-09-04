@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react";import { PageShell } from "@/components/PageShell";
+export default function AddFunds(){const [amount,setAmount]=useState("500");return <PageShell title="Add Funds" subtitle="Fund your WickSpend wallet"><div className="panel formGrid"><div className="field"><label>Amount (NGN)</label><input type="number" min="500" value={amount} onChange={e=>setAmount(e.target.value)}/></div><button className="secondaryButton" onClick={()=>alert("Secure KoraPay initialization will be connected to the verified protected funding route.")}>Continue</button><p className="statusText">Minimum funding: ₦500.</p></div></PageShell>}
