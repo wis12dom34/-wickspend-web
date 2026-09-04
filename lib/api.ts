@@ -7,38 +7,56 @@ export async function wickspendApi<T = unknown>(path: string, options: ApiOption
   const response = await fetch(`${API_BASE}/${path.replace(/^\//, "")}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   });
 
   const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && "message" in payload
-      ? String(payload.message)
-      : `WickSpend request failed (${response.status})`;
+  if (!response.ok || (payload && typeof payload === "object" && "ok" in payload && payload.ok === false)) {
+    const message = payload && typeof payload === "object" && "code" in payload
+      ? String(payload.code)
+      : payload && typeof payload === "object" && "message" in payload
+        ? String(payload.message)
+        : `WickSpend request failed (${response.status})`;
     throw new Error(message);
   }
   return payload as T;
 }
 
+export const newRequestKey = (prefix = "web") =>
+  `${prefix}-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+
 export const api = {
   auth: {
-    telegramStart: (body: unknown) => wickspendApi("wickspend-auth-telegram-start", { method: "POST", body: JSON.stringify(body) }),
-    telegramVerify: (body: unknown) => wickspendApi("wickspend-auth-telegram-verify", { method: "POST", body: JSON.stringify(body) }),
+    telegramStart: (body: unknown) => wickspendApi("wickspend/backend/auth/telegram/request", { method: "POST", body: JSON.stringify(body) }),
+    telegramVerify: (body: unknown) => wickspendApi("wickspend/backend/auth/telegram/verify", { method: "POST", body: JSON.stringify(body) }),
+    session: (token: string) => wickspendApi("wickspend/backend/auth/session", { token }),
+    logout: (token: string) => wickspendApi("wickspend/backend/auth/logout", { method: "POST", token, body: "{}" }),
   },
   wallet: {
-    get: (token: string) => wickspendApi("wickspend-wallet", { token }),
+    get: (token: string) => wickspendApi("wickspend/backend/wallet", { token }),
+    transactions: (token: string) => wickspendApi("wickspend/backend/transactions", { token }),
+    initializeFunding: (token: string, amount_ngn: number) => wickspendApi("wickspend/backend/funding/initialize", { method: "POST", token, body: JSON.stringify({ amount_ngn }) }),
   },
   numbers: {
-    countries: (token: string) => wickspendApi("wickspend-sms-countries", { token }),
-    services: (token: string, country: string) => wickspendApi(`wickspend-sms-services?country=${encodeURIComponent(country)}`, { token }),
-    prices: (token: string, country: string, service: string) => wickspendApi(`wickspend-sms-prices?country=${encodeURIComponent(country)}&service=${encodeURIComponent(service)}`, { token }),
-    buy: (token: string, body: unknown) => wickspendApi("wickspend-sms-buy", { method: "POST", token, body: JSON.stringify(body) }),
-    status: (token: string, orderId: string) => wickspendApi(`wickspend-sms-status?order_id=${encodeURIComponent(orderId)}`, { token }),
-    cancel: (token: string, body: unknown) => wickspendApi("wickspend-sms-cancel", { method: "POST", token, body: JSON.stringify(body) }),
+    catalog: (params: Record<string, string | number | undefined> = {}) => {
+      const search = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== "") search.set(key, String(value));
+      });
+      return wickspendApi(`wickspend/backend/numbers/catalog${search.toString() ? `?${search}` : ""}`);
+    },
+    countries: (_token?: string) => wickspendApi("wickspend/backend/numbers/catalog"),
+    services: (_token: string, country_code: string) => wickspendApi(`wickspend/backend/numbers/catalog?country_code=${encodeURIComponent(country_code)}`),
+    prices: (_token: string, country_code: string, service_code: string) => wickspendApi(`wickspend/backend/numbers/catalog?country_code=${encodeURIComponent(country_code)}&service_code=${encodeURIComponent(service_code)}`),
+    buy: (token: string, body: { country_code: string; service_code: string; request_key?: string }) => wickspendApi("wickspend/backend/numbers/buy", { method: "POST", token, body: JSON.stringify({ ...body, request_key: body.request_key || newRequestKey("number") }) }),
+    active: (token: string) => wickspendApi("wickspend/backend/numbers/active", { token }),
+    status: (token: string, reference: string) => wickspendApi(`wickspend/backend/numbers/status?reference=${encodeURIComponent(reference)}`, { token }),
+    cancel: (token: string, reference: string) => wickspendApi("wickspend/backend/numbers/cancel", { method: "POST", token, body: JSON.stringify({ reference }) }),
   },
-  orders: (token: string) => wickspendApi("wickspend-orders", { token }),
-  notifications: (token: string) => wickspendApi("wickspend-notifications", { token }),
+  orders: (token: string) => wickspendApi("wickspend/backend/orders", { token }),
+  notifications: (token: string) => wickspendApi("wickspend/backend/notifications", { token }),
 };
