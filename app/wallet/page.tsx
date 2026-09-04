@@ -16,9 +16,12 @@ const dateLabel = (value: any) => {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString();
 };
 
+type TxState = "loading" | "ready" | "error" | "signed-out";
+
 export default function Wallet() {
   const [balance, setBalance] = useState("—");
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [txState, setTxState] = useState<TxState>("loading");
   const [message, setMessage] = useState("Loading wallet…");
   const [hidden, setHidden] = useState(false);
 
@@ -29,9 +32,11 @@ export default function Wallet() {
       if (!token) {
         setBalance("—");
         setTransactions([]);
+        setTxState("signed-out");
         setMessage("Please sign in to view your wallet.");
         return;
       }
+      setTxState("loading");
       setMessage("Loading wallet…");
       const [walletResult, txResult] = await Promise.allSettled([api.wallet.get(token), api.wallet.transactions(token)]);
       if (cancelled) return;
@@ -44,7 +49,11 @@ export default function Wallet() {
         const tx: any = txResult.value;
         const list = Array.isArray(tx) ? tx : (tx?.transactions || tx?.items || tx?.data || []);
         setTransactions(Array.isArray(list) ? list : []);
-      } else setTransactions([]);
+        setTxState("ready");
+      } else {
+        setTransactions([]);
+        setTxState("error");
+      }
       if (walletResult.status === "rejected" && txResult.status === "rejected") {
         const reason = walletResult.reason;
         setMessage(reason instanceof Error ? reason.message : "Unable to load wallet");
@@ -55,6 +64,9 @@ export default function Wallet() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  const emptyTitle = txState === "loading" ? "Loading transactions…" : txState === "error" ? "Transactions unavailable" : txState === "signed-out" ? "Sign in to view activity" : "No transactions yet";
+  const emptyCopy = txState === "loading" ? "Fetching your latest wallet activity." : txState === "error" ? "We couldn’t load your recent wallet activity right now." : txState === "signed-out" ? "Your wallet activity will appear here after you sign in." : "Your wallet activity will appear here.";
 
   return (
     <PageShell title="Wallet" subtitle="Balance and funding">
@@ -75,7 +87,7 @@ export default function Wallet() {
 
       <section>
         <div className="walletSectionHeading"><h2>Recent Transactions</h2><span>{transactions.length ? `${transactions.length} items` : ""}</span></div>
-        <div className="walletTransactions">
+        <div className="walletTransactions" aria-busy={txState === "loading"}>
           {transactions.length > 0 ? transactions.map((tx: any, i) => {
             const amount = tx.amount_ngn ?? tx.final_amount_ngn;
             const amountNumber = Number(amount);
@@ -93,12 +105,12 @@ export default function Wallet() {
               </div>
             );
           }) : (
-            <div className="walletEmptyState"><span>💳</span><b>No transactions yet</b><p>{message || "Your wallet activity will appear here."}</p></div>
+            <div className="walletEmptyState"><span>💳</span><b>{emptyTitle}</b><p>{emptyCopy}</p></div>
           )}
         </div>
       </section>
 
-      {message && transactions.length > 0 && <p className="walletMessage" role="status">{message}</p>}
+      {message && (transactions.length > 0 || txState === "error") && <p className="walletMessage" role="status">{message}</p>}
     </PageShell>
   );
 }
