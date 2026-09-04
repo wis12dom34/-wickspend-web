@@ -57,6 +57,24 @@ export const api = {
     status: (token: string, reference: string) => wickspendApi(`wickspend/backend/numbers/status?reference=${encodeURIComponent(reference)}`, { token }),
     cancel: (token: string, reference: string) => wickspendApi("wickspend/backend/numbers/cancel", { method: "POST", token, body: JSON.stringify({ reference }) }),
   },
+  rentals: {
+    catalog: () => wickspendApi("wickspend/backend/rentals/catalog"),
+    create: (token: string, input: { service_code: string; duration_minutes: 1440 | 4320 | 10080 | 20160 | 43200; country_code?: "US" | "USA"; auto_renew?: boolean; request_key?: string }) =>
+      wickspendApi("wickspend/backend/rentals/create", {
+        method: "POST",
+        token,
+        body: JSON.stringify({
+          country_code: input.country_code ?? "US",
+          service_code: input.service_code,
+          duration_minutes: input.duration_minutes,
+          auto_renew: input.auto_renew === true,
+          request_key: input.request_key ?? newRequestKey("rent"),
+        }),
+      }),
+    status: (token: string, reference: string) => wickspendApi(`wickspend/backend/rentals/status?reference=${encodeURIComponent(reference)}`, { token }),
+    cancel: (token: string, reference: string) => wickspendApi("wickspend/backend/rentals/cancel", { method: "POST", token, body: JSON.stringify({ reference }) }),
+    extend: (token: string, reference: string, request_key = newRequestKey("rent-ext")) => wickspendApi("wickspend/backend/rentals/extend", { method: "POST", token, body: JSON.stringify({ reference, request_key }) }),
+  },
   orders: (token: string) => wickspendApi("wickspend/backend/orders", { token }),
   notifications: (token: string) => wickspendApi("wickspend/backend/notifications", { token }),
 };
