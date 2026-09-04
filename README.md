@@ -6,6 +6,7 @@ Production frontend for WickSpend.
 - Responsive mobile-first interface
 - WickSpend API integration via `NEXT_PUBLIC_WICKSPEND_API_BASE`
 - Intended deployment: Vercel
+- Production branch: `main`
 
 ## Environment
 
