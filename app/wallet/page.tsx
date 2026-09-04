@@ -8,7 +8,12 @@ import { getSessionToken } from "@/lib/session";
 
 const money = (value: any) => {
   const n = Number(value);
-  return Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—";
+  return value !== undefined && value !== null && Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—";
+};
+const dateLabel = (value: any) => {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString();
 };
 
 export default function Wallet() {
@@ -22,20 +27,30 @@ export default function Wallet() {
     async function load() {
       const token = getSessionToken();
       if (!token) {
+        setBalance("—");
+        setTransactions([]);
         setMessage("Please sign in to view your wallet.");
         return;
       }
-      try {
-        const [wallet, tx]: any[] = await Promise.all([api.wallet.get(token), api.wallet.transactions(token)]);
-        if (cancelled) return;
+      setMessage("Loading wallet…");
+      const [walletResult, txResult] = await Promise.allSettled([api.wallet.get(token), api.wallet.transactions(token)]);
+      if (cancelled) return;
+      if (walletResult.status === "fulfilled") {
+        const wallet: any = walletResult.value;
         const rawBalance = wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
         setBalance(money(rawBalance));
+      } else setBalance("—");
+      if (txResult.status === "fulfilled") {
+        const tx: any = txResult.value;
         const list = Array.isArray(tx) ? tx : (tx?.transactions || tx?.items || tx?.data || []);
         setTransactions(Array.isArray(list) ? list : []);
-        setMessage("");
-      } catch (error) {
-        if (!cancelled) setMessage(error instanceof Error ? error.message : "Unable to load wallet");
-      }
+      } else setTransactions([]);
+      if (walletResult.status === "rejected" && txResult.status === "rejected") {
+        const reason = walletResult.reason;
+        setMessage(reason instanceof Error ? reason.message : "Unable to load wallet");
+      } else if (walletResult.status === "rejected") setMessage("Wallet balance is temporarily unavailable.");
+      else if (txResult.status === "rejected") setMessage("Recent transactions are temporarily unavailable.");
+      else setMessage("");
     }
     load();
     return () => { cancelled = true; };
@@ -49,7 +64,7 @@ export default function Wallet() {
         <small>Preferred Currency&nbsp; • &nbsp;NGN</small>
         <div className="walletHeroActions">
           <Link href="/add-funds" className="walletAddFunds">Add Funds</Link>
-          <button type="button" className="walletHide" onClick={() => setHidden((value) => !value)}>{hidden ? "Show" : "Hide"}</button>
+          <button type="button" className="walletHide" aria-pressed={hidden} onClick={() => setHidden((value) => !value)}>{hidden ? "Show" : "Hide"}</button>
         </div>
       </section>
 
@@ -63,17 +78,18 @@ export default function Wallet() {
         <div className="walletTransactions">
           {transactions.length > 0 ? transactions.map((tx: any, i) => {
             const amount = tx.amount_ngn ?? tx.final_amount_ngn;
+            const amountNumber = Number(amount);
             const type = tx.type || tx.kind || tx.category || tx.description || "Transaction";
             const status = tx.status || "";
-            const date = tx.created_at || tx.date || tx.timestamp;
+            const date = dateLabel(tx.created_at || tx.date || tx.timestamp);
             return (
               <div className="walletTransaction" key={tx.id || tx.reference || i}>
-                <span className="walletTransactionIcon">{Number(amount) >= 0 ? "↓" : "↑"}</span>
+                <span className="walletTransactionIcon">{Number.isFinite(amountNumber) && amountNumber < 0 ? "↑" : "↓"}</span>
                 <div className="walletTransactionCopy">
                   <b>{type}</b>
-                  <small>{status || (date ? new Date(date).toLocaleDateString() : "Wallet activity")}</small>
+                  <small>{status || date || "Wallet activity"}</small>
                 </div>
-                <strong>{amount !== undefined ? money(amount) : "—"}</strong>
+                <strong>{money(amount)}</strong>
               </div>
             );
           }) : (
@@ -82,7 +98,7 @@ export default function Wallet() {
         </div>
       </section>
 
-      {message && transactions.length > 0 && <p className="walletMessage">{message}</p>}
+      {message && transactions.length > 0 && <p className="walletMessage" role="status">{message}</p>}
     </PageShell>
   );
 }
