@@ -3,12 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
+import { getSessionToken } from "@/lib/session";
 
 type Duration = 1440 | 4320 | 10080 | 20160 | 43200;
-
-function token() {
-  return localStorage.getItem("wickspend_session_token") || localStorage.getItem("wickspend_token") || "";
-}
 
 function referenceOf(value: any) {
   return String(value?.reference || value?.rental?.reference || value?.data?.reference || "");
@@ -33,7 +30,7 @@ export default function RentNumber() {
 
   async function createRental(e: FormEvent) {
     e.preventDefault();
-    const session = token();
+    const session = getSessionToken();
     if (!session) return setMessage("Please sign in first.");
     if (!serviceCode) return setMessage("Choose a service first.");
     setBusy(true);
@@ -49,7 +46,7 @@ export default function RentNumber() {
 
   async function refresh() {
     const reference = referenceOf(rental);
-    const session = token();
+    const session = getSessionToken();
     if (!reference || !session) return;
     setBusy(true);
     try {
@@ -62,7 +59,7 @@ export default function RentNumber() {
 
   async function extend() {
     const reference = referenceOf(rental);
-    const session = token();
+    const session = getSessionToken();
     if (!reference || !session) return;
     setBusy(true);
     try {
@@ -75,7 +72,7 @@ export default function RentNumber() {
 
   async function cancel() {
     const reference = referenceOf(rental);
-    const session = token();
+    const session = getSessionToken();
     if (!reference || !session) return;
     setBusy(true);
     try {
