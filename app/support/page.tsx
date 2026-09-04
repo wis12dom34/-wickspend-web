@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react";import { PageShell } from "@/components/PageShell";
+export default function Support(){const [text,setText]=useState("");return <PageShell title="AI Support" subtitle="How can we help?"><div className="panel"><h3>WickSpend Assistant</h3><p>Ask about purchases, wallet funding, OTP delivery, refunds or orders.</p></div><div className="panel formGrid"><div className="field"><label>Message</label><input value={text} onChange={e=>setText(e.target.value)} placeholder="Type your message…"/></div><button className="secondaryButton" onClick={()=>setText("")}>Send</button></div></PageShell>}
