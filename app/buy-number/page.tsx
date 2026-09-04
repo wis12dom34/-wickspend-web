@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
+import { getSessionToken } from "@/lib/session";
 
 const countryCodes: Record<string, string> = {
   Nigeria: "NG",
@@ -50,7 +51,7 @@ export default function BuyNumberPage() {
     setBuying(true);
     setMessage("Purchasing number…");
     try {
-      const token = localStorage.getItem("wickspend_session_token") || localStorage.getItem("wickspend_token") || "";
+      const token = getSessionToken();
       if (!token) throw new Error("Please sign in first");
       const result: any = await api.numbers.buy(token, {
         country_code: countryCodes[country] || country,
