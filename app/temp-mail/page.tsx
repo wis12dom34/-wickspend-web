@@ -1,0 +1,2 @@
+import { PageShell } from "@/components/PageShell";
+export default function TempMail(){return <PageShell title="Temp Mail" subtitle="Temporary email for verification"><div className="panel"><h3>Create temporary inbox</h3><p>The screen is ready for the existing WickSpend Temp Mail API route. Purchase and OTP polling will be enabled after its exact live request/response contract is verified.</p></div></PageShell>}
