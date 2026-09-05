@@ -8,27 +8,45 @@ import {getSessionToken} from "@/lib/session";
 import s from "./wick-ai.module.css";
 
 type Chat={role:"user"|"assistant";text:string};
+type View="home"|"chat"|"number";
 const quick=[
   ["Buy a verification number","Choose country + service","/buy-number"],
   ["Boost social media","Find a Boostly service","/boostly"],
   ["Find a digital tool","Browse useful resources","/digital-tools"],
   ["Fund my wallet","Top up and continue checkout","/add-funds"],
 ] as const;
+const priceNgn=(p:any)=>p?.price_ngn??p?.final_price_ngn??p?.amount_ngn??null;
+const money=(value:any)=>{const n=Number(value);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"Price at checkout"};
 
 export default function WickAI(){
-  const[chat,setChat]=useState(false),[text,setText]=useState(""),[messages,setMessages]=useState<Chat[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const[view,setView]=useState<View>("home"),[text,setText]=useState(""),[messages,setMessages]=useState<Chat[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[numberPrice,setNumberPrice]=useState<any>(null),[numberLoading,setNumberLoading]=useState(false);
   const mounted=useRef(true),seq=useRef(0);
   useEffect(()=>()=>{mounted.current=false;seq.current++},[]);
+  async function openNumberRecommendation(){if(numberLoading)return;setView("number");setError("");setNumberLoading(true);try{const data:any=await api.numbers.prices("","US","telegram");const list=Array.isArray(data)?data:(data?.prices||data?.items||data?.data||[]);if(!mounted.current)return;const parsed=Array.isArray(list)?list:[];const sorted=[...parsed].sort((a,b)=>Number(priceNgn(a)??Infinity)-Number(priceNgn(b)??Infinity));setNumberPrice(sorted[0]||null)}catch{if(mounted.current)setNumberPrice(null)}finally{if(mounted.current)setNumberLoading(false)}}
   async function send(e:FormEvent){e.preventDefault();const message=text.trim();if(!message||busy)return;const token=getSessionToken();if(!token){setError("Please sign in to use Wick AI.");return}const history=[...messages,{role:"user" as const,text:message}],id=++seq.current;setMessages(history);setText("");setError("");setBusy(true);try{const context=history.slice(-8).map(m=>`${m.role==="user"?"User":"Assistant"}: ${m.text}`).join("\n");const prompt=`You are Wick AI, WickSpend's shopping and support assistant. Help the user choose among verification numbers, rentals, Boostly, digital tools, wallet funding, marketplace and existing orders. Never claim a purchase succeeded unless the WickSpend backend confirms it. Continue this conversation and answer the latest user message directly.\n\n${context}`;const r:any=await api.support.chat(token,prompt);const reply=r?.reply||r?.message||r?.response||r?.answer||r?.data?.reply||r?.data?.message||r?.data?.response;if(!reply||!String(reply).trim())throw new Error("Wick AI did not return a reply.");if(!mounted.current||id!==seq.current)return;setMessages(m=>[...m,{role:"assistant",text:String(reply).trim()}])}catch(e){if(!mounted.current||id!==seq.current)return;setText(message);setError(e instanceof Error?e.message:"Wick AI is temporarily unavailable.")}finally{if(mounted.current&&id===seq.current)setBusy(false)}}
   return <main className={s.page}>
-    {!chat?<>
+    {view==="home"&&<>
       <header className={s.header}><h1>Wick AI</h1><p>Tell me what you need and I’ll help you choose.</p></header>
-      <button className={s.askCard} type="button" onClick={()=>{setChat(true);setText("I need a US number for Telegram")}}><small>Ask Wick AI</small><strong>“I need a US number for Telegram”</strong></button>
+      <button className={s.askCard} type="button" onClick={openNumberRecommendation}><small>Ask Wick AI</small><strong>“I need a US number for Telegram”</strong></button>
       <h2 className={s.sectionTitle}>Quick actions</h2>
       <div className={s.quickList}>{quick.map(([title,sub,href])=><Link href={href} key={href}><span><b>{title}</b><small>{sub}</small></span><em>›</em></Link>)}</div>
-      <button className={s.start} type="button" onClick={()=>setChat(true)}>Start chat</button>
-    </>:<>
-      <header className={s.chatHeader}><button type="button" onClick={()=>setChat(false)}>‹</button><div><h1>Wick AI</h1><p>Shopping and support assistant</p></div></header>
+      <button className={s.start} type="button" onClick={()=>setView("chat")}>Start chat</button>
+    </>}
+    {view==="number"&&<>
+      <header className={s.resultHeader}><button type="button" aria-label="Back" onClick={()=>setView("home")}>‹</button><h1>Wick AI</h1></header>
+      <div className={s.userPrompt}>I need a US number for Telegram</div>
+      <h2 className={s.matchTitle}>Best match</h2>
+      <section className={s.matchCard}>
+        <div className={s.matchTop}><div><h3>United States • Telegram</h3><p>Verification number</p></div><span>MATCH</span></div>
+        <strong className={s.matchPrice}>{numberLoading?"Checking live price…":money(priceNgn(numberPrice))}</strong>
+        <h4>Why this match</h4><p>Matches your selected country and service.</p><p>Final price shown before purchase.</p>
+      </section>
+      <Link className={s.resultPrimary} href="/buy-number?country=USA&service=Telegram">Buy this number</Link>
+      <Link className={s.resultSecondary} href="/buy-number?service=Telegram">Show other countries</Link>
+      <div className={s.resultNote}>You’ll review the order before your wallet is charged.</div>
+    </>}
+    {view==="chat"&&<>
+      <header className={s.chatHeader}><button type="button" onClick={()=>setView("home")}>‹</button><div><h1>Wick AI</h1><p>Shopping and support assistant</p></div></header>
       <section className={s.chatStream} aria-live="polite" aria-busy={busy}>{messages.length===0?<div className={s.empty}><span>✦</span><h2>What do you need?</h2><p>Ask for a number, Boostly service, digital tool, rental, wallet help or an order update.</p></div>:messages.map((m,i)=><div className={`${s.bubble} ${m.role==="user"?s.user:s.assistant}`} key={`${m.role}-${i}`}><small>{m.role==="user"?"You":"Wick AI"}</small><p>{m.text}</p></div>)}{busy&&<div className={s.typing}><span/><span/><span/></div>}</section>
       {error&&<div className={s.error} role="alert">{error}</div>}
       <form className={s.composer} onSubmit={send}><input value={text} disabled={busy} onChange={e=>{setText(e.target.value);if(error)setError("")}} placeholder="Ask Wick AI…" aria-label="Ask Wick AI"/><button disabled={busy||!text.trim()} aria-label="Send">↑</button></form>
