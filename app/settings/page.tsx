@@ -8,6 +8,7 @@ import {clearSessionToken,getSessionToken} from "@/lib/session";
 
 export default function Settings(){
   const router=useRouter(),[showSignOut,setShowSignOut]=useState(false),[busy,setBusy]=useState(false);
+  useEffect(()=>{const q=new URLSearchParams(window.location.search);if(q.get("signout")==="1")setShowSignOut(true)},[]);
   useEffect(()=>{if(!showSignOut)return;const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape"&&!busy)setShowSignOut(false)};window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey)},[showSignOut,busy]);
   async function signOut(){
     if(busy)return;
