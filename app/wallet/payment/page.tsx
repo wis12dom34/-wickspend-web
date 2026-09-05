@@ -11,11 +11,14 @@ type PaymentState="processing"|"success"|"pending"|"failed";
 const money=(v:any)=>{const n=Number(v);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"};
 const refOf=(o:any)=>String(o?.reference||o?.transaction_reference||o?.payment_reference||o?.ref||o?.id||"");
 const statusOf=(o:any)=>String(o?.status||o?.payment_status||o?.state||"").toLowerCase();
+const methodOf=(o:any)=>String(o?.payment_method||o?.method||o?.channel||o?.payment_channel||o?.provider_channel||"").trim();
+const prettyMethod=(v:string)=>v?v.replace(/[_-]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()):"Secure payment";
 
 export default function WalletPayment(){
   const[state,setState]=useState<PaymentState>("processing");
   const[amount,setAmount]=useState("");
   const[reference,setReference]=useState("");
+  const[method,setMethod]=useState("");
   const[newBalance,setNewBalance]=useState("");
   const[returnTo,setReturnTo]=useState("/wallet");
   const[busy,setBusy]=useState(false);
@@ -27,6 +30,7 @@ export default function WalletPayment(){
     setState(/success|successful|paid|completed/.test(raw)?"success":/fail|failed|cancel/.test(raw)?"failed":/pending/.test(raw)?"pending":"processing");
     setAmount(q.get("amount_ngn")||q.get("amount")||"");
     setReference(q.get("reference")||q.get("ref")||"");
+    setMethod(q.get("payment_method")||q.get("method")||q.get("channel")||"");
     const requested=q.get("return_to")||q.get("returnTo")||"";
     if(requested&&requested.startsWith("/")&&!requested.startsWith("//"))setReturnTo(requested);
   },[]);
@@ -42,6 +46,7 @@ export default function WalletPayment(){
   },[state]);
 
   const displayAmount=useMemo(()=>amount?money(amount):"—",[amount]);
+  const displayMethod=useMemo(()=>prettyMethod(method),[method]);
 
   async function refreshPending(){
     if(busy)return;
@@ -54,6 +59,7 @@ export default function WalletPayment(){
       const list=Array.isArray(r)?r:(r?.transactions||r?.items||r?.data||[]);
       const match=Array.isArray(list)?list.find((tx:any)=>refOf(tx)===reference):null;
       if(!match){setState("pending");setMessage("Payment is still awaiting confirmation.");return;}
+      const liveMethod=methodOf(match);if(liveMethod)setMethod(liveMethod);
       const status=statusOf(match);
       if(/success|successful|paid|completed/.test(status)){setAmount(String(match?.amount_ngn??match?.amount??amount));setState("success");setMessage("");}
       else if(/fail|failed|cancel|reversed/.test(status)){setState("failed");setMessage("");}
@@ -67,14 +73,14 @@ export default function WalletPayment(){
     <div className={styles.screen}>
       {checking&&<>
         <div className={styles.statusIcon}>•••</div>
-        <header className={styles.centerHeader}><h1>Verifying payment</h1><p>We’re checking your transfer status.</p></header>
+        <header className={styles.centerHeader}><h1>Verifying payment</h1><p>We’re checking your payment status.</p></header>
         <section className={styles.paymentCard}>
           <div className={styles.paymentTop}><small>PAYMENT</small><span>{state==="pending"?"PENDING":"CHECKING"}</span></div>
           <strong className={styles.paymentAmount}>{displayAmount}</strong>
-          <b className={styles.method}>Bank transfer</b>
+          <b className={styles.method}>{displayMethod}</b>
           <p>Reference • {reference||"Awaiting reference"}</p>
         </section>
-        <section className={styles.infoCard}><b>No need to pay again</b><p>Keep this screen open while the transfer is verified.</p><p>Your wallet updates automatically after confirmation.</p></section>
+        <section className={styles.infoCard}><b>No need to pay again</b><p>Keep this screen open while the payment is verified.</p><p>Your wallet updates automatically after confirmation.</p></section>
         <button className={styles.outlineButton} type="button" onClick={refreshPending} disabled={busy}>{busy?"Checking…":"Check payment status"}</button>
         <p className={styles.safeNote}>You can safely return later from Wallet → Transactions.</p>
       </>}
@@ -83,8 +89,8 @@ export default function WalletPayment(){
         <div className={`${styles.statusIcon} ${styles.successIcon}`}>✓</div>
         <header className={styles.centerHeader}><h1>Wallet funded</h1><p>{displayAmount} was added successfully.</p></header>
         <section className={styles.balanceCard}><small>NEW BALANCE</small><strong>{newBalance||"Updated"}</strong><p>Added today • {displayAmount}</p><p>Reference • {reference||"—"}</p></section>
-        <Link href={returnTo} className={styles.primaryButton}>Return to checkout</Link>
-        <Link href="/wallet" className={styles.outlineLink}>View wallet</Link>
+        <Link href={returnTo} className={styles.primaryButton}>{returnTo==="/wallet"?"Back to wallet":"Return to checkout"}</Link>
+        {returnTo!=="/wallet"&&<Link href="/wallet" className={styles.outlineLink}>View wallet</Link>}
         <section className={styles.receiptCard}><b>Payment receipt saved</b><p>This funding transaction is available in your wallet history.</p></section>
       </>}
 
