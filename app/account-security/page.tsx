@@ -48,7 +48,7 @@ export default function AccountSecurity(){
   const scoreNote=details.score!==undefined&&details.score<100?"Review the available security controls below.":signedIn?"Your WickSpend session is authenticated.":"Sign in to review your account security.";
   const twoFactorText=details.twoFactor===true?"Enabled":details.twoFactor===false?"Disabled":signedIn?"Managed by Telegram sign-in":"Unavailable";
   const sessionText=details.trustedSessions!==undefined?`${details.trustedSessions} trusted ${details.trustedSessions===1?"device":"devices"}`:signedIn?"Current browser session active":"No active session";
-  const recoveryText=details.recoveryCodes!==undefined?`${details.recoveryCodes} codes remaining":"Not exposed by current sign-in API";
+  const recoveryText=details.recoveryCodes!==undefined?`${details.recoveryCodes} codes remaining`:"Not exposed by current sign-in API";
 
   return <PageShell title="Account Security" subtitle="Protect your WickSpend account" back="/profile">
     <section className="securityScore" aria-busy={checking}>
