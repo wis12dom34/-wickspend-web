@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import {Suspense} from "react";
 import {useSearchParams} from "next/navigation";
 import {PageShell} from "@/components/PageShell";
 
-export default function SupportRequestSubmitted(){
+function SubmittedContent(){
   const params=useSearchParams();
   const reference=(params.get("reference")||"").trim();
   return <PageShell title="Request Submitted" subtitle="Your support request is now in the queue." back="/help-support">
@@ -17,8 +18,15 @@ export default function SupportRequestSubmitted(){
         <div style={{display:"grid",gap:8}}><span style={{fontSize:9,color:"#6e6e73"}}>Next step</span><p style={{fontSize:9,color:"#6e6e73",margin:0}}>We’ll review the details and attachments provided.</p></div>
       </div>
     </section>
-
     {reference?<Link href={`/help-support/ticket?reference=${encodeURIComponent(reference)}`} style={{width:"calc(100% - 72px)",height:44,borderRadius:22,background:"#050505",color:"#fff",display:"grid",placeItems:"center",fontSize:11,fontWeight:600,margin:"26px auto 0",boxShadow:"0 5px 12px rgba(0,0,0,.15)"}}>View Request</Link>:<button type="button" disabled title="A ticket reference is required to view a submitted request" style={{width:"calc(100% - 72px)",height:44,border:0,borderRadius:22,background:"#050505",color:"#fff",fontSize:11,fontWeight:600,margin:"26px auto 0",boxShadow:"0 5px 12px rgba(0,0,0,.15)",opacity:.5,display:"block"}}>View Request</button>}
     <Link href="/help-support" style={{display:"block",textAlign:"center",marginTop:18,fontSize:10,fontWeight:600}}>Back to Support</Link>
   </PageShell>
+}
+
+function SubmittedFallback(){
+  return <PageShell title="Request Submitted" subtitle="Your support request is now in the queue." back="/help-support"><section style={{marginTop:54,border:"1px solid rgba(0,0,0,.07)",borderRadius:28,background:"rgba(255,255,255,.95)",padding:"32px 36px",textAlign:"center"}}><p className="statusText">Loading request…</p></section></PageShell>
+}
+
+export default function SupportRequestSubmitted(){
+  return <Suspense fallback={<SubmittedFallback/>}><SubmittedContent/></Suspense>;
 }
