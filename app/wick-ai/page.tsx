@@ -8,28 +8,35 @@ import {getSessionToken} from "@/lib/session";
 import s from "./wick-ai.module.css";
 
 type Chat={role:"user"|"assistant";text:string};
-type View="home"|"chat"|"number";
+type View="home"|"chat"|"number"|"wallet";
 const quick=[
-  ["Buy a verification number","Choose country + service","/buy-number"],
+  ["Buy a verification number","Choose country + service","number"],
   ["Boost social media","Find a Boostly service","/boostly"],
   ["Find a digital tool","Browse useful resources","/digital-tools"],
-  ["Fund my wallet","Top up and continue checkout","/add-funds"],
+  ["Fund my wallet","Top up and continue checkout","wallet"],
 ] as const;
 const priceNgn=(p:any)=>p?.price_ngn??p?.final_price_ngn??p?.amount_ngn??null;
-const money=(value:any)=>{const n=Number(value);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"Price at checkout"};
+const balanceNgn=(p:any)=>p?.balance_ngn??p?.wallet_balance_ngn??p?.wallet?.balance_ngn??p?.data?.balance_ngn??p?.data?.wallet_balance_ngn??p?.balance??null;
+const money=(value:any)=>{const n=Number(value);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"};
+const suggestedTopUp=(shortfall:number)=>shortfall<=0?0:Math.max(500,Math.ceil(shortfall/500)*500);
 
 export default function WickAI(){
-  const[view,setView]=useState<View>("home"),[text,setText]=useState(""),[messages,setMessages]=useState<Chat[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[numberPrice,setNumberPrice]=useState<any>(null),[numberLoading,setNumberLoading]=useState(false);
+  const[view,setView]=useState<View>("home"),[text,setText]=useState(""),[messages,setMessages]=useState<Chat[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[numberPrice,setNumberPrice]=useState<any>(null),[numberLoading,setNumberLoading]=useState(false),[walletBalance,setWalletBalance]=useState<number|null>(null),[walletLoading,setWalletLoading]=useState(false);
   const mounted=useRef(true),seq=useRef(0);
   useEffect(()=>()=>{mounted.current=false;seq.current++},[]);
   async function openNumberRecommendation(){if(numberLoading)return;setView("number");setError("");setNumberLoading(true);try{const data:any=await api.numbers.prices("","US","telegram");const list=Array.isArray(data)?data:(data?.prices||data?.items||data?.data||[]);if(!mounted.current)return;const parsed=Array.isArray(list)?list:[];const sorted=[...parsed].sort((a,b)=>Number(priceNgn(a)??Infinity)-Number(priceNgn(b)??Infinity));setNumberPrice(sorted[0]||null)}catch{if(mounted.current)setNumberPrice(null)}finally{if(mounted.current)setNumberLoading(false)}}
+  async function openWalletHelp(){setView("wallet");setError("");setWalletLoading(true);const token=getSessionToken();if(!token){setWalletBalance(null);setWalletLoading(false);return}try{const data:any=await api.wallet.get(token);if(!mounted.current)return;const raw=balanceNgn(data),value=Number(raw);setWalletBalance(raw!==null&&raw!==undefined&&Number.isFinite(value)?value:null)}catch{if(mounted.current)setWalletBalance(null)}finally{if(mounted.current)setWalletLoading(false)}}
   async function send(e:FormEvent){e.preventDefault();const message=text.trim();if(!message||busy)return;const token=getSessionToken();if(!token){setError("Please sign in to use Wick AI.");return}const history=[...messages,{role:"user" as const,text:message}],id=++seq.current;setMessages(history);setText("");setError("");setBusy(true);try{const context=history.slice(-8).map(m=>`${m.role==="user"?"User":"Assistant"}: ${m.text}`).join("\n");const prompt=`You are Wick AI, WickSpend's shopping and support assistant. Help the user choose among verification numbers, rentals, Boostly, digital tools, wallet funding, marketplace and existing orders. Never claim a purchase succeeded unless the WickSpend backend confirms it. Continue this conversation and answer the latest user message directly.\n\n${context}`;const r:any=await api.support.chat(token,prompt);const reply=r?.reply||r?.message||r?.response||r?.answer||r?.data?.reply||r?.data?.message||r?.data?.response;if(!reply||!String(reply).trim())throw new Error("Wick AI did not return a reply.");if(!mounted.current||id!==seq.current)return;setMessages(m=>[...m,{role:"assistant",text:String(reply).trim()}])}catch(e){if(!mounted.current||id!==seq.current)return;setText(message);setError(e instanceof Error?e.message:"Wick AI is temporarily unavailable.")}finally{if(mounted.current&&id===seq.current)setBusy(false)}}
+  const currentTotal=Number(priceNgn(numberPrice));
+  const hasOrderTotal=Number.isFinite(currentTotal)&&currentTotal>0;
+  const shortfall=hasOrderTotal&&walletBalance!==null?Math.max(0,currentTotal-walletBalance):null;
+  const suggested=shortfall!==null?suggestedTopUp(shortfall):0;
   return <main className={s.page}>
     {view==="home"&&<>
       <header className={s.header}><h1>Wick AI</h1><p>Tell me what you need and I’ll help you choose.</p></header>
       <button className={s.askCard} type="button" onClick={openNumberRecommendation}><small>Ask Wick AI</small><strong>“I need a US number for Telegram”</strong></button>
       <h2 className={s.sectionTitle}>Quick actions</h2>
-      <div className={s.quickList}>{quick.map(([title,sub,href])=><Link href={href} key={href}><span><b>{title}</b><small>{sub}</small></span><em>›</em></Link>)}</div>
+      <div className={s.quickList}>{quick.map(([title,sub,target])=>target==="number"?<button type="button" onClick={openNumberRecommendation} key={title}><span><b>{title}</b><small>{sub}</small></span><em>›</em></button>:target==="wallet"?<button type="button" onClick={openWalletHelp} key={title}><span><b>{title}</b><small>{sub}</small></span><em>›</em></button>:<Link href={target} key={target}><span><b>{title}</b><small>{sub}</small></span><em>›</em></Link>)}</div>
       <button className={s.start} type="button" onClick={()=>setView("chat")}>Start chat</button>
     </>}
     {view==="number"&&<>
@@ -42,8 +49,22 @@ export default function WickAI(){
         <h4>Why this match</h4><p>Matches your selected country and service.</p><p>Final price shown before purchase.</p>
       </section>
       <Link className={s.resultPrimary} href="/buy-number?country=USA&service=Telegram">Buy this number</Link>
+      <button className={s.resultSecondaryButton} type="button" onClick={openWalletHelp}>I don’t have enough balance</button>
       <Link className={s.resultSecondary} href="/buy-number?service=Telegram">Show other countries</Link>
       <div className={s.resultNote}>You’ll review the order before your wallet is charged.</div>
+    </>}
+    {view==="wallet"&&<>
+      <header className={s.resultHeader}><button type="button" aria-label="Back" onClick={()=>setView(hasOrderTotal?"number":"home")}>‹</button><h1>Wick AI</h1></header>
+      <div className={s.userPrompt}>I don’t have enough balance</div>
+      <section className={s.walletIntro}><h2>{hasOrderTotal?"No problem — here’s the shortfall.":"Let’s top up your wallet."}</h2><p>{hasOrderTotal?"Your order can continue after funding.":"Choose an amount and continue securely in Add Funds."}</p></section>
+      <section className={s.fundingCard}>
+        <small>{hasOrderTotal?"ORDER TOTAL":"WALLET BALANCE"}</small>
+        <strong>{walletLoading?"Checking…":hasOrderTotal?money(currentTotal):money(walletBalance)}</strong>
+        {hasOrderTotal&&<><div><span>Wallet balance</span><b>{walletLoading?"Checking…":money(walletBalance)}</b></div><div><span>Shortfall</span><b>{shortfall===null?"—":money(shortfall)}</b></div></>}
+      </section>
+      {hasOrderTotal&&shortfall!==null&&<section className={s.suggestedCard}><small>Suggested top up</small><strong>{shortfall>0?money(suggested):"No top up needed"}</strong><p>{shortfall>0?"Rounded to a practical funding amount.":"Your current wallet balance covers this order."}</p></section>}
+      {suggested>0?<Link className={s.resultPrimary} href={`/add-funds?amount=${encodeURIComponent(String(suggested))}`}>Fund {money(suggested).replace(".00","")}</Link>:<Link className={s.resultPrimary} href="/add-funds">Open Add Funds</Link>}
+      <Link className={s.resultSecondary} href="/add-funds">Choose another amount</Link>
     </>}
     {view==="chat"&&<>
       <header className={s.chatHeader}><button type="button" onClick={()=>setView("home")}>‹</button><div><h1>Wick AI</h1><p>Shopping and support assistant</p></div></header>
