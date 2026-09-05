@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {PageShell} from "@/components/PageShell";
 
 export default function TelegramConnected(){
@@ -16,7 +17,7 @@ export default function TelegramConnected(){
       <h3 style={{fontSize:12,margin:"0 0 10px"}}>Telegram notifications</h3>
       <p style={{fontSize:9,lineHeight:1.4,color:"#6e6e73",margin:0}}>OTP, orders, wallet, refunds, rental expiry and security alerts can be delivered here.</p>
     </section>
-    <button type="button" disabled title="Telegram disconnect backend is not verified yet" style={{width:"100%",height:44,marginTop:28,borderRadius:22,border:"1px solid rgba(0,0,0,.07)",background:"rgba(255,255,255,.95)",boxShadow:"0 6px 18px rgba(0,0,0,.08)",color:"#db1f1f",fontSize:11,fontWeight:600,opacity:.6}}>Disconnect Telegram</button>
+    <Link href="/telegram-connection/disconnect" style={{width:"100%",height:44,marginTop:28,borderRadius:22,border:"1px solid rgba(0,0,0,.07)",background:"rgba(255,255,255,.95)",boxShadow:"0 6px 18px rgba(0,0,0,.08)",color:"#db1f1f",fontSize:11,fontWeight:600,display:"grid",placeItems:"center"}}>Disconnect Telegram</Link>
     <p className="screenMessage">Connection details and disconnect controls will become live when the verified Telegram linking contract is available.</p>
   </PageShell>
 }
