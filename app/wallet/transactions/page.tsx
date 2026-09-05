@@ -1,0 +1,26 @@
+"use client";
+
+import {useEffect,useMemo,useState} from "react";
+import {useRouter} from "next/navigation";
+import {PageShell} from "@/components/PageShell";
+import {api} from "@/lib/api";
+import {getSessionToken} from "@/lib/session";
+import styles from "./transactions.module.css";
+
+type Filter="all"|"deposits"|"purchases"|"refunds"|"rewards";
+const refOf=(o:any)=>String(o?.reference||o?.transaction_reference||o?.payment_reference||o?.ref||o?.id||"");
+const typeOf=(o:any)=>String(o?.type||o?.kind||o?.category||o?.description||"Transaction");
+const statusOf=(o:any)=>String(o?.status||"Wallet activity");
+const amountOf=(o:any)=>{const raw=o?.amount_ngn??o?.final_amount_ngn??o?.amount;const n=Number(raw);return Number.isFinite(n)?`${n>0?"+":""}₦${Math.abs(n).toLocaleString()}`:"—"};
+const dateOf=(o:any)=>{const raw=o?.created_at||o?.date||o?.timestamp;if(!raw)return"";const d=new Date(raw);return Number.isNaN(d.getTime())?String(raw):d.toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})};
+function group(o:any):Filter{const s=String([typeOf(o),statusOf(o)].join(" ")).toLowerCase();if(/refund|reversal/.test(s))return"refunds";if(/reward|bonus|referral/.test(s))return"rewards";const n=Number(o?.amount_ngn??o?.final_amount_ngn??o?.amount);if(/top up|deposit|fund|credit/.test(s)||(Number.isFinite(n)&&n>0))return"deposits";return"purchases"}
+
+export default function WalletTransactions(){
+  const router=useRouter();const[items,setItems]=useState<any[]>([]);const[filter,setFilter]=useState<Filter>("all");const[query,setQuery]=useState("");const[selected,setSelected]=useState<any>(null);const[message,setMessage]=useState("Loading transactions…");const[copied,setCopied]=useState(false);
+  useEffect(()=>{let cancelled=false;const token=getSessionToken();if(!token){setMessage("Please sign in to view transactions.");return;}api.wallet.transactions(token).then((r:any)=>{if(cancelled)return;const list=Array.isArray(r)?r:(r?.transactions||r?.items||r?.data||[]);setItems(Array.isArray(list)?list:[]);setMessage("")}).catch(e=>{if(!cancelled)setMessage(e instanceof Error?e.message:"Unable to load transactions")});return()=>{cancelled=true}},[]);
+  const visible=useMemo(()=>items.filter(o=>filter==="all"||group(o)===filter).filter(o=>!query.trim()||String([typeOf(o),statusOf(o),refOf(o),amountOf(o)].join(" ")).toLowerCase().includes(query.trim().toLowerCase())),[items,filter,query]);
+  async function copyRef(){if(!selected)return;const ref=refOf(selected);if(!ref)return;try{await navigator.clipboard.writeText(ref);setCopied(true);setTimeout(()=>setCopied(false),1400)}catch{}}
+  if(selected)return <PageShell title="" subtitle=""><div className={styles.screen}><div className={styles.top}><button className={styles.back} type="button" onClick={()=>setSelected(null)}>‹</button><h1>Transaction Details</h1></div><section className={styles.detailCard}><div className={styles.detailRows}><div className={styles.detailRow}><span>Transaction ID</span><strong>{selected?.id||refOf(selected)||"—"}</strong></div><div className={styles.detailRow}><span>Type</span><strong>{typeOf(selected)}</strong></div><div className={styles.detailRow}><span>Amount</span><strong>{amountOf(selected)}</strong></div><div className={styles.detailRow}><span>Status</span><strong>{statusOf(selected)}</strong></div><div className={styles.detailRow}><span>Date</span><strong>{dateOf(selected)||"—"}</strong></div><div className={styles.detailRow}><span>Reference</span><strong>{refOf(selected)||"—"}</strong></div><div className={styles.detailRow}><span>Related Order</span><strong>{selected?.order_reference||selected?.order_id||"—"}</strong></div></div><button className={styles.copy} type="button" onClick={copyRef}>{copied?"Copied":"Copy Reference"}</button></section><div className={styles.note}>Transaction references can be copied for support or records.</div></div></PageShell>;
+  const filters:[Filter,string][]=[["all","All"],["deposits","Deposits"],["purchases","Purchases"],["refunds","Refunds"],["rewards","Rewards"]];
+  return <PageShell title="" subtitle=""><div className={styles.screen}><div className={styles.top}><button className={styles.back} type="button" onClick={()=>router.push("/wallet")}>‹</button><h1>Transaction History</h1></div><input className={styles.search} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search transactions" aria-label="Search transactions"/><div className={styles.filters}>{filters.map(([key,label])=><button type="button" key={key} onClick={()=>setFilter(key)} className={`${styles.filter} ${filter===key?styles.active:""}`}>{label}</button>)}</div><section className={styles.list}>{visible.length?visible.map((tx:any,i)=><button type="button" onClick={()=>setSelected(tx)} className={styles.row} key={refOf(tx)||i} style={{width:"100%",border:0,background:"transparent",textAlign:"left",cursor:"pointer"}}><div><div className={styles.title}>{typeOf(tx)}</div><div className={styles.meta}>{dateOf(tx)||statusOf(tx)}</div></div><div><div className={styles.amount}>{amountOf(tx)}</div><div className={styles.status}>{statusOf(tx)}</div></div></button>):<div className={styles.empty}>{message||"No transactions match this filter."}</div>}</section>{message&&items.length>0&&<p className={styles.message}>{message}</p>}</div></PageShell>;
+}
