@@ -29,7 +29,9 @@ const refundOf = (v: any) => {
 const refundRefOf = (v: any) => String(v?.refund_reference || v?.refund_ref || v?.refund?.reference || "");
 const dateObj = (v: any) => { if (!v) return null; const d = new Date(v); return Number.isNaN(d.getTime()) ? null : d; };
 const clock = (v: any) => { const d = dateObj(v); return d ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "—"; };
-const cancelledStatus = (v: any) => /cancelled|canceled|refunded/i.test(String(v?.status || v?.state || ""));
+const cancelledStatus = (v: any) => /cancelled|canceled/i.test(String(v?.status || v?.state || ""));
+const refundConfirmed = (v:any) => /refunded|refund(ed)?|completed|approved|successful|success/i.test(String(v?.refund_status || v?.refund?.status || v?.status || v?.state || ""));
+const walletMoney = (v:any) => { const n=Number(v); return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:""; };
 
 export default function OtpPage() {
   const [data, setData] = useState<any>(null);
@@ -38,6 +40,7 @@ export default function OtpPage() {
   const [confirm, setConfirm] = useState(false);
   const [cancelError, setCancelError] = useState(false);
   const [toast, setToast] = useState("");
+  const [walletBalance,setWalletBalance]=useState("");
   const mounted = useRef(true);
   const seq = useRef(0);
   const reference = useMemo(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("reference") || "" : "", []);
@@ -71,6 +74,22 @@ export default function OtpPage() {
     return () => window.clearInterval(timer);
   }, [reference]);
 
+  const refund = refundOf(data);
+  const refunded = Boolean(data && refund && refundConfirmed(data));
+
+  useEffect(()=>{
+    if(!refunded)return;
+    const token=getSessionToken();
+    if(!token)return;
+    let active=true;
+    api.wallet.get(token).then((w:any)=>{
+      if(!active)return;
+      const raw=w?.balance_ngn??w?.wallet_balance_ngn??w?.balance??w?.wallet?.balance_ngn??w?.data?.balance_ngn??w?.data?.balance;
+      setWalletBalance(walletMoney(raw));
+    }).catch(()=>{});
+    return()=>{active=false};
+  },[refunded]);
+
   async function cancel() {
     if (busy || !reference) return;
     const token = getSessionToken();
@@ -89,16 +108,13 @@ export default function OtpPage() {
         const statusResult: any = await api.numbers.status(token, reference);
         const statusPayload = payloadOf(statusResult);
         if (statusPayload && typeof statusPayload === "object") confirmed = statusPayload;
-      } catch {
-        // The cancel response may itself contain a confirmed terminal state.
-      }
+      } catch {}
 
       if (!mounted.current || id !== seq.current) return;
       if (confirmed && typeof confirmed === "object") setData(confirmed);
 
-      if (cancelledStatus(confirmed)) {
-        setMessage("");
-      } else {
+      if (cancelledStatus(confirmed) || refundConfirmed(confirmed)) setMessage("");
+      else {
         setCancelError(true);
         setMessage("Cancellation was not confirmed. Refresh before taking another action.");
       }
@@ -130,10 +146,9 @@ export default function OtpPage() {
   const country = countryOf(data);
   const expired = /expired/i.test(status);
   const cancelled = cancelledStatus(data);
-  const terminal = expired || cancelled || /failed|complete/i.test(status);
+  const terminal = expired || cancelled || refunded || /failed|complete/i.test(status);
   const created = data?.created_at || data?.createdAt || data?.purchased_at || data?.purchase_date;
   const expires = data?.expires_at || data?.expiry_at || data?.expiresAt;
-  const refund = refundOf(data);
   const refundReference = refundRefOf(data);
   const remaining = (() => {
     if (expired) return "Expired";
@@ -144,9 +159,25 @@ export default function OtpPage() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   })();
   const target = service.toLowerCase().includes("telegram") ? "https://web.telegram.org" : service.toLowerCase().includes("instagram") ? "https://www.instagram.com" : service.toLowerCase().includes("facebook") ? "https://www.facebook.com" : service.toLowerCase().includes("tiktok") ? "https://www.tiktok.com" : "https://web.whatsapp.com";
+  const orderLabel=reference?`Order #${reference}`:"Order details";
+  const productLabel=`${country} ${service} Number`;
 
   return <main className="shell appShell">
     <div className={styles.screen}>
+      {refunded ? <section className={styles.refundedTerminal}>
+        <div className={styles.refundedCheck}>✓</div>
+        <h1>Number cancelled</h1><p>The provider approved the cancellation.</p>
+        <div className={styles.refundedCard}><small>REFUND</small><strong>{refund}</strong><p>Returned to WickSpend Wallet</p><div><span>New balance</span><b>{walletBalance||"Updated in wallet"}</b></div></div>
+        <div className={styles.refundedOrder}><b>{orderLabel}</b><p>{productLabel} • Cancelled</p><strong>Refund completed</strong>{refundReference&&<small>Reference • {refundReference}</small>}</div>
+        <Link href="/buy-number" className={styles.refundedPrimary}>Buy another number</Link><Link href="/wallet" className={styles.refundedSecondary}>View wallet</Link>
+      </section> : expired ? <section className={styles.expiredTerminal}>
+        <header><Link href="/buy-number" aria-label="Back">‹</Link><div><h1>Number expired</h1><p>The verification window has ended.</p></div></header>
+        <div className={styles.expiredStatus}><small>STATUS</small><strong>Expired</strong><b>{productLabel}</b><p>{orderLabel}</p></div>
+        <h2>Refund status</h2>
+        <div className={styles.expiredRefund}><b>Refund review</b><p>If the provider confirms the number was unused,<br/>the eligible amount is returned to your wallet.</p><strong>Status • {refundConfirmed(data)?"Provider confirmation received":"Pending provider confirmation"}</strong></div>
+        <Link className={styles.expiredPrimary} href="/buy-number">Buy another number</Link><Link className={styles.expiredSecondary} href="/orders">View order details</Link>
+        <div className={styles.expiredNote}><b>You will not be charged twice</b><p>Any approved refund returns to your WickSpend Wallet.</p></div>
+      </section> : <>
       <header className={styles.header}>
         <h1>OTP</h1><p>Receive SMS/OTP in real time.</p>
         <button className={styles.refreshTop} type="button" disabled={busy || !reference} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button>
@@ -160,28 +191,25 @@ export default function OtpPage() {
         </section>
         <section className={styles.info}>
           <div><small>Time Remaining</small><strong>{remaining}</strong></div><div><small>Purchased At</small><strong>{clock(created)}</strong></div>
-          <div><small>{expired ? "Expired At" : "Expires At"}</small><strong>{clock(expires)}</strong></div><div><small>Total Price</small><strong>{amountOf(data)}</strong></div>
+          <div><small>Expires At</small><strong>{clock(expires)}</strong></div><div><small>Total Price</small><strong>{amountOf(data)}</strong></div>
         </section>
       </>}
 
       {cancelled && <>
         <section className={styles.cancelledSuccess}>
           <div className={styles.check}>✓</div><h2>Number Cancelled</h2>
-          <strong>{refund ? `${refund} returned to wallet.` : "Cancellation confirmed."}</strong>
-          <p>{refund ? "The cancellation and refund were confirmed." : "The cancellation was confirmed. No refund amount is shown until the backend confirms it."}</p>
+          <strong>Cancellation confirmed.</strong>
+          <p>No refund is shown as completed until the provider/backend confirms a refund amount and status.</p>
           <Link href="/buy-number" className={styles.primary}>Back to Numbers</Link>
         </section>
         <section className={styles.refundStatus}>
           <div><small>Status</small><strong>Cancelled</strong></div>
-          <div><small>Refund</small><strong>{refund ? `${refund} confirmed` : "Not confirmed"}</strong></div>
-          <p>{refundReference ? `Refund reference ${refundReference}` : "Refund reference shown only after confirmation."}</p>
+          <div><small>Refund</small><strong>Not confirmed</strong></div>
+          <p>Refund information will appear only after provider confirmation.</p>
         </section>
       </>}
 
-      {data && !cancelled && (expired ? <section className={styles.expiredState}>
-        <h2>Number expired</h2><p>This number is no longer active and cannot receive new OTP/SMS messages.</p>
-        <Link className={styles.primary} href="/buy-number">Buy Another Number</Link><Link className={styles.secondary} href="/orders">View History</Link>
-      </section> : cancelError ? <>
+      {data && !cancelled && (cancelError ? <>
         <section className={styles.cancelErrorCard}>
           <h2>Unable to cancel this number.</h2><p>The cancellation was not confirmed.<br/>No refund is being claimed or shown as completed.</p>
           <div className={styles.errorActions}><button type="button" disabled={busy} onClick={cancel}>Try Again</button><button type="button" onClick={() => { setCancelError(false); setMessage(""); }}>Keep Number</button></div>
@@ -194,6 +222,7 @@ export default function OtpPage() {
       </>)}
 
       {message && !cancelled && <p className={`${styles.message} ${/unable|failed|missing|sign in|not confirmed/i.test(message) ? styles.error : ""}`} role="status">{message}</p>}
+      </>}
     </div>
 
     {toast && <div className={styles.toast}>{toast}</div>}
