@@ -88,14 +88,15 @@ export default function WalletPayment(){
         <section className={styles.receiptCard}><b>Payment receipt saved</b><p>This funding transaction is available in your wallet history.</p></section>
       </>}
 
-      {state==="failed"&&<>
-        <div className={`${styles.statusIcon} ${styles.failIcon}`}>!</div>
-        <header className={styles.centerHeader}><h1>Payment failed</h1><p>The transfer could not be confirmed.</p></header>
-        <section className={styles.paymentCard}><div className={styles.paymentTop}><small>PAYMENT</small><span>FAILED</span></div><strong className={styles.paymentAmount}>{displayAmount}</strong><b className={styles.method}>Bank transfer</b><p>Reference • {reference||"—"}</p></section>
-        <section className={styles.infoCard}><b>No wallet credit was added</b><p>Check your transaction status before trying another payment.</p></section>
-        <Link href="/add-funds" className={styles.primaryButton}>Try again</Link>
-        <Link href="/wallet/transactions" className={styles.outlineLink}>View transactions</Link>
-      </>}
+      {state==="failed"&&<div className={styles.failedScreen}>
+        <header className={styles.walletHeader}><h1>Wallet</h1><p>Manage your balance and transactions.</p></header>
+        <section className={styles.failedCard}>
+          <h2>Payment Failed</h2>
+          <p className={styles.failedCopy}>The payment could not be completed.<br/>No funds were added to your wallet.</p>
+          <div className={styles.failedDetails}><div><small>Amount</small><strong>{displayAmount}</strong></div><div><small>Reference</small><strong>{reference||"—"}</strong></div></div>
+          <div className={styles.failedActions}><Link href="/add-funds" className={styles.failedPrimary}>Try Again</Link><Link href="/payment-methods" className={styles.failedSecondary}>Change Method</Link></div>
+        </section>
+      </div>}
 
       {message&&<p className={styles.message} role="status">{message}</p>}
     </div>
