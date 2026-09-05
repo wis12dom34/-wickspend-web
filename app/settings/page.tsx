@@ -29,7 +29,7 @@ export default function Settings(){
       <p>Connections &amp; support</p>
       <div className="profileRows">
         <Link className="profileRow settingsRow" href="/telegram-connection"><span aria-hidden="true">▣</span><span><b>Telegram</b><small>Not connected</small></span><i aria-hidden="true">›</i></Link>
-        <Link className="profileRow settingsRow" href="/support"><span aria-hidden="true">?</span><span><b>Help &amp; Support</b><small>Get assistance</small></span><i aria-hidden="true">›</i></Link>
+        <Link className="profileRow settingsRow" href="/help-support"><span aria-hidden="true">?</span><span><b>Help &amp; Support</b><small>Get assistance</small></span><i aria-hidden="true">›</i></Link>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">≡</span><span><b>Privacy &amp; Terms</b><small>Review our policies</small></span><i aria-hidden="true">›</i></div>
       </div>
     </section>
