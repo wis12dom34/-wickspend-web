@@ -15,18 +15,28 @@ const countries = [
   ["🇵🇱", "Poland", "PL"],
 ] as const;
 const services = [
-  ["✈️", "Telegram", "telegram"],
-  ["🟢", "WhatsApp", "whatsapp"],
-  ["📸", "Instagram", "instagram"],
-  ["♪", "TikTok", "tiktok"],
-  ["f", "Facebook", "facebook"],
-  ["G", "Google", "google"],
+  ["Telegram", "telegram"],
+  ["WhatsApp", "whatsapp"],
+  ["Instagram", "instagram"],
+  ["TikTok", "tiktok"],
+  ["Facebook", "facebook"],
+  ["Google", "google"],
 ] as const;
 const countryCodes: Record<string, string> = Object.fromEntries(countries.map(([, name, code]) => [name, code]));
-const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([, name, code]) => [name, code]));
+const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([name, code]) => [name, code]));
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
 const money = (value: any) => { const n = Number(value); return Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—"; };
+
+function ServiceBrandIcon({ service }: { service: string }) {
+  const key = service.toLowerCase();
+  if (key === "whatsapp") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M7.1 17.3 8 14.9a6.4 6.4 0 1 1 2.3 2.2l-3.2.2Z" fill="none" stroke="#fff" strokeWidth="1.5"/><path d="M9.5 9.2c.2-.4.4-.4.7-.4h.4c.2 0 .4 0 .5.4l.6 1.4c.1.2.1.4-.1.6l-.5.6c-.2.2-.1.4 0 .6.5.9 1.2 1.6 2.1 2 .2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.4.7c.2.1.4.2.4.4 0 .2-.1 1.1-.7 1.6-.5.5-1.3.7-2 .5-1.2-.3-2.8-1.1-4-2.2-1.5-1.4-2.4-3.1-2.7-4.2-.2-.6.1-1.1.4-1.5l.6-.5Z" fill="#fff"/></svg>;
+  if (key === "telegram") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#2AABEE"/><path d="m6.8 11.7 9.7-3.8c.5-.2.9.1.7.8l-1.7 7.9c-.1.6-.5.8-1 .5l-2.6-1.9-1.3 1.2c-.1.1-.3.3-.6.3l.2-2.7 4.9-4.4c.2-.2-.1-.3-.3-.1l-6 3.8-2.6-.8c-.6-.2-.6-.6.1-.8Z" fill="#fff"/></svg>;
+  if (key === "instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ig-buy" x1="3" y1="21" x2="21" y2="3"><stop stopColor="#FEDA75"/><stop offset=".35" stopColor="#FA7E1E"/><stop offset=".65" stopColor="#D62976"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-buy)"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="17.4" cy="6.7" r="1.1" fill="#fff"/></svg>;
+  if (key === "facebook") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#1877F2"/><path d="M13.4 20v-7h2.4l.4-2.7h-2.8V8.6c0-.8.2-1.3 1.4-1.3h1.5V4.9c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v1.7H8V13h2.4v7h3Z" fill="#fff"/></svg>;
+  if (key === "tiktok") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" fill="#000"/><path d="M14.2 6c.4 1.8 1.4 2.9 3.2 3.2v2.2c-1.2 0-2.3-.4-3.2-1.1v4.4a4 4 0 1 1-3.5-4v2.2a1.8 1.8 0 1 0 1.3 1.8V6h2.2Z" fill="#fff"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M19.6 12.2c0-.6-.1-1.2-.2-1.7H12v3h4.2a3.6 3.6 0 0 1-1.6 2.4v2h2.6c1.5-1.4 2.4-3.4 2.4-5.7Z" fill="#4285F4"/><path d="M12 20c2.2 0 4-.7 5.3-1.9l-2.6-2a4.8 4.8 0 0 1-7.1-2.5H4.9v2.1A8 8 0 0 0 12 20Z" fill="#34A853"/><path d="M7.6 13.6a4.8 4.8 0 0 1 0-3.1V8.4H4.9a8 8 0 0 0 0 7.3l2.7-2.1Z" fill="#FBBC05"/><path d="M12 7.3c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8 8 0 0 0 4.9 8.4l2.7 2.1A4.8 4.8 0 0 1 12 7.3Z" fill="#EA4335"/></svg>;
+}
 
 export default function BuyNumberPage() {
   const router = useRouter();
@@ -116,7 +126,6 @@ export default function BuyNumberPage() {
   }
 
   const selectedCountry = countries.find(([, name]) => name === country);
-  const selectedService = services.find(([, name]) => name === service);
 
   return (
     <PageShell title="Buy Number" subtitle="Choose a country and service">
@@ -131,11 +140,11 @@ export default function BuyNumberPage() {
         </button>
 
         <button type="button" className="selectorCard" onClick={() => document.getElementById("serviceSelect")?.focus()}>
-          <span className="selectorIcon serviceSelectorIcon">{selectedService?.[0]}</span>
+          <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={service}/></span>
           <span className="selectorCopy"><small>Service</small><strong>{service}</strong></span>
           <span className="selectorChevron">⌄</span>
           <select id="serviceSelect" aria-label="Service" value={service} disabled={buying} onChange={(e) => resetSelection("service", e.target.value)}>
-            {services.map(([, name]) => <option key={name}>{name}</option>)}
+            {services.map(([name]) => <option key={name}>{name}</option>)}
           </select>
         </button>
 
