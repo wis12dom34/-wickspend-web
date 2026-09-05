@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { api } from "@/lib/api";
+import { getSessionToken } from "@/lib/session";
 import styles from "./marketplace.module.css";
 
 type Category = "Social Accounts" | "Digital Accounts" | "Premium Products" | "Tools" | "Other";
@@ -38,6 +40,14 @@ const sectionMap = [
   ["Recommended", "Matched to recent activity", ["instagram-account", "discord-account"]],
 ] as const;
 
+const numericPrice = (value: string) => Number(value.replace(/[^0-9.]/g, "")) || 0;
+const money = (value: number | null) => value == null ? "—" : `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const walletBalance = (wallet: any) => {
+  const raw = wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+};
+
 function ProductIcon({ product }: { product: Product }) {
   return <span className={`${styles.productIcon} ${product.tone === "dark" ? styles.iconDark : ""} ${product.tone === "blue" ? styles.iconBlue : ""}`} aria-hidden="true">
     {product.iconUrl ? <img src={product.iconUrl} alt="" loading="lazy" /> : <b>{product.iconText}</b>}
@@ -71,6 +81,20 @@ export default function Marketplace() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [notice, setNotice] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = getSessionToken();
+    if (!token) return;
+    api.wallet.get(token).then((payload: any) => {
+      if (!cancelled) setBalance(walletBalance(payload));
+    }).catch(() => {
+      if (!cancelled) setBalance(null);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const normalized = query.trim().toLowerCase();
   const filtered = useMemo(() => products.filter((product) => {
@@ -83,11 +107,34 @@ export default function Marketplace() {
     setSelected(product);
     setQuantity(1);
     setNotice("");
+    setConfirming(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (selected) {
     const soldOut = selected.stock <= 0;
+    const total = numericPrice(selected.price) * quantity;
+    const balanceAfter = balance == null ? null : balance - total;
+
+    if (soldOut) {
+      return <main className={`${styles.screen} ${styles.stateScreen}`}>
+        <header className={styles.topHeader}>
+          <div><h1>Marketplace</h1><p>Premium digital products, one clean checkout.</p></div>
+          <Link href="/orders" className={styles.ordersButton}>Orders</Link>
+        </header>
+        <section className={styles.stockCard}>
+          <span>{selected.category.replace(/s$/, "")}</span>
+          <h2>{selected.name}</h2>
+          <b>Out of stock</b>
+          <strong>{selected.price}</strong>
+        </section>
+        <button type="button" className={styles.notifyButton} onClick={() => setNotice("Availability alerts will appear here when Marketplace notification support is connected.")}>Notify Me</button>
+        <p className={styles.stateHint}>This product is currently unavailable.</p>
+        {notice && <p className={styles.centerNotice} role="status">{notice}</p>}
+        <BottomNav />
+      </main>;
+    }
+
     return <main className={`${styles.screen} ${styles.detailScreen}`}>
       <header className={styles.topHeader}>
         <div>
@@ -97,13 +144,13 @@ export default function Marketplace() {
         <Link href="/orders" className={styles.ordersButton}>Orders</Link>
       </header>
 
-      <button type="button" className={styles.backLink} onClick={() => { setSelected(null); setNotice(""); }}>‹ Back</button>
+      <button type="button" className={styles.backLink} onClick={() => { setSelected(null); setNotice(""); setConfirming(false); }}>‹ Back</button>
 
       <section className={styles.heroCard}>
         <span>{selected.category.replace(/s$/, "")}</span>
         <h2>{selected.name}</h2>
         <p>{selected.location}</p>
-        <div><strong>{selected.price}</strong><b>{soldOut ? "Out of stock" : "In stock"}</b></div>
+        <div><strong>{selected.price}</strong><b>In stock</b></div>
       </section>
 
       <section className={styles.detailCopy}><h3>Description</h3><p>Premium digital access delivered securely after purchase.</p></section>
@@ -121,14 +168,24 @@ export default function Marketplace() {
           </div>
         </div>
         <button type="button" className={styles.saveButton} onClick={() => setNotice("Saved for later on this device.")}>Save</button>
-        <button
-          type="button"
-          className={styles.buyNow}
-          disabled={soldOut}
-          onClick={() => setNotice("Marketplace checkout will activate when the verified provider purchase route is connected.")}
-        >{soldOut ? "Sold Out" : "Buy Now"}</button>
+        <button type="button" className={styles.buyNow} onClick={() => { setNotice(""); setConfirming(true); }}>Buy Now</button>
       </div>
       {notice && <p className={styles.notice} role="status">{notice}</p>}
+
+      {confirming && <div className={styles.confirmBackdrop} role="presentation" onClick={() => setConfirming(false)}>
+        <section className={styles.confirmSheet} role="dialog" aria-modal="true" aria-label="Confirm purchase" onClick={(event) => event.stopPropagation()}>
+          <h2>Confirm purchase</h2>
+          <div className={styles.confirmRows}>
+            <div><span>Product</span><strong>{selected.name}</strong></div>
+            <div><span>Quantity</span><strong>{quantity}</strong></div>
+            <div><span>Price</span><strong>{money(total)}</strong></div>
+            <div><span>Wallet Balance</span><strong>{money(balance)}</strong></div>
+            <div><span>Balance After Purchase</span><strong>{balanceAfter == null ? "—" : money(balanceAfter)}</strong></div>
+          </div>
+          <button type="button" className={styles.confirmButton} onClick={() => { setConfirming(false); setNotice("Marketplace checkout is not live yet because the verified provider purchase route has not been connected."); }}>Confirm Purchase</button>
+          <button type="button" className={styles.cancelButton} onClick={() => setConfirming(false)}>Cancel</button>
+        </section>
+      </div>}
       <BottomNav />
     </main>;
   }
