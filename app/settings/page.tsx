@@ -7,8 +7,8 @@ import {api} from "@/lib/api";
 import {clearSessionToken,getSessionToken} from "@/lib/session";
 
 export default function Settings(){
-  const router=useRouter(),[showSignOut,setShowSignOut]=useState(false),[busy,setBusy]=useState(false);
-  useEffect(()=>{const q=new URLSearchParams(window.location.search);if(q.get("signout")==="1")setShowSignOut(true)},[]);
+  const router=useRouter(),[showSignOut,setShowSignOut]=useState(false),[busy,setBusy]=useState(false),[displayCurrency,setDisplayCurrency]=useState("NGN");
+  useEffect(()=>{const q=new URLSearchParams(window.location.search);if(q.get("signout")==="1")setShowSignOut(true);const saved=localStorage.getItem("wickspend_display_currency");if(saved)setDisplayCurrency(saved)},[]);
   useEffect(()=>{if(!showSignOut)return;const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape"&&!busy)setShowSignOut(false)};window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey)},[showSignOut,busy]);
   async function signOut(){
     if(busy)return;
@@ -23,13 +23,13 @@ export default function Settings(){
         <Link className="profileRow settingsRow" href="/notification-preferences"><span aria-hidden="true">🔔</span><span><b>Notifications</b><small>Choose what WickSpend sends</small></span><i aria-hidden="true">›</i></Link>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">◎</span><span><b>Language</b><small>English</small></span><em>English</em><i aria-hidden="true">›</i></div>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">◐</span><span><b>Appearance</b><small>Light</small></span><em>Light</em><i aria-hidden="true">›</i></div>
-        <Link className="profileRow settingsRow" href="/wallet"><span aria-hidden="true">$</span><span><b>Currency</b><small>NGN</small></span><em>NGN</em><i aria-hidden="true">›</i></Link>
+        <Link className="profileRow settingsRow" href="/currency-balance"><span aria-hidden="true">$</span><span><b>Currency</b><small>Display preference</small></span><em>{displayCurrency}</em><i aria-hidden="true">›</i></Link>
       </div>
     </section>
     <section className="profileGroup settingsSupportGroup">
       <p>Connections &amp; support</p>
       <div className="profileRows">
-        <Link className="profileRow settingsRow" href="/telegram-connection"><span aria-hidden="true">▣</span><span><b>Telegram</b><small>Not connected</small></span><i aria-hidden="true">›</i></Link>
+        <Link className="profileRow settingsRow" href="/telegram-connection"><span aria-hidden="true">▣</span><span><b>Telegram</b><small>Manage Telegram connection</small></span><i aria-hidden="true">›</i></Link>
         <Link className="profileRow settingsRow" href="/help-support"><span aria-hidden="true">?</span><span><b>Help &amp; Support</b><small>Get assistance</small></span><i aria-hidden="true">›</i></Link>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">≡</span><span><b>Privacy &amp; Terms</b><small>Review our policies</small></span><i aria-hidden="true">›</i></div>
       </div>
