@@ -19,7 +19,7 @@ export default function Settings(){
     <section className="profileGroup">
       <p>Preferences</p>
       <div className="profileRows">
-        <Link className="profileRow settingsRow" href="/notifications"><span aria-hidden="true">🔔</span><span><b>Notifications</b><small>Choose what WickSpend sends</small></span><i aria-hidden="true">›</i></Link>
+        <Link className="profileRow settingsRow" href="/notification-preferences"><span aria-hidden="true">🔔</span><span><b>Notifications</b><small>Choose what WickSpend sends</small></span><i aria-hidden="true">›</i></Link>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">◎</span><span><b>Language</b><small>English</small></span><em>English</em><i aria-hidden="true">›</i></div>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">◐</span><span><b>Appearance</b><small>Light</small></span><em>Light</em><i aria-hidden="true">›</i></div>
         <Link className="profileRow settingsRow" href="/wallet"><span aria-hidden="true">$</span><span><b>Currency</b><small>NGN</small></span><em>NGN</em><i aria-hidden="true">›</i></Link>
