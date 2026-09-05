@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PageShell } from "@/components/PageShell";
 
@@ -12,27 +12,38 @@ const previewProducts = [
 
 export default function Marketplace() {
   const [query, setQuery] = useState("");
-  const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? previewProducts.filter(([, name]) => name.toLowerCase().includes(q)) : previewProducts;
-  }, [query]);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProducts = useMemo(
+    () => normalizedQuery ? previewProducts.filter(([, name]) => name.toLowerCase().includes(normalizedQuery)) : previewProducts,
+    [normalizedQuery]
+  );
+  function clearSearch() {
+    setQuery("");
+    requestAnimationFrame(() => searchRef.current?.focus());
+  }
 
   return (
     <PageShell title="Marketplace" subtitle="Premium accounts and digital products">
-      <label className="marketplaceSearch" aria-label="Marketplace search">
+      <label className="marketplaceSearch">
         <span aria-hidden="true">⌕</span>
         <input
+          ref={searchRef}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search products"
+          aria-label="Search marketplace products"
+          aria-controls="marketplace-results"
           autoComplete="off"
+          enterKeyHint="search"
         />
+        {query && <button type="button" onClick={clearSearch} aria-label="Clear marketplace search">×</button>}
       </label>
 
-      <div className="marketplaceSectionHeading"><h2>Featured</h2><span>Coming soon</span></div>
+      <div className="marketplaceSectionHeading"><h2>Featured</h2><span>{normalizedQuery ? `${filteredProducts.length} found` : "Coming soon"}</span></div>
       {filteredProducts.length > 0 ? (
-        <section className="marketplaceGrid" aria-live="polite">
+        <section id="marketplace-results" className="marketplaceGrid" aria-live="polite" aria-label="Marketplace products">
           {filteredProducts.map(([icon, name, price]) => (
             <article className="marketplaceProduct" key={name}>
               <div className="marketplaceProductIcon" aria-hidden="true">{icon}</div>
@@ -42,11 +53,11 @@ export default function Marketplace() {
           ))}
         </section>
       ) : (
-        <section className="marketplaceNotice" role="status">
+        <section id="marketplace-results" className="marketplaceNotice" role="status">
           <div className="marketplaceNoticeIcon" aria-hidden="true">⌕</div>
           <h3>No products found</h3>
-          <p>Try a different search term.</p>
-          <button type="button" className="marketplaceHomeButton" onClick={() => setQuery("")}>Clear Search</button>
+          <p>No preview products match “{query.trim()}”.</p>
+          <button type="button" className="marketplaceHomeButton" onClick={clearSearch}>Clear Search</button>
         </section>
       )}
 
