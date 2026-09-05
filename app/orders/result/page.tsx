@@ -1,0 +1,23 @@
+"use client";
+import Link from "next/link";
+import {useEffect,useState} from "react";
+import {BottomNav} from "@/components/BottomNav";
+import {api} from "@/lib/api";
+import {getSessionToken} from "@/lib/session";
+import s from "./result.module.css";
+
+const refOf=(o:any)=>String(o?.reference||o?.order_reference||o?.ref||o?.id||"");
+const amountOf=(o:any)=>{const ngn=o?.amount_ngn??o?.final_amount_ngn??o?.price_ngn;if(ngn!=null&&Number.isFinite(Number(ngn)))return `₦${Number(ngn).toLocaleString()}`;const usd=o?.amount_usd??o?.price_usd??o?.amount??o?.price;if(usd!=null&&Number.isFinite(Number(usd)))return `$${Number(usd).toFixed(2)}`;return "—"};
+const dateOf=(o:any)=>{const raw=o?.completed_at||o?.updated_at||o?.created_at||o?.createdAt;if(!raw)return "—";const d=new Date(raw);return Number.isNaN(d.getTime())?String(raw):d.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
+const statusOf=(o:any)=>String(o?.status||o?.state||"").toLowerCase();
+const serviceOf=(o:any)=>String(o?.service||o?.product||o?.title||o?.service_name||"WickSpend order");
+const refundRef=(o:any)=>String(o?.refund_reference||o?.refund_ref||o?.refund?.reference||"");
+const refundAmount=(o:any)=>{const raw=o?.refund_amount_ngn??o?.refunded_amount_ngn??o?.refund_amount??o?.refund?.amount;return raw!=null&&Number.isFinite(Number(raw))?(o?.refund_amount_ngn!=null||o?.refunded_amount_ngn!=null?`₦${Number(raw).toLocaleString()}`:`$${Number(raw).toFixed(2)}`):""};
+
+export default function OrderResult(){
+ const[order,setOrder]=useState<any>(null),[message,setMessage]=useState("Loading order…");
+ useEffect(()=>{let live=true;const reference=new URLSearchParams(window.location.search).get("reference")||"";const token=getSessionToken();if(!reference){setMessage("Order reference is missing.");return}if(!token){setMessage("Please sign in to view this order.");return}api.orders(token).then((d:any)=>{if(!live)return;const list=Array.isArray(d)?d:(d?.orders||d?.items||d?.data||[]);const hit=(Array.isArray(list)?list:[]).find((x:any)=>refOf(x)===reference);if(hit){setOrder(hit);setMessage("")}else setMessage("Order not found.")}).catch(e=>live&&setMessage(e instanceof Error?e.message:"Unable to load order"));return()=>{live=false}},[]);
+ if(!order)return <main className={s.page}><section className={s.center}><h1>Order status</h1><p>{message}</p><Link href="/orders">Back to Orders</Link></section><BottomNav/></main>;
+ const status=statusOf(order),completed=/complete|delivered|success/.test(status),refunded=/refund/.test(status)||Boolean(refundRef(order))||Boolean(refundAmount(order)),failed=/fail|cancel|reject|error/.test(status);const ref=refOf(order),amount=amountOf(order),service=serviceOf(order),qty=order?.quantity||order?.qty||"—";
+ return <main className={s.page}><section className={s.hero}><div className={s.circle}>{completed?"✓":"!"}</div><h1>{completed?"Order completed":"Order failed"}</h1><p>{completed?"Your order has finished successfully.":"The order could not be completed."}</p></section>{completed?<><section className={s.card}><h2>Order summary</h2><div><span>Order ID</span><b>#{ref}</b></div><div><span>Service</span><b>{service}</b></div><div><span>Quantity</span><b>{Number(qty).toLocaleString?.()||qty}</b></div><div><span>Total</span><b>{amount}</b></div><div><span>Completed</span><b>{dateOf(order)}</b></div></section><section className={s.note}><b>Delivery complete</b><p>You can review this order anytime from Orders.</p></section><Link className={s.primary} href="/boostly">Order another service</Link><Link className={s.secondary} href={`/orders/receipt?reference=${encodeURIComponent(ref)}`}>View receipt</Link></>:<><section className={s.card}><h2>{refunded?"Payment refunded":"Payment status"}</h2><p className={s.sub}>{refunded?"Your wallet refund is confirmed by the order record.":"A refund has not been confirmed in the current order record."}</p><div><span>Order ID</span><b>#{ref}</b></div><div><span>Amount</span><b>{amount}</b></div>{refunded&&<><div><span>Refunded to</span><b>{order?.refund_destination||"WickSpend Wallet"}</b></div>{refundAmount(order)&&<div><span>Refund amount</span><b>{refundAmount(order)}</b></div>}{refundRef(order)&&<div><span>Reference</span><b>{refundRef(order)}</b></div>}</>}</section><section className={s.note}><b>Why it failed</b><p>{order?.failure_reason||order?.reason||order?.message||(failed?"The provider could not complete this order.":"The order is not in a completed state.")}</p></section><Link className={s.primary} href="/orders">Check order status</Link><Link className={s.secondary} href="/help-support">Contact support</Link></>}<BottomNav/></main>;
+}
