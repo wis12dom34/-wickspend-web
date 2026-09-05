@@ -1,39 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { BottomNav } from "@/components/BottomNav";
+import {useEffect,useMemo,useState} from "react";
+import {BottomNav} from "@/components/BottomNav";
+import {api} from "@/lib/api";
+import {getSessionToken} from "@/lib/session";
 import styles from "./marketplace.module.css";
 
-export default function Marketplace() {
-  return <main className={`${styles.screen} ${styles.stateScreen}`}>
-    <header className={styles.topHeader}>
-      <div>
-        <h1>Marketplace</h1>
-        <p>Premium digital products, one clean checkout.</p>
-      </div>
-      <Link href="/orders" className={styles.ordersButton}>Orders</Link>
-    </header>
+const idOf=(p:any)=>String(p?.product_id??p?.id??p?.code??"");
+const nameOf=(p:any)=>String(p?.name??p?.title??p?.product_name??"Product");
+const stockOf=(p:any)=>{const raw=p?.stock??p?.quantity_available??p?.available_stock??p?.available??null;const n=Number(raw);return raw!==null&&Number.isFinite(n)?n:null};
+const priceOf=(p:any)=>{const raw=p?.price_ngn??p?.final_price_ngn??p?.customer_price_ngn??null;const n=Number(raw);return raw!==null&&Number.isFinite(n)?n:null};
+const money=(n:number|null)=>n===null?"—":`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+const statusOf=(x:any)=>String(x?.status??x?.state??x?.order_status??"").toLowerCase();
+const refOf=(x:any)=>String(x?.reference??x?.order_reference??x?.order_id??x?.id??"");
+const listOf=(x:any)=>Array.isArray(x)?x:Array.isArray(x?.products)?x.products:Array.isArray(x?.items)?x.items:Array.isArray(x?.data)?x.data:Array.isArray(x?.data?.products)?x.data.products:[];
 
-    <section className={styles.stockCard}>
-      <span>LIVE CATALOG</span>
-      <h2>Marketplace catalog unavailable</h2>
-      <b>Live inventory required</b>
-      <strong>—</strong>
-    </section>
-
-    <section className={styles.detailCopy}>
-      <h3>Live pricing only</h3>
-      <p>Marketplace products, prices and stock will appear here only after the verified live Marketplace catalog route is connected.</p>
-    </section>
-
-    <section className={styles.detailCopy}>
-      <h3>No placeholder products</h3>
-      <p>WickSpend will not display hard-coded Marketplace prices or inventory as if they were live.</p>
-    </section>
-
-    <Link href="/orders" className={styles.notifyButton}>View Orders</Link>
-    <p className={styles.stateHint}>Existing orders remain available from Orders.</p>
-
-    <BottomNav />
-  </main>;
+export default function Marketplace(){
+ const[products,setProducts]=useState<any[]>([]),[selected,setSelected]=useState<any|null>(null),[query,setQuery]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[confirm,setConfirm]=useState(false),[result,setResult]=useState<any|null>(null);
+ useEffect(()=>{let cancelled=false;(async()=>{setLoading(true);try{const d:any=await api.marketplace.products({page:1,limit:50});if(cancelled)return;setProducts(listOf(d).filter((p:any)=>idOf(p)));setMessage("")}catch(e){if(!cancelled){setProducts([]);setMessage(e instanceof Error?e.message:"Marketplace unavailable right now.")}}finally{if(!cancelled)setLoading(false)}})();return()=>{cancelled=true}},[]);
+ const shown=useMemo(()=>{const q=query.trim().toLowerCase();return q?products.filter(p=>[nameOf(p),p?.category,p?.description].filter(Boolean).join(" ").toLowerCase().includes(q)):products},[products,query]);
+ async function open(p:any){if(busy)return;setBusy(true);setMessage("");try{const d:any=await api.marketplace.product(idOf(p));setSelected(d?.product??d?.data?.product??d?.data??d??p)}catch(e){setMessage(e instanceof Error?e.message:"Unable to load product details.")}finally{setBusy(false)}}
+ async function purchase(){if(!selected||busy)return;const token=getSessionToken();if(!token){setConfirm(false);setMessage("Please sign in before purchasing.");return}setBusy(true);setMessage("");try{const r:any=await api.marketplace.reserve(token,{product_id:idOf(selected),quantity:1});setResult(r);setConfirm(false)}catch(e){setConfirm(false);setMessage(e instanceof Error?e.message:"Unable to submit this Marketplace order.")}finally{setBusy(false)}}
+ const resultStatus=statusOf(result),resultRef=refOf(result),pending=!!result&&(result?.provider_pending===true||/processing|pending|queued|confirming/.test(resultStatus)),failed=!!result&&/failed|rejected|cancelled|canceled|error/.test(resultStatus),confirmed=!!result&&!pending&&!failed&&(!!resultRef||/success|successful|completed|delivered|active/.test(resultStatus));
+ if(result)return <main className={`${styles.screen} ${styles.stateScreen}`}><header className={styles.topHeader}><div><h1>Marketplace</h1><p>Order status</p></div><Link href="/orders" className={styles.ordersButton}>Orders</Link></header><section className={styles.stockCard}><span>{pending?"PROCESSING":failed?"NOT COMPLETED":confirmed?"ORDER SUBMITTED":"STATUS"}</span><h2>{pending?"We’re confirming your order":failed?"Marketplace order not completed":confirmed?"Order submitted":"Order status unavailable"}</h2><b>{nameOf(selected)}</b><strong>{money(priceOf(selected))}</strong></section><section className={styles.detailCopy}><h3>{pending?"Provider confirmation pending":failed?"No success claimed":"Track this order"}</h3><p>{pending?"Your request was accepted and is still being confirmed. Do not place a duplicate order.":failed?"The provider did not confirm a successful order. Check Orders and your wallet before trying again.":confirmed?`Reference${resultRef?` • ${resultRef}`:" available in Orders"}. Delivery status will be shown from the backend.`:"The backend response did not contain enough information to confirm completion."}</p></section><Link href={resultRef?`/orders?reference=${encodeURIComponent(resultRef)}`:"/orders"} className={styles.notifyButton}>View Orders</Link><button className={styles.notifyButton} type="button" onClick={()=>{setResult(null);setSelected(null)}}>Back to Marketplace</button><BottomNav/></main>;
+ if(selected){const stock=stockOf(selected),price=priceOf(selected);return <main className={`${styles.screen} ${styles.detailScreen}`}><header className={styles.topHeader}><div><h1>Marketplace</h1><p>Product details</p></div><Link href="/orders" className={styles.ordersButton}>Orders</Link></header><button className={styles.backLink} type="button" onClick={()=>setSelected(null)}>‹ Back to Marketplace</button><section className={styles.heroCard}><span>LIVE PRODUCT</span><h2>{nameOf(selected)}</h2><p>{selected?.category||"Digital product"}</p><div><strong>{money(price)}</strong><b>{stock===null?"Stock from provider":stock>0?`${stock} available`:"Out of stock"}</b></div></section><section className={styles.detailCopy}><h3>About this product</h3><p>{selected?.description||"Live Marketplace product details supplied by the WickSpend backend."}</p></section><section className={styles.detailCopy}><h3>Live pricing & availability</h3><p>Price and stock are loaded from the verified Marketplace backend before purchase. Final order status is confirmed by the provider workflow.</p></section><div className={styles.purchaseRow}><div className={styles.qtyBlock}><label>Quantity</label><div><button disabled>−</button><strong>1</strong><button disabled>＋</button></div></div><button className={styles.saveButton} type="button" onClick={()=>setSelected(null)}>Cancel</button><button className={styles.buyNow} type="button" disabled={busy||price===null||stock===0} onClick={()=>setConfirm(true)}>{busy?"Loading…":"Buy now"}</button></div>{message&&<p className={styles.centerNotice}>{message}</p>}{confirm&&<div className={styles.confirmBackdrop}><section className={styles.confirmSheet}><h2>Confirm purchase</h2><div className={styles.confirmRows}><div><span>Product</span><strong>{nameOf(selected)}</strong></div><div><span>Quantity</span><strong>1</strong></div><div><span>Total</span><strong>{money(price)}</strong></div><div><span>Stock</span><strong>{stock===null?"Provider checked":`${stock} available`}</strong></div></div><button className={styles.confirmButton} type="button" disabled={busy} onClick={purchase}>{busy?"Processing…":"Confirm & Pay"}</button><button className={styles.cancelButton} type="button" disabled={busy} onClick={()=>setConfirm(false)}>Cancel</button></section></div>}<BottomNav/></main>}
+ return <main className={styles.screen}><header className={styles.topHeader}><div><h1>Marketplace</h1><p>Premium digital products, one clean checkout.</p></div><Link href="/orders" className={styles.ordersButton}>Orders</Link></header><label className={styles.searchBox}><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search live Marketplace products" aria-label="Search Marketplace"/></label>{loading?<div className={styles.emptyState}><strong>Loading live catalog…</strong><p>Checking current products, prices and stock.</p></div>:message?<div className={styles.emptyState}><strong>Marketplace unavailable</strong><p>{message}</p></div>:shown.length?<section className={styles.productSection}><div className={styles.sectionTitle}><h2>Live products</h2><p>{shown.length} available catalog item{shown.length===1?"":"s"}</p></div><div className={styles.productGrid}>{shown.map(p=>{const stock=stockOf(p),price=priceOf(p);return <article className={styles.productCard} key={idOf(p)}><div className={styles.cardTop}><div className={`${styles.productIcon} ${styles.iconDark}`}>◈</div><div className={styles.cardCopy}><span>{p?.category||"MARKETPLACE"}</span><h3>{nameOf(p)}</h3><p>{stock===null?"Live stock":stock>0?`${stock} available`:"Out of stock"}</p></div></div><div className={styles.cardBottom}><div><small>Final price</small><strong>{money(price)}</strong></div><button type="button" disabled={busy} onClick={()=>open(p)}>View</button></div></article>})}</div></section>:<div className={styles.emptyState}><strong>No products found</strong><p>{query?"Try another search.":"No live Marketplace products are available right now."}</p></div>}<BottomNav/></main>;
 }
