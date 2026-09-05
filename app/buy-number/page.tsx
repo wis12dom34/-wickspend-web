@@ -117,7 +117,7 @@ export default function BuyNumberPage() {
       });
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
       setMessage("Number purchased successfully.");
-      router.push(reference ? `/orders?reference=${encodeURIComponent(reference)}` : "/orders");
+      router.push(reference ? `/otp?reference=${encodeURIComponent(reference)}` : "/orders");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Unable to purchase this number");
     } finally {
