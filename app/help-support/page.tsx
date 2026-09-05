@@ -33,6 +33,7 @@ export default function HelpSupport(){
     </section>
 
     <Link href="/support" style={{height:56,borderRadius:22,background:"#000",color:"#fff",display:"grid",placeItems:"center",fontSize:11,fontWeight:600,marginTop:20,boxShadow:"0 5px 12px rgba(0,0,0,.15)"}}>Chat with AI Support</Link>
+    <Link href="/help-support/history" style={{height:44,borderRadius:22,background:"#fff",color:"#050505",border:"1px solid #e0e0e5",display:"grid",placeItems:"center",fontSize:11,fontWeight:600,marginTop:10}}>Support history</Link>
 
     <section style={{marginTop:18}}>
       <h2 style={{fontSize:13,margin:"0 0 14px"}}>Frequently Asked Questions</h2>
