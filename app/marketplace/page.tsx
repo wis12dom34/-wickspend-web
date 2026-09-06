@@ -23,7 +23,14 @@ const brandIconUrl=(p:any)=>{
   [/\bdiscord\b/,"discord"],[/\blinked[ -]?in\b/,"linkedin"],[/\bpinterest\b/,"pinterest"],
   [/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b/,"x"],[/\byoutube\b/,"youtube"],
   [/\bapple\b|\bicloud\b/,"apple"],[/\btinder\b/,"tinder"],[/\bonlyfans\b/,"onlyfans"],
-  [/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"]
+  [/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"],[/\bpure ?vpn\b/,"purevpn"],
+  [/\bip ?vanish\b/,"ipvanish"],[/\bhma\b|hide ?my ?ass/,"hidemyass"],[/\bproton ?vpn\b/,"protonvpn"],
+  [/\bsteam\b/,"steam"],[/\btext ?plus\b/,"textplus"],[/\bdeep ?seek\b/,"deepseek"],
+  [/\btwitch\b/,"twitch"],[/\bspotify\b/,"spotify"],[/\bnetflix\b/,"netflix"],
+  [/\bpaypal\b/,"paypal"],[/\bamazon\b/,"amazon"],[/\bebay\b/,"ebay"],[/\bquora\b/,"quora"],
+  [/\bwechat\b|we ?chat/,"wechat"],[/\bline\b/,"line"],[/\bsignal\b/,"signal"],
+  [/\bproton ?mail\b/,"protonmail"],[/\byandex\b/,"yandexcloud"],[/\baol\b/,"aol"],
+  [/\bthreads\b/,"threads"],[/\bskype\b/,"skype"],[/\bmicrosoft\b/,"microsoft"]
  ];
  const hit=brands.find(([re])=>re.test(s));
  return hit?`https://cdn.simpleicons.org/${hit[1]}`:null;
