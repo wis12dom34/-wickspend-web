@@ -155,6 +155,14 @@ export default function BuyNumberPage() {
         </div>
 
         <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
+          <button type="button" onClick={() => router.push("/buy-number?country=USA&premium=1")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
+            <span style={{fontSize:8,color:"#6e6e73"}}>Premium USA</span><strong style={{fontSize:10,lineHeight:1.25}}>Buy Premium USA Number</strong>
+          </button>
+          <button type="button" onClick={() => router.push("/rent-number?country=USA")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
+            <span style={{fontSize:8,color:"#6e6e73"}}>Long-term access</span><strong style={{fontSize:10,lineHeight:1.25}}>Rent USA Number</strong>
+          </button>
+        </div>
         {message && <p className="buyNumberMessage" role="status">{message}</p>}
       </form>
 
