@@ -3,7 +3,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import {BottomNav} from "@/components/BottomNav";
-import {api,ApiError} from "@/lib/api";
+import {wickspendApi,ApiError} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import styles from "./refer-earn.module.css";
 
@@ -20,7 +20,7 @@ const number=(v:unknown)=>{const n=Number(v||0);return Number.isFinite(n)?n:0};
 export default function ReferEarnPage(){
  const router=useRouter();
  const[data,setData]=useState<ReferralData|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(""),[feedback,setFeedback]=useState(""),[open,setOpen]=useState(false);
- useEffect(()=>{let active=true;const token=getSessionToken();if(!token){router.replace("/login");return()=>{active=false}}api.referrals.get(token).then((payload:any)=>{if(!active)return;setData(payload?.data||payload?.referrals||payload||{});setError("")}).catch((e:any)=>{if(!active)return;setError(e instanceof ApiError?e.message:"Couldn’t load your referral dashboard right now.")}).finally(()=>active&&setLoading(false));return()=>{active=false}},[router]);
+ useEffect(()=>{let active=true;const token=getSessionToken();if(!token){router.replace("/login");return()=>{active=false}}wickspendApi("wickspend/backend/referrals",{token}).then((payload:any)=>{if(!active)return;setData(payload?.data||payload?.referrals||payload||{});setError("")}).catch((e:any)=>{if(!active)return;setError(e instanceof ApiError?e.message:"Couldn’t load your referral dashboard right now.")}).finally(()=>active&&setLoading(false));return()=>{active=false}},[router]);
  const link=useMemo(()=>data?.referral_link||((data?.referral_code&&typeof window!=="undefined")?`${window.location.origin}/ref/${data.referral_code}`:""),[data]);
  const history=Array.isArray(data?.referral_history)?data!.referral_history!:[];
  async function copy(){if(!link)return;try{await navigator.clipboard.writeText(link);setFeedback("Referral link copied");setTimeout(()=>setFeedback(""),1800)}catch{setFeedback("Couldn’t copy the link")}}
