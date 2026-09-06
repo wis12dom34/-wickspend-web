@@ -105,7 +105,7 @@ export function TestimonialToast({ testimonials }: TestimonialToastProps) {
       }, delay);
     };
 
-    scheduleNext(randomBetween(4_000, 6_000));
+    scheduleNext(2_000);
 
     return () => {
       stopped = true;
