@@ -9,6 +9,8 @@ const digitsOnly=(value:string)=>/^\d+$/.test(value);
 const validEmail=(value:string)=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
 type Step="email"|"telegram"|"telegramVerify";
 const blankOtp=()=>Array(6).fill("") as string[];
+const safeNext=()=>{if(typeof window==="undefined")return"/";const value=new URLSearchParams(window.location.search).get("next")||"/";return value.startsWith("/")&&!value.startsWith("//")?value:"/"};
+const secureRequested=()=>typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("secure")==="1";
 
 const MailIcon=()=> <svg className={styles.providerIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" strokeWidth="1.7"/><path d="m5 7 7 5 7-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const TelegramIcon=()=> <svg className={styles.providerIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.7 4.2 17.9 19c-.2 1-1 1.3-1.8.8l-4.3-3.2-2.1 2c-.2.2-.4.4-.9.4l.3-4.4 8-7.2c.4-.3-.1-.5-.5-.2l-9.9 6.2-4.2-1.3c-.9-.3-.9-.9.2-1.3l16.5-6.4c.8-.3 1.5.2 1.5.8Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round"/></svg>;
@@ -19,7 +21,7 @@ export default function Login(){
   const actionSeq=useRef(0),mounted=useRef(true),otpRefs=useRef<Array<HTMLInputElement|null>>([]);
   const code=otp.join("");
 
-  useEffect(()=>{mounted.current=true;let active=true;const t=getSessionToken();if(t)api.auth.session(t).then(()=>{if(active&&mounted.current)router.replace("/")}).catch(()=>{if(active&&mounted.current){clearSessionToken();setMessage("")}});return()=>{active=false;mounted.current=false;actionSeq.current++}},[router]);
+  useEffect(()=>{mounted.current=true;let active=true;const t=getSessionToken();if(t)api.auth.session(t).then(()=>{if(active&&mounted.current)router.replace(safeNext())}).catch(()=>{if(active&&mounted.current){clearSessionToken();setMessage("")}});return()=>{active=false;mounted.current=false;actionSeq.current++}},[router]);
   useEffect(()=>{if(step==="telegramVerify")window.setTimeout(()=>otpRefs.current[0]?.focus(),0)},[step]);
 
   function clearOtp(){setOtp(blankOtp())}
@@ -33,6 +35,12 @@ export default function Login(){
     const mail=email.trim().toLowerCase();
     if(!mail)return setMessage("Enter your email address.");
     if(!validEmail(mail))return setMessage("Enter a valid email address.");
+    if(secureRequested()){
+      window.localStorage.setItem("wickspend_preview_email",mail);
+      setStep("telegram");
+      setMessage("Wallet funding needs a secure session. Please use Telegram sign in for this action while email verification is being updated.");
+      return;
+    }
     setBusy(true);
     setMessage("");
     try{
@@ -46,7 +54,7 @@ export default function Login(){
   }
 
   async function requestTelegramCode(e:FormEvent){e.preventDefault();if(busy)return;const id=telegramId.trim();if(!id)return setMessage("Enter your Telegram user ID.");if(!digitsOnly(id))return setMessage("Telegram user ID must contain numbers only.");const seq=++actionSeq.current;setBusy(true);setMessage("");try{await api.auth.telegramStart({telegram_user_id:id});if(!mounted.current||seq!==actionSeq.current)return;setTelegramId(id);clearOtp();setStep("telegramVerify")}catch(error){if(mounted.current&&seq===actionSeq.current)setMessage(error instanceof Error?error.message:"Unable to send verification code")}finally{if(mounted.current&&seq===actionSeq.current)setBusy(false)}}
-  async function verifyTelegram(e:FormEvent){e.preventDefault();if(busy)return;const id=telegramId.trim();if(!id){setStep("telegram");return setMessage("Enter your Telegram user ID again.")}if(!digitsOnly(id)){setStep("telegram");return setMessage("Telegram user ID must contain numbers only.")}if(code.length!==6||!digitsOnly(code))return setMessage("Enter the complete 6-digit verification code.");const seq=++actionSeq.current;setBusy(true);setMessage("");try{const r:any=await api.auth.telegramVerify({telegram_user_id:id,code}),t=r?.session_token||r?.token||r?.data?.session_token||r?.data?.token;if(!t)throw new Error("Unable to complete sign in right now. Please try again.");saveSessionToken(String(t));try{await api.auth.session(String(t))}catch(error){clearSessionToken();throw error}if(!mounted.current||seq!==actionSeq.current)return;router.replace("/")}catch(error){clearSessionToken();if(mounted.current&&seq===actionSeq.current)setMessage(error instanceof Error?error.message:"Verification failed")}finally{if(mounted.current&&seq===actionSeq.current)setBusy(false)}}
+  async function verifyTelegram(e:FormEvent){e.preventDefault();if(busy)return;const id=telegramId.trim();if(!id){setStep("telegram");return setMessage("Enter your Telegram user ID again.")}if(!digitsOnly(id)){setStep("telegram");return setMessage("Telegram user ID must contain numbers only.")}if(code.length!==6||!digitsOnly(code))return setMessage("Enter the complete 6-digit verification code.");const seq=++actionSeq.current;setBusy(true);setMessage("");try{const r:any=await api.auth.telegramVerify({telegram_user_id:id,code}),t=r?.session_token||r?.token||r?.data?.session_token||r?.data?.token;if(!t)throw new Error("Unable to complete sign in right now. Please try again.");saveSessionToken(String(t));try{await api.auth.session(String(t))}catch(error){clearSessionToken();throw error}if(!mounted.current||seq!==actionSeq.current)return;router.replace(safeNext())}catch(error){clearSessionToken();if(mounted.current&&seq===actionSeq.current)setMessage(error instanceof Error?error.message:"Verification failed")}finally{if(mounted.current&&seq===actionSeq.current)setBusy(false)}}
 
   function reset(next:Step="email"){actionSeq.current++;setBusy(false);clearOtp();setStep(next);setMessage("")}
   const title=step==="telegramVerify"?"Verify your account":"Welcome back";
