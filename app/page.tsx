@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 
-const quickActions = [["☎️","Buy Number","/buy-number"],["📱","Rent Number","/rent-number"],["🛍️","Marketplace","/marketplace"],["📋","Orders","/orders"]] as const;
+const quickActions = [["☎️","Buy Number","/buy-number"],["📩","Temp Mail","/temp-mail"],["🛍️","Marketplace","/marketplace"],["📋","Orders","/orders"]] as const;
 const services = [["https://cdn.simpleicons.org/whatsapp/25D366","WhatsApp","/buy-number?service=WhatsApp"],["https://cdn.simpleicons.org/telegram/26A5E4","Telegram","/buy-number?service=Telegram"],["https://cdn.simpleicons.org/instagram/E4405F","Instagram","/buy-number?service=Instagram"],["https://cdn.simpleicons.org/facebook/0866FF","Facebook","/buy-number?service=Facebook"],["https://cdn.simpleicons.org/tiktok/000000","TikTok","/buy-number?service=TikTok"],["https://cdn.simpleicons.org/google/4285F4","Google","/buy-number?service=Google"]] as const;
 const countries = [["🇺🇸","United States","USA"],["🇬🇧","United Kingdom","UK"],["🇩🇪","Germany","Germany"],["🇳🇬","Nigeria","Nigeria"],["🇨🇦","Canada","Canada"],["🇵🇱","Poland","Poland"]] as const;
 function resolveBalance(payload:any):number|null{const values=[payload?.balance_ngn,payload?.wallet_balance_ngn,payload?.wallet?.balance_ngn,payload?.data?.balance_ngn,payload?.data?.wallet_balance_ngn];for(const v of values){const n=Number(v);if(v!==undefined&&v!==null&&Number.isFinite(n))return n}return null}
