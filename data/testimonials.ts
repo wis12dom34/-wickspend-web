@@ -27,6 +27,46 @@ export const approvedTestimonials: Testimonial[] = [
     verified: false,
     timeLabel: "Sample activity",
   },
+  {
+    id: "temp-michael-deposit",
+    name: "Michael",
+    message: "Michael deposited ₦25,000.",
+    service: "Wallet Funding",
+    verified: false,
+    timeLabel: "Sample activity",
+  },
+  {
+    id: "temp-sarah-deposit",
+    name: "Sarah",
+    message: "Sarah deposited ₦10,000.",
+    service: "Wallet Funding",
+    verified: false,
+    timeLabel: "Sample activity",
+  },
+  {
+    id: "temp-david-deposit",
+    name: "David",
+    message: "David deposited ₦75,000.",
+    service: "Wallet Funding",
+    verified: false,
+    timeLabel: "Sample activity",
+  },
+  {
+    id: "temp-chisom-deposit",
+    name: "Chisom",
+    message: "Chisom deposited ₦30,000.",
+    service: "Wallet Funding",
+    verified: false,
+    timeLabel: "Sample activity",
+  },
+  {
+    id: "temp-amaka-deposit",
+    name: "Amaka",
+    message: "Amaka deposited ₦15,000.",
+    service: "Wallet Funding",
+    verified: false,
+    timeLabel: "Sample activity",
+  },
 ];
 
 export const developmentTestimonials: Testimonial[] = approvedTestimonials;
