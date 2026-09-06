@@ -130,8 +130,6 @@ export function TestimonialToast({ testimonials }: TestimonialToastProps) {
 
   if (!current || dismissed && phase === "hidden") return null;
 
-  const rating = Math.max(0, Math.min(5, Math.round(current.rating ?? 0)));
-
   return (
     <>
       <aside
@@ -140,75 +138,65 @@ export function TestimonialToast({ testimonials }: TestimonialToastProps) {
         aria-live="polite"
         aria-atomic="true"
       >
-        <button type="button" className="testimonialClose" aria-label="Dismiss testimonial for 24 hours" onClick={dismiss}>
+        <button type="button" className="testimonialClose" aria-label="Dismiss social proof for 24 hours" onClick={dismiss}>
           ×
         </button>
 
-        <div className="testimonialTopline">
-          <div className="testimonialAvatar" aria-hidden="true">
-            {current.avatarUrl ? <img src={current.avatarUrl} alt="" /> : <span>{initials(current.name)}</span>}
-          </div>
-          <div className="testimonialIdentity">
-            <strong>{current.name}</strong>
-            {current.verified ? <span className="testimonialVerified">Verified Purchase</span> : null}
-          </div>
+        <div className="testimonialAvatar" aria-hidden="true">
+          {current.avatarUrl ? <img src={current.avatarUrl} alt="" /> : <span>{initials(current.name)}</span>}
         </div>
 
-        <p className="testimonialMessage">“{current.message}”</p>
-
-        <div className="testimonialMeta">
-          {current.rating !== undefined ? (
-            <span className="testimonialStars" aria-label={`${rating} out of 5 stars`}>
-              {Array.from({ length: 5 }, (_, index) => (
-                <span key={index} className={index < rating ? "starFilled" : "starEmpty"}>★</span>
-              ))}
-            </span>
-          ) : null}
-          <span className="testimonialDetails">
-            {[current.service, current.timeLabel].filter(Boolean).join(" · ")}
-          </span>
+        <div className="testimonialBody">
+          <strong>{current.name}</strong>
+          <p>{current.message}</p>
+          <span>{[current.service, current.timeLabel].filter(Boolean).join(" · ")}</span>
         </div>
       </aside>
 
       <style jsx>{`
         .testimonialToast {
           position: fixed;
-          left: 50%;
-          bottom: calc(env(safe-area-inset-bottom) + 92px);
+          top: calc(env(safe-area-inset-top) + 14px);
+          right: 12px;
           z-index: 140;
-          width: min(calc(100vw - 32px), 356px);
-          padding: 14px 44px 14px 14px;
+          width: min(260px, calc(100vw - 72px));
+          min-height: 58px;
+          padding: 10px 34px 10px 10px;
+          display: flex;
+          align-items: flex-start;
+          gap: 9px;
           border: 1px solid rgba(0, 0, 0, 0.08);
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.82);
-          -webkit-backdrop-filter: blur(22px) saturate(140%);
-          backdrop-filter: blur(22px) saturate(140%);
-          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.86);
+          -webkit-backdrop-filter: blur(20px) saturate(140%);
+          backdrop-filter: blur(20px) saturate(140%);
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.76);
           color: #0a0a0a;
           pointer-events: auto;
           opacity: 0;
-          transform: translate(-50%, 10px);
+          transform: translateY(-8px) scale(0.98);
+          transform-origin: top right;
           transition: opacity 400ms ease, transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
         }
         .testimonialToast.isVisible {
           opacity: 1;
-          transform: translate(-50%, 0);
+          transform: translateY(0) scale(1);
         }
         .testimonialToast.isExiting {
           opacity: 0;
-          transform: translate(-50%, 8px);
+          transform: translateY(-6px) scale(0.98);
         }
         .testimonialClose {
           position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 36px;
-          height: 36px;
+          top: 4px;
+          right: 4px;
+          width: 28px;
+          height: 28px;
           border: 0;
-          border-radius: 18px;
+          border-radius: 14px;
           background: transparent;
           color: #6e6e73;
-          font-size: 20px;
+          font-size: 17px;
           line-height: 1;
           display: grid;
           place-items: center;
@@ -217,65 +205,48 @@ export function TestimonialToast({ testimonials }: TestimonialToastProps) {
         }
         .testimonialClose:hover { background: rgba(0, 0, 0, 0.04); color: #111; }
         .testimonialClose:focus-visible { outline: 2px solid #111; outline-offset: 1px; }
-        .testimonialTopline { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .testimonialAvatar {
-          width: 36px;
-          height: 36px;
-          flex: 0 0 36px;
+          width: 32px;
+          height: 32px;
+          flex: 0 0 32px;
           border-radius: 50%;
           overflow: hidden;
           display: grid;
           place-items: center;
           background: #f2f2f4;
           border: 1px solid rgba(0, 0, 0, 0.06);
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
-          letter-spacing: 0.02em;
         }
         .testimonialAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .testimonialIdentity { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
-        .testimonialIdentity strong { font-size: 11px; line-height: 1.2; }
-        .testimonialVerified {
-          display: inline-flex;
-          align-items: center;
-          min-height: 20px;
-          padding: 0 7px;
-          border-radius: 999px;
-          background: rgba(0, 0, 0, 0.045);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          color: #4a4a4e;
-          font-size: 8px;
-          font-weight: 650;
-          white-space: nowrap;
+        .testimonialBody { min-width: 0; padding-top: 1px; }
+        .testimonialBody strong {
+          display: block;
+          font-size: 10px;
+          line-height: 1.2;
+          margin-bottom: 3px;
         }
-        .testimonialMessage {
-          margin: 11px 0 10px;
-          font-size: 11px;
-          line-height: 1.48;
+        .testimonialBody p {
+          margin: 0;
           color: #1d1d1f;
+          font-size: 10px;
+          line-height: 1.35;
         }
-        .testimonialMeta { display: flex; align-items: center; gap: 8px; min-width: 0; }
-        .testimonialStars { display: inline-flex; flex: 0 0 auto; gap: 1px; font-size: 10px; letter-spacing: 0.01em; }
-        .starFilled { color: #111; }
-        .starEmpty { color: #c7c7cc; }
-        .testimonialDetails {
-          min-width: 0;
+        .testimonialBody span {
+          display: block;
+          margin-top: 4px;
+          color: #77777c;
+          font-size: 8px;
+          white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
-          color: #6e6e73;
-          font-size: 8px;
         }
         @media (min-width: 768px) {
           .testimonialToast {
-            left: auto;
-            right: 24px;
-            bottom: 24px;
-            width: min(356px, calc(100vw - 48px));
-            transform: translateY(10px);
+            top: 20px;
+            right: 20px;
+            width: 280px;
           }
-          .testimonialToast.isVisible { transform: translateY(0); }
-          .testimonialToast.isExiting { transform: translateY(8px); }
         }
         @media (prefers-reduced-motion: reduce) {
           .testimonialToast { transition-duration: 1ms; }
