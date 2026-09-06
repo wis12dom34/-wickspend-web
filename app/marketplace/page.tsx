@@ -33,7 +33,10 @@ const brandIconUrl=(p:any)=>{
   [/\bthreads\b/,"threads"],[/\bskype\b/,"skype"],[/\bmicrosoft\b/,"microsoft"]
  ];
  const hit=brands.find(([re])=>re.test(s));
- return hit?`https://cdn.simpleicons.org/${hit[1]}`:null;
+ if(hit)return `https://cdn.simpleicons.org/${hit[1]}`;
+ const description=String(p?.description??"");
+ const hasCountryFlag=/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(description);
+ return hasCountryFlag?"https://cdn.simpleicons.org/facebook":null;
 };
 const money=(n:number|null)=>n===null?"—":`₦${n.toLocaleString(undefined,{maximumFractionDigits:0})}`;
 const statusOf=(x:any)=>String(x?.status??x?.state??x?.order_status??"").toLowerCase();
