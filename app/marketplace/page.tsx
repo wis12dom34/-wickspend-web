@@ -13,6 +13,21 @@ const stockOf=(p:any)=>{const raw=p?.stock??p?.quantity_available??p?.available_
 const isInStock=(p:any)=>{if(p?.in_stock===false||p?.inStock===false)return false;const stock=stockOf(p);if(stock!==null)return stock>0;if(p?.in_stock===true||p?.inStock===true)return true;return true};
 const priceOf=(p:any)=>{const raw=p?.price_ngn??p?.final_price_ngn??p?.customer_price_ngn??null;const n=Number(raw);return raw!==null&&Number.isFinite(n)?n:null};
 const imageUrlOf=(p:any)=>typeof p?.imageUrl==="string"&&p.imageUrl.trim()?p.imageUrl.trim():null;
+const brandIconUrl=(p:any)=>{
+ const s=nameOf(p).toLowerCase();
+ const brands:[RegExp,string][]=[
+  [/\bfacebook\b/,"facebook"],[/\binstagram\b/,"instagram"],[/\btik[ -]?tok\b/,"tiktok"],
+  [/\btelegram\b/,"telegram"],[/\bwhats[ -]?app\b/,"whatsapp"],[/\bgmail\b/,"gmail"],
+  [/\bgoogle voice\b/,"googlevoice"],[/\bgoogle\b/,"google"],[/\b(hotmail|outlook)\b/,"microsoftoutlook"],
+  [/\byahoo\b/,"yahoo"],[/\breddit\b/,"reddit"],[/\bsnapchat\b/,"snapchat"],
+  [/\bdiscord\b/,"discord"],[/\blinked[ -]?in\b/,"linkedin"],[/\bpinterest\b/,"pinterest"],
+  [/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b/,"x"],[/\byoutube\b/,"youtube"],
+  [/\bapple\b|\bicloud\b/,"apple"],[/\btinder\b/,"tinder"],[/\bonlyfans\b/,"onlyfans"],
+  [/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"]
+ ];
+ const hit=brands.find(([re])=>re.test(s));
+ return hit?`https://cdn.simpleicons.org/${hit[1]}`:null;
+};
 const money=(n:number|null)=>n===null?"—":`₦${n.toLocaleString(undefined,{maximumFractionDigits:0})}`;
 const statusOf=(x:any)=>String(x?.status??x?.state??x?.order_status??"").toLowerCase();
 const refOf=(x:any)=>String(x?.reference??x?.order_reference??x?.order_id??x?.id??"");
@@ -41,8 +56,8 @@ const countryOf=(p:any)=>{
 };
 
 function ProductFallbackIcon(){return <span className={styles.fallbackIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5.5 7.5 12 4l6.5 3.5v9L12 20l-6.5-3.5v-9Z"/><path d="m5.8 7.6 6.2 3.5 6.2-3.5M12 11.1V20"/></svg></span>}
-function ProductVisual({product}:{product:any}){const[srcFailed,setSrcFailed]=useState(false),src=imageUrlOf(product);if(!src||srcFailed)return <div className={styles.productIcon}><ProductFallbackIcon/></div>;return <div className={styles.productIcon}><img src={src} alt="" onError={()=>setSrcFailed(true)}/></div>}
-function ProductCard({product,busy,onView}:{product:any;busy:boolean;onView:(p:any)=>void}){const stock=stockOf(product),price=priceOf(product),country=countryOf(product);return <article className={styles.productCard}><div className={styles.cardTop}><ProductVisual product={product}/><div className={styles.cardCopy}><span>{categoryLabel(product).toUpperCase()}</span><h3 title={nameOf(product)}>{nameOf(product)}</h3>{country&&<p>{country}</p>}<p className={styles.stockLine}><i/>{stock===null?"In stock":`${stock} in stock`}</p></div></div><div className={styles.cardBottom}><strong>{money(price)}</strong><button type="button" disabled={busy} onClick={()=>onView(product)}>View</button></div></article>}
+function ProductVisual({product}:{product:any}){const[srcFailed,setSrcFailed]=useState(false),src=imageUrlOf(product)??brandIconUrl(product);if(!src||srcFailed)return <div className={styles.productIcon}><ProductFallbackIcon/></div>;return <div className={styles.productIcon}><img src={src} alt={`${nameOf(product)} icon`} onError={()=>setSrcFailed(true)}/></div>}
+function ProductCard({product,busy,onView}:{product:any;busy:boolean;onView:(p:any)=>void}){const stock=stockOf(product),price=priceOf(product),country=countryOf(product);const activate=()=>{if(!busy)onView(product)};return <article className={styles.productCard} role="button" tabIndex={busy?-1:0} aria-disabled={busy} onClick={activate} onKeyDown={e=>{if(!busy&&(e.key==="Enter"||e.key===" ")){e.preventDefault();activate()}}}><div className={styles.cardTop}><ProductVisual product={product}/><div className={styles.cardCopy}><span>{categoryLabel(product).toUpperCase()}</span><h3 title={nameOf(product)}>{nameOf(product)}</h3>{country&&<p>{country}</p>}<p className={styles.stockLine}><i/>{stock===null?"In stock":`${stock} in stock`}</p></div></div><div className={styles.cardBottom}><strong>{money(price)}</strong><button type="button" disabled={busy} onClick={e=>{e.stopPropagation();activate()}}>View</button></div></article>}
 function SkeletonCard(){return <article className={`${styles.productCard} ${styles.skeletonCard}`}><div className={styles.cardTop}><div className={`${styles.productIcon} ${styles.skeleton}`}/><div className={styles.cardCopy}><span className={`${styles.skeleton} ${styles.skCategory}`}/><h3 className={`${styles.skeleton} ${styles.skTitle}`}/><p className={`${styles.skeleton} ${styles.skMeta}`}/><p className={`${styles.skeleton} ${styles.skStock}`}/></div></div><div className={styles.cardBottom}><strong className={`${styles.skeleton} ${styles.skPrice}`}/><span className={`${styles.skeleton} ${styles.skButton}`}/></div></article>}
 
 export default function Marketplace(){
