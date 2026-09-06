@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 type IconName = "home" | "phone" | "bag" | "rocket" | "wallet";
@@ -23,5 +24,18 @@ function NavIcon({name,active}:{name:IconName;active:boolean}) {
 
 export function BottomNav() {
   const pathname = usePathname();
+
+  useEffect(()=>{
+    if(pathname!=="/profile") return;
+    const button=document.querySelector<HTMLButtonElement>(".referButton");
+    if(!button) return;
+    button.disabled=false;
+    button.removeAttribute("title");
+    button.setAttribute("aria-label","Open Refer & Earn");
+    const openReferral=()=>window.location.assign("/refer-earn");
+    button.addEventListener("click",openReferral);
+    return()=>button.removeEventListener("click",openReferral);
+  },[pathname]);
+
   return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
 }
