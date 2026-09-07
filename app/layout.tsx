@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppTestimonials } from "@/components/AppTestimonials";
 import "./globals.css";
+import "./home-promo-fix.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",
