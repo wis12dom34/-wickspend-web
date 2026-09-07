@@ -134,6 +134,7 @@ function ServiceBrandIcon({ service }: { service: string }) {
 
 export default function BuyNumberPage() {
   const router = useRouter();
+  const premium = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("premium") === "1";
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [country, setCountry] = useState("19");
@@ -153,7 +154,20 @@ export default function BuyNumberPage() {
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
-    api.numbers.countries().then((data: any) => {
+    if (premium) {
+      setCountries([{ flag: "🇺🇸", name: "United States", code: "US", iso: "US" }]);
+      setCountry("US");
+      if (token) {
+        setLoadingServices(true);
+        api.numbers.premiumCatalog(token).then((data: any) => {
+          if (cancelled) return;
+          const next = normalizeServices(data);
+          setServiceOptions(next);
+          if (next.length) setService(next[0].name);
+        }).catch((err) => { if (!cancelled) setMessage(err instanceof Error ? err.message : "Unable to load Premium USA services."); })
+          .finally(() => { if (!cancelled) setLoadingServices(false); });
+      }
+    } else api.numbers.countries().then((data: any) => {
       if (cancelled) return;
       const next = normalizeCountries(data);
       if (!next.length) return;
@@ -174,7 +188,7 @@ export default function BuyNumberPage() {
   }, []);
 
   useEffect(() => {
-    if (!country) return;
+    if (premium || !country) return;
     let cancelled = false;
     setLoadingServices(true);
     api.numbers.services("", country).then((data: any) => {
@@ -194,7 +208,7 @@ export default function BuyNumberPage() {
       if (!cancelled) setLoadingServices(false);
     });
     return () => { cancelled = true; };
-  }, [country]);
+  }, [country, premium]);
 
   function currentServiceCode() {
     return serviceOptions.find((item) => item.name === service)?.code || service;
@@ -210,7 +224,7 @@ export default function BuyNumberPage() {
   }
 
   function openPicker(type: "country" | "service") {
-    if (buying) return;
+    if (buying || (premium && type === "country")) return;
     setSearch("");
     setPicker(type);
   }
@@ -230,9 +244,11 @@ export default function BuyNumberPage() {
     setSheetOpen(false);
     setMessage("Checking live prices…");
     try {
-      const data: any = await api.numbers.prices("", selectedCountryCode, selectedServiceCode);
+      const token = getSessionToken();
+      if (premium && !token) throw new Error("Please sign in first");
+      const data: any = premium ? await api.numbers.premiumCatalog(token!) : await api.numbers.prices("", selectedCountryCode, selectedServiceCode);
       if (requestId !== priceRequest.current) return;
-      const parsed = normalizePrices(data).filter((item: any) => item != null);
+      const parsed = normalizePrices(data).filter((item: any) => item != null && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
       setPrices(parsed);
       setMessage(parsed.length ? "" : "No numbers are available for this selection right now.");
       setSheetOpen(parsed.length > 0);
@@ -254,12 +270,10 @@ export default function BuyNumberPage() {
       const token = getSessionToken();
       if (!token) throw new Error("Please sign in first");
       const providerId = String(selectedOffer?.provider_id ?? "").trim();
-      if (!providerId) throw new Error("This price is no longer available. Please refresh prices.");
-      const result: any = await api.numbers.buy(token, {
-        country_code: country,
-        service_code: currentServiceCode(),
-        provider_id: providerId,
-      });
+      if (!premium && !providerId) throw new Error("This price is no longer available. Please refresh prices.");
+      const result: any = premium
+        ? await api.numbers.premiumBuy(token, { service_code: currentServiceCode() })
+        : await api.numbers.buy(token, { country_code: country, service_code: currentServiceCode(), provider_id: providerId });
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
       setMessage("Number purchased successfully.");
       router.push(reference ? `/otp?reference=${encodeURIComponent(reference)}` : "/orders");
@@ -276,7 +290,7 @@ export default function BuyNumberPage() {
   const filteredServices = serviceOptions.filter((item) => !query || item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
 
   return (
-    <PageShell title="Buy Number" subtitle="Choose a country and service">
+    <PageShell title="Buy Number" subtitle={premium ? "Choose a Premium USA service" : "Choose a country and service"}>
       <form className="buyNumberPanel" onSubmit={load}>
         <button type="button" className="selectorCard" onClick={() => openPicker("country")}>
           <span className="selectorIcon">{selectedCountry?.flag || "🌐"}</span>
@@ -298,7 +312,7 @@ export default function BuyNumberPage() {
 
         <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices || loadingServices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
-          <button type="button" onClick={() => router.push("/buy-number?country=USA&premium=1")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
+          <button type="button" onClick={() => { window.location.assign("/buy-number?country=USA&premium=1"); }} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
             <span style={{fontSize:8,color:"#6e6e73"}}>🇺🇸 Premium USA</span><strong style={{fontSize:10,lineHeight:1.25}}>Buy Premium USA Number</strong>
           </button>
           <button type="button" onClick={() => router.push("/rent-number?country=USA")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
