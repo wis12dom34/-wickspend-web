@@ -1,0 +1,104 @@
+.boostlyTheme{
+  --boostly-primary:#0866F5;
+  --boostly-primary-pressed:#0757D9;
+  --boostly-soft:#EEF5FF;
+  --boostly-border:#CFE0FF;
+}
+
+/* Boostly-specific blue brand pass. Keep layout, spacing, cards and behavior unchanged. */
+.boostlyTheme [class*="hero"],
+.boostlyTheme [class*="detailHero"],
+.boostlyTheme [class*="orderHero"],
+.boostlyTheme [class*="confirmHero"]{
+  background:var(--boostly-primary)!important;
+  color:#fff!important;
+}
+
+.boostlyTheme [class*="hero"] small,
+.boostlyTheme [class*="hero"] p,
+.boostlyTheme [class*="detailHero"] small,
+.boostlyTheme [class*="detailHero"] p,
+.boostlyTheme [class*="orderHero"] small,
+.boostlyTheme [class*="confirmHero"] small,
+.boostlyTheme [class*="confirmHero"] p{
+  color:rgba(255,255,255,.78)!important;
+}
+
+.boostlyTheme [class*="cta"],
+.boostlyTheme [class*="resultPrimary"]{
+  background:var(--boostly-primary)!important;
+  border-color:var(--boostly-primary)!important;
+  color:#fff!important;
+}
+
+.boostlyTheme [class*="cta"]:active,
+.boostlyTheme [class*="resultPrimary"]:active{
+  background:var(--boostly-primary-pressed)!important;
+  border-color:var(--boostly-primary-pressed)!important;
+}
+
+.boostlyTheme [class*="filter"][class*="active"],
+.boostlyTheme [class*="presets"] button[class*="active"],
+.boostlyTheme [class*="platform"]:first-child [class*="mark"],
+.boostlyTheme [class*="quantity"] button:last-child,
+.boostlyTheme [class*="receiptHead"] span,
+.boostlyTheme [class*="resultMark"],
+.boostlyTheme [class*="processingSteps"] b{
+  background:var(--boostly-primary)!important;
+  border-color:var(--boostly-primary)!important;
+  color:#fff!important;
+}
+
+.boostlyTheme [class*="processingRing"]{
+  border-color:var(--boostly-primary)!important;
+  border-right-color:transparent!important;
+}
+
+.boostlyTheme [class*="recommend"]{
+  background:rgba(255,255,255,.16)!important;
+  color:#fff!important;
+}
+
+.boostlyTheme [class*="badge"]{
+  background:var(--boostly-soft)!important;
+  color:var(--boostly-primary)!important;
+}
+
+.boostlyTheme [class*="serviceCard"]:focus-visible,
+.boostlyTheme [class*="platform"]:focus-visible,
+.boostlyTheme [class*="filter"]:focus-visible,
+.boostlyTheme [class*="input"]:focus,
+.boostlyTheme input:focus{
+  border-color:var(--boostly-border)!important;
+  box-shadow:0 0 0 3px rgba(8,102,245,.09)!important;
+  outline:none!important;
+}
+
+.boostlyTheme [class*="popularHead"] button,
+.boostlyTheme [class*="back"]:hover,
+.boostlyTheme [class*="orders"]:hover{
+  color:var(--boostly-primary);
+}
+
+.boostlyTheme [class*="trackNote"]>span,
+.boostlyTheme [class*="retryWarning"]>span{
+  color:var(--boostly-primary)!important;
+}
+
+/* Preserve neutral readable text and white Liquid Glass surfaces. */
+.boostlyTheme [class*="page"],
+.boostlyTheme [class*="serviceCard"],
+.boostlyTheme [class*="stats"],
+.boostlyTheme [class*="detailsBox"],
+.boostlyTheme [class*="receipt"],
+.boostlyTheme [class*="failureDetails"]{
+  color:#050505;
+}
+
+/* Do not recolor real platform/service artwork. */
+.boostlyTheme img,
+.boostlyTheme svg[data-brand],
+.boostlyTheme [class*="brandIcon"],
+.boostlyTheme [class*="serviceLogo"]{
+  filter:none!important;
+}
