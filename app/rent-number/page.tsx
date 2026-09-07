@@ -42,7 +42,7 @@ export default function RentNumber(){
  return <main className={clean.page}>
   <header className={clean.header}>
     <button className={clean.back} onClick={()=>router.back()} aria-label="Back">‹</button>
-    <div><h1>Buy Number</h1><p>Get a virtual number to receive OTP/SMS</p></div>
+    <div><h1>Rent Number</h1><p>Rent a virtual number for longer-term SMS access</p></div>
     <button className={clean.history} onClick={()=>router.push("/numbers/history")} aria-label="Number history"><span>◷</span><small>History</small></button>
   </header>
   <div className={clean.selectors}>
