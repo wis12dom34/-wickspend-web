@@ -6,14 +6,15 @@ import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 
-const countries = [
-  ["🇳🇬", "Nigeria", "NG"],
-  ["🇺🇸", "USA", "US"],
-  ["🇬🇧", "UK", "GB"],
-  ["🇩🇪", "Germany", "DE"],
-  ["🇨🇦", "Canada", "CA"],
-  ["🇵🇱", "Poland", "PL"],
-] as const;
+type CountryOption = { flag: string; name: string; code: string; iso?: string };
+const fallbackCountries: CountryOption[] = [
+  { flag: "🇳🇬", name: "Nigeria", code: "19", iso: "NG" },
+  { flag: "🇺🇸", name: "United States", code: "187", iso: "US" },
+  { flag: "🇬🇧", name: "United Kingdom", code: "16", iso: "GB" },
+  { flag: "🇩🇪", name: "Germany", code: "43", iso: "DE" },
+  { flag: "🇨🇦", name: "Canada", code: "36", iso: "CA" },
+  { flag: "🇵🇱", name: "Poland", code: "15", iso: "PL" },
+];
 const services = [
   ["Telegram", "telegram"],
   ["WhatsApp", "whatsapp"],
@@ -22,7 +23,6 @@ const services = [
   ["Facebook", "facebook"],
   ["Google", "google"],
 ] as const;
-const countryCodes: Record<string, string> = Object.fromEntries(countries.map(([, name, code]) => [name, code]));
 const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([name, code]) => [name, code]));
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
@@ -40,7 +40,8 @@ function ServiceBrandIcon({ service }: { service: string }) {
 
 export default function BuyNumberPage() {
   const router = useRouter();
-  const [country, setCountry] = useState("Nigeria");
+  const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
+  const [country, setCountry] = useState("19");
   const [service, setService] = useState("Telegram");
   const [prices, setPrices] = useState<any[]>([]);
   const [message, setMessage] = useState("");
@@ -55,8 +56,19 @@ export default function BuyNumberPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
     const requestedService = params.get("service");
-    if (requestedCountry && countryCodes[requestedCountry]) setCountry(requestedCountry);
     if (requestedService && serviceCodes[requestedService]) setService(requestedService);
+    api.numbers.countries().then((data: any) => {
+      if (cancelled) return;
+      const raw = Array.isArray(data?.countries) ? data.countries : [];
+      const next: CountryOption[] = raw
+        .map((item: any) => ({ flag: String(item?.flag || "🌐"), name: String(item?.country_name || ""), code: String(item?.country_code || ""), iso: String(item?.iso_code || "") }))
+        .filter((item: CountryOption) => item.name && item.code);
+      if (!next.length) return;
+      setCountries(next);
+      const requested = String(requestedCountry || "").toLowerCase();
+      const match = next.find((item) => item.code === requestedCountry || item.iso?.toLowerCase() === requested || item.name.toLowerCase() === requested || (requested === "usa" && item.iso === "US") || (requested === "uk" && item.iso === "GB"));
+      setCountry(match?.code || next.find((item) => item.name === "Nigeria")?.code || next[0].code);
+    }).catch(() => {});
     const token = getSessionToken();
     if (token) {
       api.wallet.get(token).then((wallet: any) => {
@@ -81,7 +93,7 @@ export default function BuyNumberPage() {
     e.preventDefault();
     if (buying || loadingPrices) return;
     const requestId = ++priceRequest.current;
-    const selectedCountryCode = countryCodes[country] || country;
+    const selectedCountryCode = country;
     const selectedServiceCode = serviceCodes[service] || service;
     setLoadingPrices(true);
     setSheetOpen(false);
@@ -112,7 +124,7 @@ export default function BuyNumberPage() {
       const token = getSessionToken();
       if (!token) throw new Error("Please sign in first");
       const result: any = await api.numbers.buy(token, {
-        country_code: countryCodes[country] || country,
+        country_code: country,
         service_code: serviceCodes[service] || service,
       });
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
@@ -125,17 +137,17 @@ export default function BuyNumberPage() {
     }
   }
 
-  const selectedCountry = countries.find(([, name]) => name === country);
+  const selectedCountry = countries.find((item) => item.code === country) || countries[0];
 
   return (
     <PageShell title="Buy Number" subtitle="Choose a country and service">
       <form className="buyNumberPanel" onSubmit={load}>
         <button type="button" className="selectorCard" onClick={() => document.getElementById("countrySelect")?.focus()}>
-          <span className="selectorIcon">{selectedCountry?.[0]}</span>
-          <span className="selectorCopy"><small>Country</small><strong>{country}</strong></span>
+          <span className="selectorIcon">{selectedCountry?.flag || "🌐"}</span>
+          <span className="selectorCopy"><small>Country</small><strong>{selectedCountry?.name || "Choose country"}</strong></span>
           <span className="selectorChevron">⌄</span>
           <select id="countrySelect" aria-label="Country" value={country} disabled={buying} onChange={(e) => resetSelection("country", e.target.value)}>
-            {countries.map(([, name]) => <option key={name}>{name}</option>)}
+            {countries.map((item) => <option key={item.code} value={item.code}>{item.flag} {item.name}</option>)}
           </select>
         </button>
 
