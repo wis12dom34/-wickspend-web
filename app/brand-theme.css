@@ -1,0 +1,190 @@
+:root{
+  --wick-primary:#0866F5;
+  --wick-primary-pressed:#0757D9;
+  --wick-primary-soft:#EEF5FF;
+  --wick-primary-border:#CFE0FF;
+  --wick-text:#0A0A0A;
+  --wick-muted:#6E6E73;
+}
+
+/* WickSpend brand/action colour layer.
+   Layout, typography, glass surfaces, service brand colours and backend behaviour remain unchanged. */
+
+.primaryButton,
+.homePrimaryButton,
+.walletAddFunds,
+.activeServiceButton,
+.marketBuy,
+.buyNumberCta,
+.rentalCta,
+.boostCta,
+.marketplaceHomeButton,
+.boostSuccess > div,
+.boostSuccess button,
+.mailCheckout button,
+.checkoutButton,
+.confirmButton,
+.submitButton,
+.continueButton,
+.payButton,
+.loginButton,
+.authPrimaryButton,
+.premiumCta,
+.premiumButton,
+.orderPrimaryButton,
+.notificationPrimaryButton,
+.settingsPrimaryButton,
+.profilePrimaryButton,
+.tempMailCta,
+.rentButton,
+.walletPrimaryButton,
+button[data-variant="primary"],
+a[data-variant="primary"]{
+  background:var(--wick-primary) !important;
+  border-color:var(--wick-primary) !important;
+  color:#fff !important;
+}
+
+.primaryButton:active,
+.homePrimaryButton:active,
+.walletAddFunds:active,
+.activeServiceButton:active,
+.marketBuy:active,
+.buyNumberCta:active,
+.rentalCta:active,
+.boostCta:active,
+.marketplaceHomeButton:active,
+.boostSuccess button:active,
+.mailCheckout button:active,
+.checkoutButton:active,
+.confirmButton:active,
+.submitButton:active,
+.continueButton:active,
+.payButton:active,
+.loginButton:active,
+.authPrimaryButton:active,
+.premiumCta:active,
+.premiumButton:active,
+.orderPrimaryButton:active,
+.tempMailCta:active,
+button[data-variant="primary"]:active,
+a[data-variant="primary"]:active{
+  background:var(--wick-primary-pressed) !important;
+  border-color:var(--wick-primary-pressed) !important;
+}
+
+/* Active navigation and selected states */
+.navItem.active,
+.navItem.active .navIcon,
+.navItem.active .navLabel,
+[aria-current="page"].navItem,
+[aria-selected="true"],
+.tab.active,
+.tabs .active,
+.segment.active,
+.filterChip.active{
+  color:var(--wick-primary) !important;
+}
+
+.navItem.active .navIcon svg{
+  color:var(--wick-primary) !important;
+}
+
+/* Links and explicit action text only */
+.textLink,
+.actionLink,
+.linkButton,
+.forgotLink,
+.authLink,
+.termsLink,
+.helpLink,
+a[data-accent="true"]{
+  color:var(--wick-primary) !important;
+}
+
+/* Selected cards, services, countries and inputs */
+.mailService.active,
+.serviceChip.active,
+.countryChip.active,
+.selectorCard.active,
+.priceRow.selected,
+.optionCard.selected,
+.serviceCard.selected,
+.countryCard.selected,
+[aria-checked="true"].serviceChip,
+[aria-checked="true"].countryChip{
+  border-color:var(--wick-primary) !important;
+  box-shadow:0 0 0 1px var(--wick-primary-border) !important;
+}
+
+/* Soft blue accents without tinting normal copy */
+.accentSurface,
+.activeBadge,
+.selectedBadge,
+.progressTrack,
+.statusAccent{
+  background:var(--wick-primary-soft) !important;
+  border-color:var(--wick-primary-border) !important;
+}
+
+.progressBar,
+.progressFill,
+.loadingBar,
+.spinnerAccent{
+  background:var(--wick-primary) !important;
+  color:var(--wick-primary) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+  border-color:var(--wick-primary-border) !important;
+  box-shadow:0 0 0 3px rgba(8,102,245,.08);
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked{
+  accent-color:var(--wick-primary);
+}
+
+/* Brand/action icons that previously used monochrome black */
+.actionIcon,
+.importantActionIcon,
+.walletActionIcon,
+.quickActionIcon,
+.headerAction.active,
+.circle.active{
+  color:var(--wick-primary) !important;
+}
+
+/* Keep avatar treatment branded while preserving white text */
+.avatar{
+  background:var(--wick-primary) !important;
+  color:#fff !important;
+}
+
+/* Preserve readable copy and neutral glass surfaces */
+h1,h2,h3,h4,h5,h6,
+p,li,label,
+.pageHeading,
+.selectorCopy,
+.marketplaceProductCopy,
+.boostCopy,
+.walletTransactionCopy{
+  --wick-inherited-text:var(--wick-text);
+}
+
+/* Never recolour external service/brand artwork. */
+.brandIcon,
+.serviceLogo,
+.providerLogo,
+img,
+svg[data-brand],
+[class*="whatsapp" i],
+[class*="telegram" i],
+[class*="instagram" i],
+[class*="tiktok" i],
+[class*="facebook" i],
+[class*="google" i]{
+  filter:none !important;
+}
