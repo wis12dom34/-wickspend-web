@@ -58,36 +58,33 @@ function firstFiniteNumber(...values: unknown[]): number | null {
 function rowsFromPayload(payload: any): any[] {
   const rows: any[] = [];
   const seen = new Set<any>();
+  const wrappers = new Set(["services", "prices", "items", "results", "data", "catalog", "offers"]);
+  const ignored = new Set(["provider_id", "provider", "api_key", "metadata", "internal", "status", "success", "message", "currency", "country", "country_code", "error", "ok"]);
 
   function visit(value: any, keyHint = "", depth = 0) {
-    if (value == null || depth > 5 || (typeof value === "object" && seen.has(value))) return;
-    if (typeof value !== "object") return;
-
-    seen.add(value);
-    if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, "", depth + 1));
+    if (value == null || depth > 7) return;
+    if (Array.isArray(value)) { value.forEach((item) => visit(item, "", depth + 1)); return; }
+    if (typeof value !== "object") {
+      if (keyHint && !ignored.has(keyHint.toLowerCase())) {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) rows.push({ service_code: keyHint, price_ngn: numeric });
+      }
       return;
     }
+    if (seen.has(value)) return;
+    seen.add(value);
 
     const explicitCode = value.service_code ?? value.serviceCode ?? value.code ?? value.service_id;
-    const hasCatalogFields =
-      explicitCode != null ||
-      value.service_name != null ||
-      value.price_ngn != null ||
-      value.available != null;
-
-    if (hasCatalogFields && (explicitCode != null || keyHint)) {
-      rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
-      return;
-    }
+    const hasCatalogFields = explicitCode != null || value.service_name != null || value.price_ngn != null || value.available != null;
+    if (hasCatalogFields && (explicitCode != null || keyHint)) rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
 
     for (const [key, child] of Object.entries(value)) {
-      if (["provider_id", "provider", "api_key", "metadata", "internal", "status", "success", "message", "currency", "country", "country_code", "error"].includes(key.toLowerCase())) continue;
-      const nextHint = ["services", "prices", "items", "results", "data", "catalog", "offers"].includes(key.toLowerCase()) ? "" : key;
-      visit(child, nextHint, depth + 1);
+      const lower = key.toLowerCase();
+      if (ignored.has(lower)) continue;
+      if (["service_code", "servicecode", "code", "service_id", "service_name", "servicename", "name", "title", "service", "price_ngn", "final_price_ngn", "amount_ngn", "customer_price_ngn", "price", "available", "stock", "count", "quantity", "availability"].includes(lower)) continue;
+      visit(child, wrappers.has(lower) ? "" : key, depth + 1);
     }
   }
-
   visit(payload);
   return rows;
 }
@@ -200,6 +197,7 @@ export default function PremiumUsaPage() {
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
       if (!reference) throw new Error("The purchase completed but no order reference was returned. Please check Orders.");
       requestKeyRef.current = null;
+      window.sessionStorage.setItem("wickspend:lastNumberReference", reference);
       router.push(`/otp?reference=${encodeURIComponent(reference)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to purchase this number. Please try again.");
