@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import {SmartSupportDashboardPortal} from "@/components/SmartSupportDashboardPortal";
 
 const SmartSupport=dynamic(()=>import("@/components/SmartSupport"),{ssr:false,loading:()=>null});
-export function SmartSupportLoader(){return <SmartSupport/>}
+export function SmartSupportLoader(){return <><SmartSupport/><SmartSupportDashboardPortal/></>}
