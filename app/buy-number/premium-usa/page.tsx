@@ -62,7 +62,9 @@ function rowsFromPayload(payload: any): any[] {
   function visit(value: any, keyHint = "", depth = 0) {
     if (value == null || depth > 5 || seen.has(value)) return;
     if (typeof value !== "object") {
-      if (keyHint && (typeof value === "number" || typeof value === "string")) {
+      const numeric = typeof value === "number" || (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)));
+      const reserved = new Set(["status", "success", "message", "currency", "country", "country_code", "error", "code", "provider", "provider_id", "api_key", "metadata", "internal"]);
+      if (keyHint && numeric && !reserved.has(keyHint.toLowerCase())) {
         rows.push({ service_code: keyHint, price_ngn: value });
       }
       return;
@@ -74,11 +76,11 @@ function rowsFromPayload(payload: any): any[] {
     }
 
     const explicitCode = value.service_code ?? value.serviceCode ?? value.code ?? value.service_id;
-    const hasOfferFields = explicitCode != null || value.price_ngn != null || value.final_price_ngn != null || value.amount_ngn != null || value.customer_price_ngn != null || value.price != null || value.available != null || value.stock != null || value.count != null || value.quantity != null || value.availability != null;
+    const hasOfferFields = explicitCode != null || value.price_ngn != null || value.final_price_ngn != null || value.amount_ngn != null || value.customer_price_ngn != null || value.cost_ngn != null || value.cost != null || value.rate_ngn != null || value.rate != null || value.price != null || value.available != null || value.stock != null || value.count != null || value.quantity != null || value.availability != null;
     if (hasOfferFields && (explicitCode != null || keyHint)) rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
 
     for (const [key, child] of Object.entries(value)) {
-      if (["provider_id", "provider", "api_key", "metadata", "internal"].includes(key)) continue;
+      if (["provider_id", "provider", "api_key", "metadata", "internal", "status", "success", "message", "currency", "country", "country_code", "error"].includes(key.toLowerCase())) continue;
       const nextHint = ["services", "prices", "items", "results", "data", "catalog", "offers"].includes(key) ? "" : key;
       visit(child, nextHint, depth + 1);
     }
@@ -96,8 +98,9 @@ function normalizePremiumServices(payload: any): PremiumService[] {
     if (!item || typeof item !== "object") continue;
     const code = String(item.service_code ?? item.serviceCode ?? item.code ?? item.service_id ?? item.id ?? "").trim();
     if (!code) continue;
+    if (["status", "success", "message", "currency", "country", "country_code", "error", "provider", "provider_id", "api_key", "metadata", "internal"].includes(code.toLowerCase())) continue;
     const providedName = String(item.service_name ?? item.serviceName ?? item.name ?? item.title ?? item.service ?? "").trim();
-    const price = firstFiniteNumber(item.price_ngn, item.final_price_ngn, item.amount_ngn, item.customer_price_ngn, item.price);
+    const price = firstFiniteNumber(item.price_ngn, item.final_price_ngn, item.amount_ngn, item.customer_price_ngn, item.cost_ngn, item.cost, item.rate_ngn, item.rate, item.price);
     const available = firstFiniteNumber(item.available, item.stock, item.count, item.quantity, item.availability);
     const key = code.toLowerCase();
     const current = byCode.get(key);
