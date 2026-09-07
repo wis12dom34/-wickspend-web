@@ -1,3 +1,360 @@
+/* Admin visual consistency pass — mobile-first, no generated image assets. */
+
+main[data-node-id] {
+  width: 100% !important;
+  max-width: 430px !important;
+  min-height: 100dvh !important;
+  margin: 0 auto !important;
+  border-radius: 0 !important;
+  background: #f7f9fc !important;
+}
+
+main[data-node-id="497:3280"] {
+  padding: 18px 16px 36px !important;
+  gap: 18px !important;
+}
+
+main[data-node-id]:not([data-node-id="497:3280"]) {
+  padding: 72px 16px 28px !important;
+  gap: 16px !important;
+}
+
+main[data-node-id] .backButton {
+  top: 16px !important;
+  left: 16px !important;
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 14px !important;
+}
+
+main[data-node-id="497:3280"] .dashboardHeader {
+  height: auto !important;
+  min-height: 54px !important;
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr) 46px !important;
+  grid-template-areas:
+    "menu brand bell"
+    "session session session" !important;
+  gap: 10px 10px !important;
+  align-items: center !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+main[data-node-id="497:3280"] .iconButton {
+  grid-area: menu !important;
+}
+
+main[data-node-id="497:3280"] .brand {
+  grid-area: brand !important;
+  height: auto !important;
+  padding-left: 2px !important;
+  justify-content: center !important;
+}
+
+main[data-node-id="497:3280"] .brand strong {
+  font-size: 22px !important;
+  line-height: 24px !important;
+  letter-spacing: -0.4px !important;
+}
+
+main[data-node-id="497:3280"] .brand span {
+  font-size: 10px !important;
+  line-height: 12px !important;
+  letter-spacing: 0.7px !important;
+}
+
+main[data-node-id="497:3280"] .notificationButton {
+  grid-area: bell !important;
+}
+
+main[data-node-id="497:3280"] .iconButton,
+main[data-node-id="497:3280"] .notificationButton {
+  width: 46px !important;
+  height: 46px !important;
+  flex-basis: 46px !important;
+  border-radius: 15px !important;
+  box-shadow: 0 4px 14px rgba(38, 64, 102, 0.06) !important;
+}
+
+main[data-node-id="497:3280"] .notificationButton > span {
+  position: absolute !important;
+  top: -5px !important;
+  right: -7px !important;
+  min-width: 24px !important;
+  height: 18px !important;
+  padding: 0 5px !important;
+  line-height: 18px !important;
+  font-size: 9px !important;
+  margin: 0 !important;
+  box-shadow: 0 0 0 3px #f7f9fc !important;
+}
+
+main[data-node-id="497:3280"] .sessionMini {
+  grid-area: session !important;
+  width: 100% !important;
+  height: 52px !important;
+  flex-basis: auto !important;
+  border-radius: 16px !important;
+  padding: 8px 14px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 4px 14px rgba(38, 64, 102, 0.04) !important;
+}
+
+main[data-node-id="497:3280"] .sessionMini small {
+  font-size: 11px !important;
+  line-height: 14px !important;
+}
+
+main[data-node-id="497:3280"] .sessionMini strong {
+  font-size: 15px !important;
+  line-height: 18px !important;
+}
+
+main[data-node-id="497:3280"] > .screenHeader {
+  gap: 4px !important;
+}
+
+main[data-node-id="497:3280"] > .screenHeader h1 {
+  font-size: 32px !important;
+  line-height: 38px !important;
+  letter-spacing: -0.8px !important;
+}
+
+main[data-node-id="497:3280"] > .screenHeader p {
+  font-size: 14px !important;
+  line-height: 18px !important;
+}
+
+main[data-node-id] .glass {
+  border-radius: 20px !important;
+  border-color: #e3eaf4 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 6px 22px rgba(38, 64, 102, 0.045) !important;
+}
+
+main[data-node-id="497:3280"] .overview {
+  padding: 16px !important;
+}
+
+main[data-node-id="497:3280"] .cardHeading {
+  margin-bottom: 14px !important;
+}
+
+main[data-node-id="497:3280"] .metricGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+main[data-node-id="497:3280"] .metricCard {
+  height: 132px !important;
+  border-radius: 18px !important;
+  padding: 14px 12px !important;
+  gap: 6px !important;
+}
+
+main[data-node-id="497:3280"] .metricCard svg {
+  width: 21px !important;
+  height: 21px !important;
+  flex-basis: 21px !important;
+}
+
+main[data-node-id="497:3280"] .metricCard span,
+main[data-node-id="497:3280"] .metricCard:nth-child(1) span,
+main[data-node-id="497:3280"] .metricCard:nth-child(2) span,
+main[data-node-id="497:3280"] .metricCard:nth-child(4) span {
+  max-width: 100% !important;
+  font-size: 11px !important;
+  line-height: 14px !important;
+}
+
+main[data-node-id="497:3280"] .metricCard > strong,
+main[data-node-id="497:3280"] .metricCard:nth-child(-n+3) > strong {
+  max-width: 100% !important;
+  font-size: 20px !important;
+  line-height: 24px !important;
+  letter-spacing: -0.35px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+main[data-node-id="497:3280"] .metricCard > small {
+  font-size: 10px !important;
+  line-height: 13px !important;
+}
+
+main[data-node-id="497:3280"] .referralCard {
+  padding: 16px !important;
+}
+
+main[data-node-id="497:3280"] .referralHeading {
+  height: auto !important;
+  min-height: 40px !important;
+  margin-bottom: 12px !important;
+}
+
+main[data-node-id="497:3280"] .periodButton {
+  min-height: 38px !important;
+  padding: 8px 10px !important;
+  align-items: center !important;
+  font-size: 10px !important;
+}
+
+main[data-node-id="497:3280"] .referralGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+main[data-node-id="497:3280"] .referralMetric,
+main[data-node-id="497:3280"] .referralMetricWide {
+  grid-column: auto !important;
+  height: 78px !important;
+  border-radius: 15px !important;
+  padding: 11px 10px !important;
+  justify-content: space-between !important;
+}
+
+main[data-node-id="497:3280"] .referralMetric:last-child {
+  grid-column: 1 / -1 !important;
+}
+
+main[data-node-id="497:3280"] .referralMetric span,
+main[data-node-id="497:3280"] .referralMetricWide span {
+  max-width: 100% !important;
+  font-size: 10px !important;
+  line-height: 13px !important;
+}
+
+main[data-node-id="497:3280"] .referralMetric strong {
+  font-size: 18px !important;
+  line-height: 22px !important;
+}
+
+main[data-node-id="497:3280"] .analyticsPair {
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+
+main[data-node-id="497:3280"] .analyticsCard {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 210px !important;
+  padding: 16px !important;
+}
+
+main[data-node-id="497:3280"] .analyticsTitle strong,
+main[data-node-id="497:3280"] .analyticsCard:first-child .analyticsTitle strong {
+  font-size: 14px !important;
+  line-height: 18px !important;
+}
+
+main[data-node-id="497:3280"] .analyticsTitle a {
+  font-size: 10px !important;
+  line-height: 14px !important;
+}
+
+main[data-node-id="497:3280"] .chartSmall {
+  width: 100% !important;
+  height: 170px !important;
+}
+
+main[data-node-id="497:3280"] .axis {
+  font-size: 9px !important;
+  line-height: 12px !important;
+  text-align: center !important;
+}
+
+main[data-node-id="497:3280"] .donutRow {
+  min-height: 110px !important;
+  height: auto !important;
+  justify-content: center !important;
+  gap: 22px !important;
+}
+
+main[data-node-id="497:3280"] .donut {
+  width: 92px !important;
+  height: 92px !important;
+  flex-basis: 92px !important;
+}
+
+main[data-node-id="497:3280"] .donutRow small,
+main[data-node-id="497:3280"] .donutRow span,
+main[data-node-id="497:3280"] .successNote {
+  font-size: 10px !important;
+  line-height: 13px !important;
+}
+
+main[data-node-id="497:3280"] .securityNotice {
+  height: auto !important;
+  min-height: 92px !important;
+  grid-template-columns: 44px minmax(0, 1fr) !important;
+  padding: 14px !important;
+}
+
+main[data-node-id="497:3280"] .securityNotice > div strong {
+  font-size: 12px !important;
+  white-space: normal !important;
+}
+
+main[data-node-id="497:3280"] .securityNotice > div small {
+  max-width: none !important;
+  font-size: 10px !important;
+  line-height: 13px !important;
+}
+
+main[data-node-id="497:3280"] .refreshButton {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  font-size: 11px !important;
+}
+
+main[data-node-id]:not([data-node-id="497:3280"]) .screenHeader h1 {
+  font-size: 28px !important;
+  line-height: 34px !important;
+}
+
+main[data-node-id]:not([data-node-id="497:3280"]) .screenHeader p {
+  font-size: 12px !important;
+  line-height: 16px !important;
+  white-space: normal !important;
+}
+
+main[data-node-id] .summary {
+  gap: 8px !important;
+}
+
+main[data-node-id] .summaryCard {
+  min-width: 0 !important;
+  border-radius: 18px !important;
+  padding: 12px 10px !important;
+}
+
+main[data-node-id] .summaryCard strong {
+  font-size: 20px !important;
+  line-height: 24px !important;
+}
+
+main[data-node-id] .summaryCard span,
+main[data-node-id] .summaryCard small {
+  white-space: normal !important;
+}
+
+main[data-node-id] .search {
+  border-radius: 16px !important;
+}
+
+main[data-node-id] .dataList,
+main[data-node-id] .chatList {
+  border-radius: 20px !important;
+}
+
+main[data-node-id] .dataRow {
+  min-width: 0 !important;
+}
+
 main[data-node-id="505:3292"] article > div > span,
 main[data-node-id="506:3292"] article > div > span {
   color: #667085 !important;
@@ -5,4 +362,19 @@ main[data-node-id="506:3292"] article > div > span {
 
 main[data-node-id="505:3347"] article > div > span {
   color: #3378f5 !important;
+}
+
+@media (max-width: 360px) {
+  main[data-node-id="497:3280"] .metricGrid,
+  main[data-node-id="497:3280"] .referralGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  main[data-node-id="497:3280"] .referralMetric:last-child {
+    grid-column: auto !important;
+  }
+
+  main[data-node-id] .summary {
+    grid-template-columns: 1fr !important;
+  }
 }
