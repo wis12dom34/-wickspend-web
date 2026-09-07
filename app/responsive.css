@@ -1,0 +1,201 @@
+/* Responsive layout layer synced from WickSpend V2 Figma QA.
+   Mobile remains the source of truth; these rules only adapt composition by viewport. */
+
+@media (min-width: 768px) {
+  .homeShell,
+  .appShell {
+    width: min(calc(100% - 48px), 834px);
+    padding: 28px 28px calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .shell:not(.appShell):not(.homeShell) {
+    width: min(calc(100% - 48px), 834px);
+  }
+
+  .homeHeader,
+  .figmaPageHeader {
+    margin-bottom: 24px;
+  }
+
+  .homeActionGrid,
+  .walletQuickGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .serviceGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .countryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .marketList,
+  .marketplaceGrid,
+  .boostList,
+  .mailServices,
+  .orderList,
+  .notificationList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .walletTransactions,
+  .recentCard,
+  .profileRows,
+  .activeRental,
+  .fundingCard,
+  .boostDetails,
+  .mailInbox {
+    width: 100%;
+  }
+
+  .priceSheet {
+    width: min(calc(100% - 64px), 620px);
+    border-radius: 28px;
+    margin-bottom: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    padding-bottom: 0;
+  }
+
+  .homeShell,
+  .appShell {
+    width: min(calc(100% - 64px), 1194px);
+    padding: 32px 40px 56px;
+  }
+
+  .shell:not(.appShell):not(.homeShell) {
+    width: min(calc(100% - 64px), 1194px);
+    padding-bottom: 56px;
+  }
+
+  .bottomNav {
+    display: none !important;
+  }
+
+  .homeHeader {
+    min-height: 64px;
+    height: auto;
+  }
+
+  .homeHeader h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .homeHeader p {
+    font-size: 12px;
+  }
+
+  .figmaPageHeader {
+    min-height: 56px;
+    height: auto;
+  }
+
+  .figmaPageHeader .pageHeading h1 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .figmaPageHeader .pageHeading p {
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  .homeBalanceCard,
+  .walletHero,
+  .activeServiceCard,
+  .panel,
+  .glassCard {
+    max-width: none;
+  }
+
+  .homeActionGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .serviceGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .countryGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .marketList,
+  .marketplaceGrid,
+  .boostList,
+  .mailServices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .orderList,
+  .notificationList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .walletQuickGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .purchaseSummary,
+  .boostStats,
+  .rentalInfo {
+    max-width: 760px;
+  }
+
+  .buyNumberPanel,
+  .rentalForm,
+  .boostDetails,
+  .fundingCard,
+  .mailInbox {
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sheetBackdrop,
+  .confirmBackdrop {
+    align-items: center;
+    padding: 32px;
+  }
+
+  .priceSheet,
+  .confirmSheet {
+    border-radius: 28px;
+    margin: 0;
+  }
+
+  .chatComposer {
+    bottom: 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .homeShell,
+  .appShell,
+  .shell:not(.appShell):not(.homeShell) {
+    width: min(calc(100% - 96px), 1280px);
+  }
+
+  .marketList,
+  .marketplaceGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .boostList,
+  .mailServices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .homeShell,
+  .appShell,
+  .shell:not(.appShell):not(.homeShell) {
+    width: min(calc(100% - 112px), 1360px);
+  }
+}
