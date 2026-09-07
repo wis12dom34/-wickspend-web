@@ -183,8 +183,8 @@ export default function BuyNumberPage() {
           <section className="priceSheet" role="dialog" aria-modal="true" aria-label="Choose a number" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="sheetHandle" aria-label="Close" disabled={buying} onClick={() => setSheetOpen(false)} />
             <div className="priceSheetHeading">
-              <h2>Choose a number</h2>
-              <p>Select the best price for your purchase.</p>
+              <h2>Available prices</h2>
+              <p>Live price and availability for {selectedCountry?.name || "your country"} · {service}.</p>
             </div>
             <div className="priceSheetList">
               {prices.map((p: any, i) => {
@@ -194,9 +194,9 @@ export default function BuyNumberPage() {
                   <div className="priceRow" key={p.id || p.service_code || i}>
                     <div>
                       <strong>{formattedPrice}</strong>
-                      <small>{p.available ?? p.stock ?? "Available"}</small>
+                      <small>{Number.isFinite(Number(p.available ?? p.stock)) ? `${Number(p.available ?? p.stock).toLocaleString()} numbers available` : "Available now"}</small>
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={buying} onClick={buy}>{buying ? "Buying…" : "Buy Number"}</button>
+                    <button className="priceBuyButton" type="button" disabled={buying} onClick={buy}>{buying ? "Buying…" : "Buy"}</button>
                   </div>
                 );
               })}
