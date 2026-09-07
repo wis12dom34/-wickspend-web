@@ -4,6 +4,7 @@ import "./globals.css";
 import "./home-promo-fix.css";
 import "./responsive.css";
 import "./account-responsive.css";
+import "./brand-theme.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",
