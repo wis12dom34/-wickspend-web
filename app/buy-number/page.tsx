@@ -154,6 +154,7 @@ export default function BuyNumberPage() {
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
+    const token = getSessionToken();
     if (premium) {
       setCountries([{ flag: "🇺🇸", name: "United States", code: "US", iso: "US" }]);
       setCountry("US");
@@ -176,7 +177,6 @@ export default function BuyNumberPage() {
       const match = next.find((item) => item.code === requestedCountry || item.iso?.toLowerCase() === requested || item.name.toLowerCase() === requested || (requested === "usa" && item.iso === "US") || (requested === "uk" && item.iso === "GB"));
       setCountry(match?.code || next.find((item) => item.name.toLowerCase() === "nigeria")?.code || next[0].code);
     }).catch(() => {});
-    const token = getSessionToken();
     if (token) {
       api.wallet.get(token).then((wallet: any) => {
         if (!cancelled) setBalance(money(walletBalance(wallet)));
