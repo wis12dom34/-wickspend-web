@@ -169,16 +169,19 @@ export default function BuyNumberPage() {
     }
   }
 
-  async function buy() {
+  async function buy(selectedOffer: any) {
     if (buying) return;
     setBuying(true);
     setMessage("Purchasing number…");
     try {
       const token = getSessionToken();
       if (!token) throw new Error("Please sign in first");
+      const providerId = String(selectedOffer?.provider_id ?? "").trim();
+      if (!providerId) throw new Error("This price is no longer available. Please refresh prices.");
       const result: any = await api.numbers.buy(token, {
         country_code: country,
         service_code: serviceCodes[service] || service,
+        provider_id: providerId,
       });
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
       setMessage("Number purchased successfully.");
@@ -245,12 +248,12 @@ export default function BuyNumberPage() {
                 const formattedPrice = rawPrice != null && Number.isFinite(Number(rawPrice)) ? `₦${Number(rawPrice).toLocaleString()}` : "Price at checkout";
                 const available = p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability;
                 return (
-                  <div className="priceRow" key={p.id || p.service_code || p.price_id || i}>
+                  <div className="priceRow" key={p.id || p.price_id || p.provider_id || `${p.service_code || "offer"}-${i}`}>
                     <div>
                       <strong>{formattedPrice}</strong>
                       <small>{Number.isFinite(Number(available)) ? `${Number(available).toLocaleString()} numbers available` : "Available now"}</small>
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={buying} onClick={buy}>{buying ? "Buying…" : "Buy"}</button>
+                    <button className="priceBuyButton" type="button" disabled={buying} onClick={() => buy(p)}>{buying ? "Buying…" : "Buy"}</button>
                   </div>
                 );
               })}
