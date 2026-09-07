@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 
 type CountryOption = { flag: string; name: string; code: string; iso?: string };
+type ServiceOption = { name: string; code: string };
+
 const fallbackCountries: CountryOption[] = [
   { flag: "🇳🇬", name: "Nigeria", code: "19", iso: "NG" },
   { flag: "🇺🇸", name: "United States", code: "187", iso: "US" },
@@ -15,15 +17,16 @@ const fallbackCountries: CountryOption[] = [
   { flag: "🇨🇦", name: "Canada", code: "36", iso: "CA" },
   { flag: "🇵🇱", name: "Poland", code: "15", iso: "PL" },
 ];
-const services = [
-  ["Telegram", "telegram"],
-  ["WhatsApp", "whatsapp"],
-  ["Instagram", "instagram"],
-  ["TikTok", "tiktok"],
-  ["Facebook", "facebook"],
-  ["Google", "google"],
-] as const;
-const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([name, code]) => [name, code]));
+
+const fallbackServices: ServiceOption[] = [
+  { name: "Telegram", code: "telegram" },
+  { name: "WhatsApp", code: "whatsapp" },
+  { name: "Instagram", code: "instagram" },
+  { name: "TikTok", code: "tiktok" },
+  { name: "Facebook", code: "facebook" },
+  { name: "Google", code: "google" },
+];
+
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? p?.price ?? p?.cost_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
 const money = (value: any) => { const n = Number(value); return Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—"; };
@@ -61,6 +64,29 @@ function normalizeCountries(payload: any): CountryOption[] {
   });
 }
 
+function normalizeServices(payload: any): ServiceOption[] {
+  const raw = firstArray(
+    payload?.services,
+    payload?.data?.services,
+    payload?.catalog?.services,
+    payload?.data?.items,
+    payload?.items,
+    payload?.results,
+    payload?.data,
+    payload
+  );
+  const seen = new Set<string>();
+  return raw.flatMap((item: any) => {
+    const name = String(item?.service_name ?? item?.serviceName ?? item?.name ?? item?.title ?? item?.service ?? "").trim();
+    const code = String(item?.service_code ?? item?.serviceCode ?? item?.code ?? item?.service_id ?? item?.id ?? "").trim();
+    if (!name || !code) return [];
+    const key = code.toLowerCase();
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ name, code }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function normalizePrices(payload: any): any[] {
   const direct = firstArray(
     payload,
@@ -92,12 +118,13 @@ function ServiceBrandIcon({ service }: { service: string }) {
   if (key === "instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ig-buy" x1="3" y1="21" x2="21" y2="3"><stop stopColor="#FEDA75"/><stop offset=".35" stopColor="#FA7E1E"/><stop offset=".65" stopColor="#D62976"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-buy)"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="17.4" cy="6.7" r="1.1" fill="#fff"/></svg>;
   if (key === "facebook") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#1877F2"/><path d="M13.4 20v-7h2.4l.4-2.7h-2.8V8.6c0-.8.2-1.3 1.4-1.3h1.5V4.9c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v1.7H8V13h2.4v7h3Z" fill="#fff"/></svg>;
   if (key === "tiktok") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" fill="#000"/><path d="M14.2 6c.4 1.8 1.4 2.9 3.2 3.2v2.2c-1.2 0-2.3-.4-3.2-1.1v4.4a4 4 0 1 1-3.5-4v2.2a1.8 1.8 0 1 0 1.3 1.8V6h2.2Z" fill="#fff"/></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M19.6 12.2c0-.6-.1-1.2-.2-1.7H12v3h4.2a3.6 3.6 0 0 1-1.6 2.4v2h2.6c1.5-1.4 2.4-3.4 2.4-5.7Z" fill="#4285F4"/><path d="M12 20c2.2 0 4-.7 5.3-1.9l-2.6-2a4.8 4.8 0 0 1-7.1-2.5H4.9v2.1A8 8 0 0 0 12 20Z" fill="#34A853"/><path d="M7.6 13.6a4.8 4.8 0 0 1 0-3.1V8.4H4.9a8 8 0 0 0 0 7.3l2.7-2.1Z" fill="#FBBC05"/><path d="M12 7.3c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8 8 0 0 0 4.9 8.4l2.7 2.1A4.8 4.8 0 0 1 12 7.3Z" fill="#EA4335"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="#6e6e73" strokeWidth="1.5"/><path d="M4.5 12h15M12 4.5c2 2.1 3 4.6 3 7.5s-1 5.4-3 7.5c-2-2.1-3-4.6-3-7.5s1-5.4 3-7.5Z" fill="none" stroke="#6e6e73" strokeWidth="1.2"/></svg>;
 }
 
 export default function BuyNumberPage() {
   const router = useRouter();
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>(fallbackServices);
   const [country, setCountry] = useState("19");
   const [service, setService] = useState("Telegram");
   const [prices, setPrices] = useState<any[]>([]);
@@ -108,14 +135,13 @@ export default function BuyNumberPage() {
   const [balance, setBalance] = useState("—");
   const [picker, setPicker] = useState<"country" | "service" | null>(null);
   const [search, setSearch] = useState("");
+  const [loadingServices, setLoadingServices] = useState(false);
   const priceRequest = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
-    const requestedService = params.get("service");
-    if (requestedService && serviceCodes[requestedService]) setService(requestedService);
     api.numbers.countries().then((data: any) => {
       if (cancelled) return;
       const next = normalizeCountries(data);
@@ -135,6 +161,33 @@ export default function BuyNumberPage() {
     }
     return () => { cancelled = true; priceRequest.current++; };
   }, []);
+
+  useEffect(() => {
+    if (!country) return;
+    let cancelled = false;
+    setLoadingServices(true);
+    api.numbers.services("", country).then((data: any) => {
+      if (cancelled) return;
+      const next = normalizeServices(data);
+      if (!next.length) return;
+      setServiceOptions(next);
+      const requested = typeof window !== "undefined" ? String(new URLSearchParams(window.location.search).get("service") || "").toLowerCase() : "";
+      setService((current) => {
+        const currentMatch = next.find((item) => item.name.toLowerCase() === current.toLowerCase() || item.code.toLowerCase() === current.toLowerCase());
+        const requestedMatch = requested ? next.find((item) => item.name.toLowerCase() === requested || item.code.toLowerCase() === requested) : undefined;
+        return requestedMatch?.name || currentMatch?.name || next[0].name;
+      });
+    }).catch(() => {
+      if (!cancelled) setServiceOptions(fallbackServices);
+    }).finally(() => {
+      if (!cancelled) setLoadingServices(false);
+    });
+    return () => { cancelled = true; };
+  }, [country]);
+
+  function currentServiceCode() {
+    return serviceOptions.find((item) => item.name === service)?.code || service;
+  }
 
   function resetSelection(next: "country" | "service", value: string) {
     priceRequest.current++;
@@ -161,7 +214,7 @@ export default function BuyNumberPage() {
     if (buying || loadingPrices) return;
     const requestId = ++priceRequest.current;
     const selectedCountryCode = country;
-    const selectedServiceCode = serviceCodes[service] || service;
+    const selectedServiceCode = currentServiceCode();
     setLoadingPrices(true);
     setSheetOpen(false);
     setMessage("Checking live prices…");
@@ -193,7 +246,7 @@ export default function BuyNumberPage() {
       if (!providerId) throw new Error("This price is no longer available. Please refresh prices.");
       const result: any = await api.numbers.buy(token, {
         country_code: country,
-        service_code: serviceCodes[service] || service,
+        service_code: currentServiceCode(),
         provider_id: providerId,
       });
       const reference = result?.reference || result?.order?.reference || result?.data?.reference;
@@ -209,7 +262,7 @@ export default function BuyNumberPage() {
   const selectedCountry = countries.find((item) => item.code === country) || countries[0];
   const query = search.trim().toLowerCase();
   const filteredCountries = countries.filter((item) => !query || item.name.toLowerCase().includes(query) || item.iso?.toLowerCase().includes(query));
-  const filteredServices = services.filter(([name]) => !query || name.toLowerCase().includes(query));
+  const filteredServices = serviceOptions.filter((item) => !query || item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
 
   return (
     <PageShell title="Buy Number" subtitle="Choose a country and service">
@@ -222,7 +275,7 @@ export default function BuyNumberPage() {
 
         <button type="button" className="selectorCard" onClick={() => openPicker("service")}>
           <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={service}/></span>
-          <span className="selectorCopy"><small>Service</small><strong>{service}</strong></span>
+          <span className="selectorCopy"><small>Service</small><strong>{loadingServices ? "Loading services…" : service}</strong></span>
           <span className="selectorChevron">⌄</span>
         </button>
 
@@ -232,7 +285,7 @@ export default function BuyNumberPage() {
           <div><small>Avg. wait</small><strong>1–5 min</strong></div>
         </div>
 
-        <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
+        <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices || loadingServices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
           <button type="button" onClick={() => router.push("/buy-number?country=USA&premium=1")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
             <span style={{fontSize:8,color:"#6e6e73"}}>🇺🇸 Premium USA</span><strong style={{fontSize:10,lineHeight:1.25}}>Buy Premium USA Number</strong>
@@ -250,12 +303,12 @@ export default function BuyNumberPage() {
             <div style={{padding:"10px 16px 12px",borderBottom:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.9)",position:"sticky",top:0,zIndex:2}}>
               <div style={{width:38,height:5,borderRadius:99,background:"rgba(0,0,0,.16)",margin:"0 auto 12px"}} />
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10}}>
-                <strong style={{fontSize:18}}>{picker === "country" ? "Choose country" : "Choose service"}</strong>
+                <strong style={{fontSize:18}}>{picker === "country" ? "Choose country" : `Choose service${serviceOptions.length ? ` · ${serviceOptions.length}` : ""}`}</strong>
                 <button type="button" onClick={closePicker} aria-label="Close" style={{width:32,height:32,border:0,borderRadius:16,background:"rgba(0,0,0,.06)",fontSize:18,lineHeight:1}}>×</button>
               </div>
               <label style={{height:46,border:"1px solid rgba(0,0,0,.1)",borderRadius:15,display:"flex",alignItems:"center",gap:9,padding:"0 13px",background:"#fff"}}>
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{flex:"0 0 auto"}}><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2"/><path d="m16.5 16.5 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={picker === "country" ? "Search countries" : "Search services"} style={{border:0,outline:0,width:"100%",fontSize:16,background:"transparent",color:"#111"}} />
+                <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={picker === "country" ? "Search countries" : "Search all services"} style={{border:0,outline:0,width:"100%",fontSize:16,background:"transparent",color:"#111"}} />
               </label>
             </div>
             <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"6px 10px 12px"}}>
@@ -265,14 +318,15 @@ export default function BuyNumberPage() {
                   <span style={{flex:1}}>{item.name}</span>
                   {item.code === country && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
                 </button>
-              )) : filteredServices.map(([name]) => (
-                <button key={name} type="button" onClick={() => { resetSelection("service", name); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:name === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
-                  <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={name}/></span>
-                  <span style={{flex:1}}>{name}</span>
-                  {name === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+              )) : filteredServices.map((item) => (
+                <button key={item.code} type="button" onClick={() => { resetSelection("service", item.name); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.name === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
+                  <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={item.name}/></span>
+                  <span style={{flex:1}}>{item.name}</span>
+                  {item.name === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
                 </button>
               ))}
-              {((picker === "country" && filteredCountries.length === 0) || (picker === "service" && filteredServices.length === 0)) && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>No results found.</p>}
+              {picker === "service" && loadingServices && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>Loading all services…</p>}
+              {((picker === "country" && filteredCountries.length === 0) || (picker === "service" && !loadingServices && filteredServices.length === 0)) && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>No results found.</p>}
             </div>
           </section>
         </div>
