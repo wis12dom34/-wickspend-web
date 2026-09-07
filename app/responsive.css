@@ -13,31 +13,24 @@
   }
 
   .homeHeader,
-  .figmaPageHeader {
-    margin-bottom: 24px;
-  }
+  .figmaPageHeader { margin-bottom: 24px; }
+
+  .homeBalanceCard { min-height: 164px !important; }
+  .activeServiceCard { height: auto; min-height: 150px; }
 
   .homeActionGrid,
-  .walletQuickGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  .walletQuickGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-  .serviceGrid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .countryGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  .quickActionCard { min-height: 72px; height: auto; }
+  .serviceGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .countryGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .marketList,
   .marketplaceGrid,
   .boostList,
   .mailServices,
   .orderList,
-  .notificationList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .notificationList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .walletTransactions,
   .recentCard,
@@ -45,9 +38,13 @@
   .activeRental,
   .fundingCard,
   .boostDetails,
-  .mailInbox {
-    width: 100%;
-  }
+  .mailInbox { width: 100%; }
+
+  .buyNumberPanel { max-width: 720px; margin-inline: auto; gap: 16px; }
+  .buyNumberPanel > div[style*="grid-template-columns"] { gap: 12px !important; }
+  .selectorCard { min-height: 76px; height: auto; }
+  .purchaseSummary { min-height: 78px; height: auto; }
+  .buyNumberCta { min-height: 52px; }
 
   .priceSheet {
     width: min(calc(100% - 64px), 620px);
@@ -57,9 +54,7 @@
 }
 
 @media (min-width: 1024px) {
-  body {
-    padding-bottom: 0;
-  }
+  body { padding-bottom: 0; }
 
   .homeShell,
   .appShell {
@@ -72,80 +67,40 @@
     padding-bottom: 56px;
   }
 
-  .bottomNav {
-    display: none !important;
-  }
+  .bottomNav { display: none !important; }
 
-  .homeHeader {
-    min-height: 64px;
-    height: auto;
-  }
+  .homeHeader { min-height: 64px; height: auto; }
+  .homeHeader h1 { font-size: 24px; line-height: 30px; }
+  .homeHeader p { font-size: 12px; }
 
-  .homeHeader h1 {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .homeHeader p {
-    font-size: 12px;
-  }
-
-  .figmaPageHeader {
-    min-height: 56px;
-    height: auto;
-  }
-
-  .figmaPageHeader .pageHeading h1 {
-    font-size: 22px;
-    line-height: 28px;
-  }
-
-  .figmaPageHeader .pageHeading p {
-    font-size: 11px;
-    line-height: 15px;
-  }
+  .figmaPageHeader { min-height: 56px; height: auto; }
+  .figmaPageHeader .pageHeading h1 { font-size: 22px; line-height: 28px; }
+  .figmaPageHeader .pageHeading p { font-size: 11px; line-height: 15px; }
 
   .homeBalanceCard,
   .walletHero,
   .activeServiceCard,
   .panel,
-  .glassCard {
-    max-width: none;
-  }
+  .glassCard { max-width: none; }
 
-  .homeActionGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .serviceGrid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .countryGrid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
+  .homeShell > section:not(.recentSection) { width: 100%; }
+  .homeActionGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .quickActionCard { padding-inline: 20px; }
+  .serviceGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .countryGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
   .marketList,
   .marketplaceGrid,
   .boostList,
-  .mailServices {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  .mailServices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .orderList,
-  .notificationList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .walletQuickGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  .notificationList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .walletQuickGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   .purchaseSummary,
   .boostStats,
-  .rentalInfo {
-    max-width: 760px;
-  }
+  .rentalInfo { max-width: 760px; }
 
   .buyNumberPanel,
   .rentalForm,
@@ -157,45 +112,35 @@
     margin-right: auto;
   }
 
+  .buyNumberPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+  .buyNumberPanel .selectorCard { min-height: 84px; }
+  .buyNumberPanel .purchaseSummary,
+  .buyNumberPanel .buyNumberCta,
+  .buyNumberPanel .buyNumberMessage,
+  .buyNumberPanel > div[style*="grid-template-columns"] { grid-column: 1 / -1; width: 100%; max-width: none; }
+
   .sheetBackdrop,
-  .confirmBackdrop {
-    align-items: center;
-    padding: 32px;
-  }
-
+  .confirmBackdrop { align-items: center; padding: 32px; }
   .priceSheet,
-  .confirmSheet {
-    border-radius: 28px;
-    margin: 0;
-  }
-
-  .chatComposer {
-    bottom: 24px;
-  }
+  .confirmSheet { border-radius: 28px; margin: 0; }
+  .chatComposer { bottom: 24px; }
 }
 
 @media (min-width: 1280px) {
   .homeShell,
   .appShell,
-  .shell:not(.appShell):not(.homeShell) {
-    width: min(calc(100% - 96px), 1280px);
-  }
+  .shell:not(.appShell):not(.homeShell) { width: min(calc(100% - 96px), 1280px); }
 
   .marketList,
-  .marketplaceGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
+  .marketplaceGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .boostList,
-  .mailServices {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  .mailServices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .buyNumberPanel { max-width: 820px; }
 }
 
 @media (min-width: 1440px) {
   .homeShell,
   .appShell,
-  .shell:not(.appShell):not(.homeShell) {
-    width: min(calc(100% - 112px), 1360px);
-  }
+  .shell:not(.appShell):not(.homeShell) { width: min(calc(100% - 112px), 1360px); }
 }
