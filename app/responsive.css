@@ -51,6 +51,16 @@
     border-radius: 28px;
     margin-bottom: 24px;
   }
+
+  .profileScreen { width: min(calc(100% - 48px), 834px) !important; padding-left: 28px !important; padding-right: 28px !important; }
+  .profileCard { padding: 20px !important; }
+  .profileMenu { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 18px; }
+  .profileMenuRow:nth-child(2) { border-top: 0; }
+
+  main:has(> a[href="/notification-preferences"]) { width: min(calc(100% - 48px),834px) !important; padding-left: 28px !important; padding-right: 28px !important; }
+  main:has(> a[href="/notification-preferences"]) .notificationList { grid-template-columns: repeat(2,minmax(0,1fr)); }
+
+  .settingsSupportGroup { margin-top: 22px; }
 }
 
 @media (min-width: 1024px) {
@@ -124,6 +134,20 @@
   .priceSheet,
   .confirmSheet { border-radius: 28px; margin: 0; }
   .chatComposer { bottom: 24px; }
+
+  .profileScreen { width: min(calc(100% - 64px),1194px) !important; padding: 34px 40px 56px !important; }
+  .profileCard { padding: 24px !important; }
+  .profileName h2 { max-width: none !important; }
+  .profileStats { grid-template-columns: repeat(5,minmax(0,1fr)) !important; }
+  .profileMenu { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 8px 18px !important; }
+  .activityCard,.referCard,.securityCard { min-height: 72px; }
+
+  main:has(> a[href="/notification-preferences"]) { width: min(calc(100% - 64px),1194px) !important; padding: 48px 40px 56px !important; }
+  main:has(> a[href="/notification-preferences"]) .notificationList { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+
+  .appShell > .profileGroup { display: inline-block; vertical-align: top; width: calc(50% - 10px); }
+  .appShell > .profileGroup + .profileGroup { margin-left: 16px; }
+  .settingsSignOut { max-width: 520px; margin-top: 20px; }
 }
 
 @media (min-width: 1280px) {
@@ -137,6 +161,8 @@
   .mailServices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .buyNumberPanel { max-width: 820px; }
+  .profileScreen { width: min(calc(100% - 96px),1280px) !important; }
+  main:has(> a[href="/notification-preferences"]) { width: min(calc(100% - 96px),1280px) !important; }
 }
 
 @media (min-width: 1440px) {
