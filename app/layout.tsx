@@ -9,6 +9,7 @@ import "./account-responsive.css";
 import "./brand-theme.css";
 import "./marketplace-home-responsive.css";
 import "@/components/smart-support.css";
+import "@/components/smart-support-icon.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",
