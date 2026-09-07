@@ -73,21 +73,41 @@ export default function OtpPage() {
       const token = getSessionToken();
       setMessage("");
       if (!token) return;
+      const remembered = typeof window !== "undefined" ? window.sessionStorage.getItem("wickspend:lastNumberReference") || "" : "";
+      if (remembered.trim()) {
+        const recovered = remembered.trim();
+        window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
+        setReference(recovered);
+        return;
+      }
       let active = true;
       setRecoveringReference(true);
-      api.numbers.active(token).then((response: any) => {
+      Promise.allSettled([api.numbers.active(token), api.orders(token)]).then((results: any[]) => {
         if (!active || !mounted.current) return;
-        const items = Array.isArray(response?.items) ? response.items : Array.isArray(response?.data?.items) ? response.data.items : [];
-        const candidates = items.filter((item: any) => {
-          const itemReference = String(item?.reference || "").trim();
-          const itemNumber = String(item?.phone_number || item?.number || "").trim();
+        const activeResponse: any = results[0]?.status === "fulfilled" ? results[0].value : null;
+        const ordersResponse: any = results[1]?.status === "fulfilled" ? results[1].value : null;
+        const activeItems = Array.isArray(activeResponse?.items) ? activeResponse.items : Array.isArray(activeResponse?.data?.items) ? activeResponse.data.items : [];
+        const orderItems = Array.isArray(ordersResponse) ? ordersResponse : Array.isArray(ordersResponse?.orders) ? ordersResponse.orders : Array.isArray(ordersResponse?.items) ? ordersResponse.items : Array.isArray(ordersResponse?.data) ? ordersResponse.data : [];
+        const usable = [...activeItems, ...orderItems].filter((item: any) => {
+          const itemReference = String(item?.reference || item?.order_reference || item?.ref || "").trim();
+          const itemNumber = String(item?.phone_number || item?.number || item?.phone || "").trim();
           const status = String(item?.status || item?.state || "").toLowerCase();
-          return itemReference && itemNumber && status === "active" && item?.provider_pending !== true;
+          const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type].filter(Boolean).join(" ")).toLowerCase();
+          const looksLikeNumber = Boolean(itemNumber) || /number|sms|otp|activation/.test(type);
+          return itemReference && itemNumber && looksLikeNumber && !/failed|refunded|cancelled|canceled|rejected|error/.test(status) && item?.provider_pending !== true;
         });
-        if (candidates.length === 1) {
-          const recovered = String(candidates[0].reference).trim();
-          window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
-          setReference(recovered);
+        const unique = Array.from(new Map(usable.map((item: any) => [String(item?.reference || item?.order_reference || item?.ref || "").trim(), item])).values()) as any[];
+        unique.sort((a: any,b: any) => new Date(b?.created_at || b?.createdAt || b?.purchased_at || b?.updated_at || 0).getTime() - new Date(a?.created_at || a?.createdAt || a?.purchased_at || a?.updated_at || 0).getTime());
+        const newest = unique[0];
+        const newestTime = newest ? new Date(newest?.created_at || newest?.createdAt || newest?.purchased_at || newest?.updated_at || 0).getTime() : 0;
+        const recent = newest && newestTime > 0 && Date.now() - newestTime <= 2 * 60 * 60 * 1000;
+        if (unique.length === 1 || recent) {
+          const recovered = String(newest?.reference || newest?.order_reference || newest?.ref || "").trim();
+          if (recovered) {
+            window.sessionStorage.setItem("wickspend:lastNumberReference", recovered);
+            window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
+            setReference(recovered);
+          }
         }
       }).catch(() => {}).finally(() => { if (active && mounted.current) setRecoveringReference(false); });
       return () => { active = false; };
@@ -188,9 +208,9 @@ export default function OtpPage() {
   return <main className="shell appShell">
     <div className={styles.screen}>
       {!reference ? <section className={styles.cancelledSuccess}>
-        <h2>{recoveringReference ? "Checking active numbers…" : "No active number selected"}</h2>
-        <p>{recoveringReference ? "Looking for a number that can be restored safely." : "Choose a number to view its OTP and status here."}</p>
-        <Link href="/buy-number" className={styles.primary}>Back to Buy Number</Link>
+        <h2>{recoveringReference ? "Checking recent number…" : "No active number selected"}</h2>
+        <p>{recoveringReference ? "Restoring your latest confirmed number and OTP status." : "Open a number order to view its OTP and status here."}</p>
+        <Link href="/orders" className={styles.primary}>View Number Orders</Link>
       </section> : refunded ? <section className={styles.refundedTerminal}>
         <div className={styles.refundedCheck}>✓</div>
         <h1>Number cancelled</h1><p>The provider approved the cancellation.</p>
