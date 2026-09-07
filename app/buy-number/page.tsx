@@ -24,9 +24,66 @@ const services = [
   ["Google", "google"],
 ] as const;
 const serviceCodes: Record<string, string> = Object.fromEntries(services.map(([name, code]) => [name, code]));
-const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? null;
+const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? p?.price ?? p?.cost_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
 const money = (value: any) => { const n = Number(value); return Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—"; };
+
+function isoFlag(iso?: string) {
+  const code = String(iso || "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "🌐";
+  return String.fromCodePoint(...[...code].map((char) => 127397 + char.charCodeAt(0)));
+}
+
+function firstArray(...values: any[]): any[] {
+  for (const value of values) if (Array.isArray(value)) return value;
+  return [];
+}
+
+function normalizeCountries(payload: any): CountryOption[] {
+  const raw = firstArray(
+    payload,
+    payload?.countries,
+    payload?.data?.countries,
+    payload?.data,
+    payload?.items,
+    payload?.results,
+    payload?.catalog?.countries,
+    payload?.catalog
+  );
+  const seen = new Set<string>();
+  return raw.flatMap((item: any) => {
+    const name = String(item?.country_name ?? item?.countryName ?? item?.name ?? item?.title ?? "").trim();
+    const code = String(item?.country_code ?? item?.countryCode ?? item?.code ?? item?.id ?? item?.country_id ?? "").trim();
+    const iso = String(item?.iso_code ?? item?.iso ?? item?.alpha2 ?? item?.country_iso ?? "").trim().toUpperCase();
+    if (!name || !code || seen.has(code)) return [];
+    seen.add(code);
+    return [{ flag: String(item?.flag || isoFlag(iso)), name, code, iso }];
+  });
+}
+
+function normalizePrices(payload: any): any[] {
+  const direct = firstArray(
+    payload,
+    payload?.prices,
+    payload?.data?.prices,
+    payload?.data?.items,
+    payload?.data,
+    payload?.items,
+    payload?.results,
+    payload?.offers,
+    payload?.catalog?.prices
+  );
+  if (direct.length) return direct;
+
+  const candidates = [payload?.prices, payload?.data?.prices, payload?.data, payload?.items, payload?.results];
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      const values = Object.values(candidate);
+      if (values.length && values.every((value) => value && typeof value === "object")) return values;
+    }
+  }
+  return [];
+}
 
 function ServiceBrandIcon({ service }: { service: string }) {
   const key = service.toLowerCase();
@@ -59,15 +116,12 @@ export default function BuyNumberPage() {
     if (requestedService && serviceCodes[requestedService]) setService(requestedService);
     api.numbers.countries().then((data: any) => {
       if (cancelled) return;
-      const raw = Array.isArray(data?.countries) ? data.countries : [];
-      const next: CountryOption[] = raw
-        .map((item: any) => ({ flag: String(item?.flag || "🌐"), name: String(item?.country_name || ""), code: String(item?.country_code || ""), iso: String(item?.iso_code || "") }))
-        .filter((item: CountryOption) => item.name && item.code);
+      const next = normalizeCountries(data);
       if (!next.length) return;
       setCountries(next);
       const requested = String(requestedCountry || "").toLowerCase();
       const match = next.find((item) => item.code === requestedCountry || item.iso?.toLowerCase() === requested || item.name.toLowerCase() === requested || (requested === "usa" && item.iso === "US") || (requested === "uk" && item.iso === "GB"));
-      setCountry(match?.code || next.find((item) => item.name === "Nigeria")?.code || next[0].code);
+      setCountry(match?.code || next.find((item) => item.name.toLowerCase() === "nigeria")?.code || next[0].code);
     }).catch(() => {});
     const token = getSessionToken();
     if (token) {
@@ -101,8 +155,7 @@ export default function BuyNumberPage() {
     try {
       const data: any = await api.numbers.prices("", selectedCountryCode, selectedServiceCode);
       if (requestId !== priceRequest.current) return;
-      const list = Array.isArray(data) ? data : (data?.prices || data?.items || data?.data || []);
-      const parsed = Array.isArray(list) ? list : [];
+      const parsed = normalizePrices(data).filter((item: any) => item != null);
       setPrices(parsed);
       setMessage(parsed.length ? "" : "No numbers are available for this selection right now.");
       setSheetOpen(parsed.length > 0);
@@ -190,11 +243,12 @@ export default function BuyNumberPage() {
               {prices.map((p: any, i) => {
                 const rawPrice = priceNgn(p);
                 const formattedPrice = rawPrice != null && Number.isFinite(Number(rawPrice)) ? `₦${Number(rawPrice).toLocaleString()}` : "Price at checkout";
+                const available = p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability;
                 return (
-                  <div className="priceRow" key={p.id || p.service_code || i}>
+                  <div className="priceRow" key={p.id || p.service_code || p.price_id || i}>
                     <div>
                       <strong>{formattedPrice}</strong>
-                      <small>{Number.isFinite(Number(p.available ?? p.stock)) ? `${Number(p.available ?? p.stock).toLocaleString()} numbers available` : "Available now"}</small>
+                      <small>{Number.isFinite(Number(available)) ? `${Number(available).toLocaleString()} numbers available` : "Available now"}</small>
                     </div>
                     <button className="priceBuyButton" type="button" disabled={buying} onClick={buy}>{buying ? "Buying…" : "Buy"}</button>
                   </div>
