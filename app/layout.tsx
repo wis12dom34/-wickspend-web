@@ -7,6 +7,7 @@ import "./home-promo-fix.css";
 import "./responsive.css";
 import "./account-responsive.css";
 import "./brand-theme.css";
+import "./marketplace-home-responsive.css";
 import "@/components/smart-support.css";
 
 export const metadata: Metadata = {
