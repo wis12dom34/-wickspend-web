@@ -18,14 +18,24 @@ const fallbackCountries: CountryOption[] = [
   { flag: "🇵🇱", name: "Poland", code: "15", iso: "PL" },
 ];
 
-const fallbackServices: ServiceOption[] = [
-  { name: "Telegram", code: "telegram" },
-  { name: "WhatsApp", code: "whatsapp" },
-  { name: "Instagram", code: "instagram" },
-  { name: "TikTok", code: "tiktok" },
-  { name: "Facebook", code: "facebook" },
-  { name: "Google", code: "google" },
-];
+const KNOWN_SERVICE_NAMES: Record<string, string> = {
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  facebook: "Facebook",
+  google: "Google",
+};
+
+function friendlyServiceName(code: string, providedName?: string) {
+  const cleanCode = String(code || "").trim();
+  const cleanName = String(providedName || "").trim();
+  const known = KNOWN_SERVICE_NAMES[cleanCode.toLowerCase()];
+  if (known) return known;
+  if (cleanName && cleanName.toLowerCase() !== cleanCode.toLowerCase()) return cleanName;
+  if (!cleanCode) return "Unknown service";
+  return cleanCode.length <= 5 ? cleanCode.toUpperCase() : cleanCode.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? p?.price ?? p?.cost_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
@@ -77,13 +87,13 @@ function normalizeServices(payload: any): ServiceOption[] {
   );
   const seen = new Set<string>();
   return raw.flatMap((item: any) => {
-    const name = String(item?.service_name ?? item?.serviceName ?? item?.name ?? item?.title ?? item?.service ?? "").trim();
     const code = String(item?.service_code ?? item?.serviceCode ?? item?.code ?? item?.service_id ?? item?.id ?? "").trim();
-    if (!name || !code) return [];
+    if (!code) return [];
     const key = code.toLowerCase();
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ name, code }];
+    const providedName = String(item?.service_name ?? item?.serviceName ?? item?.name ?? item?.title ?? item?.service ?? "").trim();
+    return [{ name: friendlyServiceName(code, providedName), code }];
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -118,13 +128,14 @@ function ServiceBrandIcon({ service }: { service: string }) {
   if (key === "instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ig-buy" x1="3" y1="21" x2="21" y2="3"><stop stopColor="#FEDA75"/><stop offset=".35" stopColor="#FA7E1E"/><stop offset=".65" stopColor="#D62976"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-buy)"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="17.4" cy="6.7" r="1.1" fill="#fff"/></svg>;
   if (key === "facebook") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#1877F2"/><path d="M13.4 20v-7h2.4l.4-2.7h-2.8V8.6c0-.8.2-1.3 1.4-1.3h1.5V4.9c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v1.7H8V13h2.4v7h3Z" fill="#fff"/></svg>;
   if (key === "tiktok") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" fill="#000"/><path d="M14.2 6c.4 1.8 1.4 2.9 3.2 3.2v2.2c-1.2 0-2.3-.4-3.2-1.1v4.4a4 4 0 1 1-3.5-4v2.2a1.8 1.8 0 1 0 1.3 1.8V6h2.2Z" fill="#fff"/></svg>;
+  if (key === "google") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M19.6 12.2c0-.6-.1-1.2-.2-1.7H12v3h4.2a3.6 3.6 0 0 1-1.6 2.4v2h2.6c1.5-1.4 2.4-3.4 2.4-5.7Z" fill="#4285F4"/><path d="M12 20c2.2 0 4-.7 5.3-1.9l-2.6-2a4.8 4.8 0 0 1-7.1-2.5H4.9v2.1A8 8 0 0 0 12 20Z" fill="#34A853"/><path d="M7.6 13.6a4.8 4.8 0 0 1 0-3.1V8.4H4.9a8 8 0 0 0 0 7.3l2.7-2.1Z" fill="#FBBC05"/><path d="M12 7.3c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8 8 0 0 0 4.9 8.4l2.7 2.1A4.8 4.8 0 0 1 12 7.3Z" fill="#EA4335"/></svg>;
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="#6e6e73" strokeWidth="1.5"/><path d="M4.5 12h15M12 4.5c2 2.1 3 4.6 3 7.5s-1 5.4-3 7.5c-2-2.1-3-4.6-3-7.5s1-5.4 3-7.5Z" fill="none" stroke="#6e6e73" strokeWidth="1.2"/></svg>;
 }
 
 export default function BuyNumberPage() {
   const router = useRouter();
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
-  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>(fallbackServices);
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [country, setCountry] = useState("19");
   const [service, setService] = useState("Telegram");
   const [prices, setPrices] = useState<any[]>([]);
@@ -178,7 +189,7 @@ export default function BuyNumberPage() {
         return requestedMatch?.name || currentMatch?.name || next[0].name;
       });
     }).catch(() => {
-      if (!cancelled) setServiceOptions(fallbackServices);
+      if (!cancelled) { setServiceOptions([]); setMessage("Unable to load services. Please try again."); }
     }).finally(() => {
       if (!cancelled) setLoadingServices(false);
     });
