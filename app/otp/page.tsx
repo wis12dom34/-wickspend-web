@@ -32,6 +32,19 @@ const clock = (v: any) => { const d = dateObj(v); return d ? d.toLocaleTimeStrin
 const cancelledStatus = (v: any) => /cancelled|canceled/i.test(String(v?.status || v?.state || ""));
 const refundConfirmed = (v:any) => /refunded|refund(ed)?|completed|approved|successful|success/i.test(String(v?.refund_status || v?.refund?.status || v?.status || v?.state || ""));
 const walletMoney = (v:any) => { const n=Number(v); return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:""; };
+const referenceOf = (v:any) => String(v?.reference || v?.order_reference || v?.orderReference || v?.ref || v?.order?.reference || v?.data?.reference || "").trim();
+const timeOf = (v:any) => {
+  const raw = v?.created_at || v?.createdAt || v?.purchased_at || v?.purchase_date || v?.updated_at || v?.updatedAt;
+  const value = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(value) ? value : 0;
+};
+const listOf = (v:any): any[] => {
+  if (Array.isArray(v)) return v;
+  if (!v || typeof v !== "object") return [];
+  const direct = [v.items, v.orders, v.number_orders, v.numbers, v.activations, v.results, v.data?.items, v.data?.orders, v.data?.number_orders, v.data?.numbers, v.data?.results, v.data];
+  for (const candidate of direct) if (Array.isArray(candidate)) return candidate;
+  return [];
+};
 
 export default function OtpPage() {
   const [data, setData] = useState<any>(null);
@@ -48,6 +61,13 @@ export default function OtpPage() {
 
   useEffect(() => () => { mounted.current = false; seq.current++; }, []);
 
+  function rememberReference(value:string) {
+    const recovered = value.trim();
+    if (!recovered || typeof window === "undefined") return;
+    window.sessionStorage.setItem("wickspend:lastNumberReference", recovered);
+    window.localStorage.setItem("wickspend:lastNumberReference", recovered);
+  }
+
   async function refresh(silent = false) {
     if (busy || !reference) return;
     const token = getSessionToken();
@@ -59,6 +79,7 @@ export default function OtpPage() {
       const next = payloadOf(r);
       if (!mounted.current || id !== seq.current) return;
       setData(next && typeof next === "object" ? next : r);
+      rememberReference(reference);
       setCancelError(false);
       setMessage("");
     } catch (e) {
@@ -73,7 +94,9 @@ export default function OtpPage() {
       const token = getSessionToken();
       setMessage("");
       if (!token) return;
-      const remembered = typeof window !== "undefined" ? window.sessionStorage.getItem("wickspend:lastNumberReference") || "" : "";
+      const remembered = typeof window !== "undefined"
+        ? window.sessionStorage.getItem("wickspend:lastNumberReference") || window.localStorage.getItem("wickspend:lastNumberReference") || ""
+        : "";
       if (remembered.trim()) {
         const recovered = remembered.trim();
         window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
@@ -86,32 +109,26 @@ export default function OtpPage() {
         if (!active || !mounted.current) return;
         const activeResponse: any = results[0]?.status === "fulfilled" ? results[0].value : null;
         const ordersResponse: any = results[1]?.status === "fulfilled" ? results[1].value : null;
-        const activeItems = Array.isArray(activeResponse?.items) ? activeResponse.items : Array.isArray(activeResponse?.data?.items) ? activeResponse.data.items : [];
-        const orderItems = Array.isArray(ordersResponse) ? ordersResponse : Array.isArray(ordersResponse?.orders) ? ordersResponse.orders : Array.isArray(ordersResponse?.items) ? ordersResponse.items : Array.isArray(ordersResponse?.data) ? ordersResponse.data : [];
-        const usable = [...activeItems, ...orderItems].filter((item: any) => {
-          const itemReference = String(item?.reference || item?.order_reference || item?.ref || "").trim();
-          const itemNumber = String(item?.phone_number || item?.number || item?.phone || "").trim();
+        const candidates = [...listOf(activeResponse), ...listOf(ordersResponse)].filter((item: any) => {
+          const itemReference = referenceOf(item);
           const status = String(item?.status || item?.state || "").toLowerCase();
-          const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type].filter(Boolean).join(" ")).toLowerCase();
-          const looksLikeNumber = Boolean(itemNumber) || /number|sms|otp|activation/.test(type);
-          return itemReference && itemNumber && looksLikeNumber && !/failed|refunded|cancelled|canceled|rejected|error/.test(status) && item?.provider_pending !== true;
+          const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type,item?.service,item?.service_name].filter(Boolean).join(" ")).toLowerCase();
+          const looksLikeNumber = Boolean(phoneOf(item)) || /number|sms|otp|activation/.test(type) || /WICKWEB-NUM-/i.test(itemReference);
+          return itemReference && looksLikeNumber && !/failed|refunded|cancelled|canceled|rejected|error/.test(status) && item?.provider_pending !== true;
         });
-        const unique = Array.from(new Map(usable.map((item: any) => [String(item?.reference || item?.order_reference || item?.ref || "").trim(), item])).values()) as any[];
-        unique.sort((a: any,b: any) => new Date(b?.created_at || b?.createdAt || b?.purchased_at || b?.updated_at || 0).getTime() - new Date(a?.created_at || a?.createdAt || a?.purchased_at || a?.updated_at || 0).getTime());
+        const unique = Array.from(new Map(candidates.map((item: any) => [referenceOf(item), item])).values()) as any[];
+        unique.sort((a: any,b: any) => timeOf(b) - timeOf(a));
         const newest = unique[0];
-        const newestTime = newest ? new Date(newest?.created_at || newest?.createdAt || newest?.purchased_at || newest?.updated_at || 0).getTime() : 0;
-        const recent = newest && newestTime > 0 && Date.now() - newestTime <= 2 * 60 * 60 * 1000;
-        if (unique.length === 1 || recent) {
-          const recovered = String(newest?.reference || newest?.order_reference || newest?.ref || "").trim();
-          if (recovered) {
-            window.sessionStorage.setItem("wickspend:lastNumberReference", recovered);
-            window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
-            setReference(recovered);
-          }
+        const recovered = newest ? referenceOf(newest) : "";
+        if (recovered) {
+          rememberReference(recovered);
+          window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
+          setReference(recovered);
         }
       }).catch(() => {}).finally(() => { if (active && mounted.current) setRecoveringReference(false); });
       return () => { active = false; };
     }
+    rememberReference(reference);
     refresh();
     const timer = window.setInterval(() => { if (!busy) refresh(true); }, 5000);
     return () => window.clearInterval(timer);
