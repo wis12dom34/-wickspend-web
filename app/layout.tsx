@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { AppTestimonials } from "@/components/AppTestimonials";
 import { SmartSupportLoader } from "@/components/SmartSupportLoader";
 import "./globals.css";
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <AppTestimonials />
-        <SmartSupportLoader />
+        <Suspense fallback={null}>
+          <SmartSupportLoader />
+        </Suspense>
       </body>
     </html>
   );
