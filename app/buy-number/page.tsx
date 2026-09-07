@@ -258,6 +258,17 @@ export default function BuyNumberPage() {
     setSearch("");
   }
 
+  function openPremiumFlow() {
+    if (buying || loadingPrices) return;
+    window.history.pushState({}, "", "/buy-number?country=USA&premium=1");
+    setMessage("Loading Premium USA services…");
+    setPrices([]);
+    setSheetOpen(false);
+    setServiceOptions([]);
+    setCountry("US");
+    setPremium(true);
+  }
+
   async function load(e: FormEvent) {
     e.preventDefault();
     if (buying || loadingPrices) return;
@@ -337,7 +348,7 @@ export default function BuyNumberPage() {
 
         <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices || loadingServices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
-          <button type="button" onClick={() => { window.location.assign("/buy-number?country=USA&premium=1"); }} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
+          <button type="button" onClick={openPremiumFlow} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
             <span style={{fontSize:8,color:"#6e6e73"}}>🇺🇸 Premium USA</span><strong style={{fontSize:10,lineHeight:1.25}}>Buy Premium USA Number</strong>
           </button>
           <button type="button" onClick={() => router.push("/rent-number?country=USA")} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
