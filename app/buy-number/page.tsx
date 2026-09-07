@@ -106,6 +106,8 @@ export default function BuyNumberPage() {
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [balance, setBalance] = useState("—");
+  const [picker, setPicker] = useState<"country" | "service" | null>(null);
+  const [search, setSearch] = useState("");
   const priceRequest = useRef(0);
 
   useEffect(() => {
@@ -141,6 +143,17 @@ export default function BuyNumberPage() {
     setLoadingPrices(false);
     setMessage("");
     if (next === "country") setCountry(value); else setService(value);
+  }
+
+  function openPicker(type: "country" | "service") {
+    if (buying) return;
+    setSearch("");
+    setPicker(type);
+  }
+
+  function closePicker() {
+    setPicker(null);
+    setSearch("");
   }
 
   async function load(e: FormEvent) {
@@ -194,26 +207,23 @@ export default function BuyNumberPage() {
   }
 
   const selectedCountry = countries.find((item) => item.code === country) || countries[0];
+  const query = search.trim().toLowerCase();
+  const filteredCountries = countries.filter((item) => !query || item.name.toLowerCase().includes(query) || item.iso?.toLowerCase().includes(query));
+  const filteredServices = services.filter(([name]) => !query || name.toLowerCase().includes(query));
 
   return (
     <PageShell title="Buy Number" subtitle="Choose a country and service">
       <form className="buyNumberPanel" onSubmit={load}>
-        <button type="button" className="selectorCard" onClick={() => document.getElementById("countrySelect")?.focus()}>
+        <button type="button" className="selectorCard" onClick={() => openPicker("country")}>
           <span className="selectorIcon">{selectedCountry?.flag || "🌐"}</span>
           <span className="selectorCopy"><small>Country</small><strong>{selectedCountry?.name || "Choose country"}</strong></span>
           <span className="selectorChevron">⌄</span>
-          <select id="countrySelect" aria-label="Country" value={country} disabled={buying} onChange={(e) => resetSelection("country", e.target.value)}>
-            {countries.map((item) => <option key={item.code} value={item.code}>{item.flag} {item.name}</option>)}
-          </select>
         </button>
 
-        <button type="button" className="selectorCard" onClick={() => document.getElementById("serviceSelect")?.focus()}>
+        <button type="button" className="selectorCard" onClick={() => openPicker("service")}>
           <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={service}/></span>
           <span className="selectorCopy"><small>Service</small><strong>{service}</strong></span>
           <span className="selectorChevron">⌄</span>
-          <select id="serviceSelect" aria-label="Service" value={service} disabled={buying} onChange={(e) => resetSelection("service", e.target.value)}>
-            {services.map(([name]) => <option key={name}>{name}</option>)}
-          </select>
         </button>
 
         <div className="purchaseSummary">
@@ -233,6 +243,40 @@ export default function BuyNumberPage() {
         </div>
         {message && <p className="buyNumberMessage" role="status">{message}</p>}
       </form>
+
+      {picker && (
+        <div role="presentation" onClick={closePicker} style={{position:"fixed",inset:0,zIndex:120,background:"rgba(0,0,0,.22)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 12px calc(env(safe-area-inset-bottom) + 12px)"}}>
+          <section role="dialog" aria-modal="true" aria-label={picker === "country" ? "Choose country" : "Choose service"} onClick={(e) => e.stopPropagation()} style={{width:"min(100%,540px)",maxHeight:"72vh",background:"rgba(255,255,255,.97)",border:"1px solid rgba(0,0,0,.08)",borderRadius:28,boxShadow:"0 24px 70px rgba(0,0,0,.2)",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+            <div style={{padding:"10px 16px 12px",borderBottom:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.9)",position:"sticky",top:0,zIndex:2}}>
+              <div style={{width:38,height:5,borderRadius:99,background:"rgba(0,0,0,.16)",margin:"0 auto 12px"}} />
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10}}>
+                <strong style={{fontSize:18}}>{picker === "country" ? "Choose country" : "Choose service"}</strong>
+                <button type="button" onClick={closePicker} aria-label="Close" style={{width:32,height:32,border:0,borderRadius:16,background:"rgba(0,0,0,.06)",fontSize:18,lineHeight:1}}>×</button>
+              </div>
+              <label style={{height:46,border:"1px solid rgba(0,0,0,.1)",borderRadius:15,display:"flex",alignItems:"center",gap:9,padding:"0 13px",background:"#fff"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{flex:"0 0 auto"}}><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2"/><path d="m16.5 16.5 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={picker === "country" ? "Search countries" : "Search services"} style={{border:0,outline:0,width:"100%",fontSize:16,background:"transparent",color:"#111"}} />
+              </label>
+            </div>
+            <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"6px 10px 12px"}}>
+              {picker === "country" ? filteredCountries.map((item) => (
+                <button key={item.code} type="button" onClick={() => { resetSelection("country", item.code); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.code === country ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
+                  <span style={{fontSize:24,width:30,textAlign:"center"}}>{item.flag}</span>
+                  <span style={{flex:1}}>{item.name}</span>
+                  {item.code === country && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+                </button>
+              )) : filteredServices.map(([name]) => (
+                <button key={name} type="button" onClick={() => { resetSelection("service", name); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:name === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
+                  <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={name}/></span>
+                  <span style={{flex:1}}>{name}</span>
+                  {name === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+                </button>
+              ))}
+              {((picker === "country" && filteredCountries.length === 0) || (picker === "service" && filteredServices.length === 0)) && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>No results found.</p>}
+            </div>
+          </section>
+        </div>
+      )}
 
       {sheetOpen && prices.length > 0 && (
         <div className="sheetBackdrop" role="presentation" onClick={() => !buying && setSheetOpen(false)}>
