@@ -55,25 +55,41 @@ function firstFiniteNumber(...values: unknown[]): number | null {
   return null;
 }
 
-function arraysFromPayload(payload: any): any[][] {
-  return [
-    payload,
-    payload?.services,
-    payload?.prices,
-    payload?.items,
-    payload?.results,
-    payload?.data,
-    payload?.data?.services,
-    payload?.data?.prices,
-    payload?.data?.items,
-    payload?.catalog,
-    payload?.catalog?.services,
-    payload?.catalog?.prices,
-  ].filter(Array.isArray);
+function rowsFromPayload(payload: any): any[] {
+  const rows: any[] = [];
+  const seen = new Set<any>();
+
+  function visit(value: any, keyHint = "", depth = 0) {
+    if (value == null || depth > 5 || seen.has(value)) return;
+    if (typeof value !== "object") {
+      if (keyHint && (typeof value === "number" || typeof value === "string")) {
+        rows.push({ service_code: keyHint, price_ngn: value });
+      }
+      return;
+    }
+    seen.add(value);
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, "", depth + 1));
+      return;
+    }
+
+    const explicitCode = value.service_code ?? value.serviceCode ?? value.code ?? value.service_id;
+    const hasOfferFields = explicitCode != null || value.price_ngn != null || value.final_price_ngn != null || value.amount_ngn != null || value.customer_price_ngn != null || value.price != null || value.available != null || value.stock != null || value.count != null || value.quantity != null || value.availability != null;
+    if (hasOfferFields && (explicitCode != null || keyHint)) rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
+
+    for (const [key, child] of Object.entries(value)) {
+      if (["provider_id", "provider", "api_key", "metadata", "internal"].includes(key)) continue;
+      const nextHint = ["services", "prices", "items", "results", "data", "catalog", "offers"].includes(key) ? "" : key;
+      visit(child, nextHint, depth + 1);
+    }
+  }
+
+  visit(payload);
+  return rows;
 }
 
 function normalizePremiumServices(payload: any): PremiumService[] {
-  const rows = arraysFromPayload(payload).flat();
+  const rows = rowsFromPayload(payload);
   const byCode = new Map<string, PremiumService>();
 
   for (const item of rows) {
