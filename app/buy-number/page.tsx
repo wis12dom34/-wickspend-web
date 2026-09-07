@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import { NUMBER_SERVICE_NAMES } from "@/lib/number-service-names";
 
@@ -166,6 +166,7 @@ export default function BuyNumberPage() {
   const [service, setService] = useState("telegram");
   const [prices, setPrices] = useState<any[]>([]);
   const [message, setMessage] = useState("");
+  const [messageTitle, setMessageTitle] = useState("");
   const [buying, setBuying] = useState(false);
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -174,6 +175,7 @@ export default function BuyNumberPage() {
   const [search, setSearch] = useState("");
   const [loadingServices, setLoadingServices] = useState(false);
   const priceRequest = useRef(0);
+  const buyingRef = useRef(false);
 
   useEffect(() => { setPremium(new URLSearchParams(window.location.search).get("premium") === "1"); }, []);
 
@@ -247,6 +249,7 @@ export default function BuyNumberPage() {
     setSheetOpen(false);
     setLoadingPrices(false);
     setMessage("");
+    setMessageTitle("");
     if (next === "country") setCountry(value); else setService(value);
   }
 
@@ -280,6 +283,7 @@ export default function BuyNumberPage() {
     const selectedServiceCode = currentServiceCode();
     setLoadingPrices(true);
     setSheetOpen(false);
+    setMessageTitle("");
     setMessage("Checking live prices…");
     try {
       const token = getSessionToken();
@@ -300,9 +304,26 @@ export default function BuyNumberPage() {
     }
   }
 
+  async function refreshFailedSelection() {
+    const selectedCountryCode = country;
+    const selectedServiceCode = currentServiceCode();
+    try {
+      const token = getSessionToken();
+      const data: any = premium
+        ? (token ? await api.numbers.premiumCatalog(token) : null)
+        : await api.numbers.prices("", selectedCountryCode, selectedServiceCode, true);
+      const parsed = normalizePrices(data).filter((item: any) => item != null && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
+      setPrices(parsed);
+    } catch {
+      setPrices([]);
+    }
+  }
+
   async function buy(selectedOffer: any) {
-    if (buying) return;
+    if (buyingRef.current) return;
+    buyingRef.current = true;
     setBuying(true);
+    setMessageTitle("");
     setMessage("Purchasing number…");
     try {
       const token = getSessionToken();
@@ -312,12 +333,51 @@ export default function BuyNumberPage() {
       const result: any = premium
         ? await api.numbers.premiumBuy(token, { service_code: currentServiceCode() })
         : await api.numbers.buy(token, { country_code: country, service_code: currentServiceCode(), provider_id: providerId });
-      const reference = result?.reference || result?.order?.reference || result?.data?.reference;
+      const payload = result?.data || result?.order || result;
+      const reference = String(payload?.reference || result?.reference || "").trim();
+      const purchasedNumber = String(payload?.number || payload?.phone_number || result?.number || result?.phone_number || "").trim();
+      const confirmed = result?.ok === true && reference && purchasedNumber && result?.provider_pending !== true;
+
+      if (!confirmed) {
+        const code = String(result?.code || result?.error || payload?.code || payload?.error || "").toUpperCase();
+        const unavailable = ["NO_NUMBERS", "PURCHASE_FAILED", "SELECTED_OFFER_UNAVAILABLE", "PURCHASE_UNAVAILABLE", "PREMIUM_USA_UNAVAILABLE", "NUMBER_UNAVAILABLE"].includes(code);
+        setSheetOpen(false);
+        if (result?.provider_pending === true) {
+          setMessageTitle("Purchase pending");
+          setMessage("We’re still confirming this number. A success state will appear only after the purchase is confirmed.");
+        } else if (unavailable) {
+          setMessageTitle("Number unavailable");
+          setMessage(result?.refunded === true
+            ? "This number is no longer available. Your payment has been refunded. Please choose another number."
+            : "This number is no longer available. Please choose another number.");
+          await refreshFailedSelection();
+        } else {
+          setMessageTitle("Purchase not confirmed");
+          setMessage("We could not confirm this number purchase. Please choose another number or try again.");
+        }
+        return;
+      }
+
       setMessage("Number purchased successfully.");
-      router.push(reference ? `/otp?reference=${encodeURIComponent(reference)}` : "/orders");
+      router.push(`/otp?reference=${encodeURIComponent(reference)}`);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Unable to purchase this number");
+      const apiError = err instanceof ApiError ? err : null;
+      const code = String(apiError?.code || "").toUpperCase();
+      const payload: any = apiError?.payload;
+      const unavailable = ["NO_NUMBERS", "PURCHASE_FAILED", "SELECTED_OFFER_UNAVAILABLE", "PURCHASE_UNAVAILABLE", "PREMIUM_USA_UNAVAILABLE", "NUMBER_UNAVAILABLE"].includes(code);
+      if (unavailable) {
+        setSheetOpen(false);
+        setMessageTitle("Number unavailable");
+        setMessage(payload?.refunded === true
+          ? "This number is no longer available. Your payment has been refunded. Please choose another number."
+          : "This number is no longer available. Please choose another number.");
+        await refreshFailedSelection();
+      } else {
+        setMessageTitle("");
+        setMessage(err instanceof Error ? err.message : "Unable to purchase this number");
+      }
     } finally {
+      buyingRef.current = false;
       setBuying(false);
     }
   }
@@ -358,7 +418,7 @@ export default function BuyNumberPage() {
             <span style={{fontSize:8,color:"#6e6e73"}}>🇺🇸 Long-term access</span><strong style={{fontSize:10,lineHeight:1.25}}>Rent USA Number</strong>
           </button>
         </div>
-        {message && <p className="buyNumberMessage" role="status">{message}</p>}
+        {message && <p className="buyNumberMessage" role="status">{messageTitle && <><strong>{messageTitle}</strong><br /></>}{message}</p>}
       </form>
 
       {picker && (
