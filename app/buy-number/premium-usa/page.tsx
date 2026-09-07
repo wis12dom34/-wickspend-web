@@ -39,9 +39,9 @@ const BRAND_ICON_SLUGS: Readonly<Record<string, string>> = {
 function friendlyServiceName(code: string, providedName?: string) {
   const cleanCode = String(code || "").trim();
   const cleanName = String(providedName || "").trim();
+  if (cleanName && cleanName.toLowerCase() !== cleanCode.toLowerCase()) return cleanName;
   const known = NUMBER_SERVICE_NAMES[cleanCode.toLowerCase()];
   if (known) return known;
-  if (cleanName && cleanName.toLowerCase() !== cleanCode.toLowerCase()) return cleanName;
   if (!cleanCode) return "Unknown service";
   const formatted = cleanCode.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return cleanCode.length <= 5 ? `Service ${cleanCode.toUpperCase()}` : formatted;
@@ -60,15 +60,9 @@ function rowsFromPayload(payload: any): any[] {
   const seen = new Set<any>();
 
   function visit(value: any, keyHint = "", depth = 0) {
-    if (value == null || depth > 5 || seen.has(value)) return;
-    if (typeof value !== "object") {
-      const numeric = typeof value === "number" || (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)));
-      const reserved = new Set(["status", "success", "message", "currency", "country", "country_code", "error", "code", "provider", "provider_id", "api_key", "metadata", "internal"]);
-      if (keyHint && numeric && !reserved.has(keyHint.toLowerCase())) {
-        rows.push({ service_code: keyHint, price_ngn: value });
-      }
-      return;
-    }
+    if (value == null || depth > 5 || (typeof value === "object" && seen.has(value))) return;
+    if (typeof value !== "object") return;
+
     seen.add(value);
     if (Array.isArray(value)) {
       value.forEach((item) => visit(item, "", depth + 1));
@@ -76,12 +70,20 @@ function rowsFromPayload(payload: any): any[] {
     }
 
     const explicitCode = value.service_code ?? value.serviceCode ?? value.code ?? value.service_id;
-    const hasOfferFields = explicitCode != null || value.price_ngn != null || value.final_price_ngn != null || value.amount_ngn != null || value.customer_price_ngn != null || value.cost_ngn != null || value.cost != null || value.rate_ngn != null || value.rate != null || value.price != null || value.available != null || value.stock != null || value.count != null || value.quantity != null || value.availability != null;
-    if (hasOfferFields && (explicitCode != null || keyHint)) rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
+    const hasCatalogFields =
+      explicitCode != null ||
+      value.service_name != null ||
+      value.price_ngn != null ||
+      value.available != null;
+
+    if (hasCatalogFields && (explicitCode != null || keyHint)) {
+      rows.push(explicitCode != null ? value : { ...value, service_code: keyHint });
+      return;
+    }
 
     for (const [key, child] of Object.entries(value)) {
       if (["provider_id", "provider", "api_key", "metadata", "internal", "status", "success", "message", "currency", "country", "country_code", "error"].includes(key.toLowerCase())) continue;
-      const nextHint = ["services", "prices", "items", "results", "data", "catalog", "offers"].includes(key) ? "" : key;
+      const nextHint = ["services", "prices", "items", "results", "data", "catalog", "offers"].includes(key.toLowerCase()) ? "" : key;
       visit(child, nextHint, depth + 1);
     }
   }
@@ -99,14 +101,16 @@ function normalizePremiumServices(payload: any): PremiumService[] {
     const code = String(item.service_code ?? item.serviceCode ?? item.code ?? item.service_id ?? item.id ?? "").trim();
     if (!code) continue;
     if (["status", "success", "message", "currency", "country", "country_code", "error", "provider", "provider_id", "api_key", "metadata", "internal"].includes(code.toLowerCase())) continue;
+
     const providedName = String(item.service_name ?? item.serviceName ?? item.name ?? item.title ?? item.service ?? "").trim();
-    const price = firstFiniteNumber(item.price_ngn, item.final_price_ngn, item.amount_ngn, item.customer_price_ngn, item.cost_ngn, item.cost, item.rate_ngn, item.rate, item.price);
+    const price = firstFiniteNumber(item.price_ngn, item.final_price_ngn, item.amount_ngn, item.customer_price_ngn, item.price);
     const available = firstFiniteNumber(item.available, item.stock, item.count, item.quantity, item.availability);
     const key = code.toLowerCase();
     const current = byCode.get(key);
+
     byCode.set(key, {
       code,
-      name: current?.name || friendlyServiceName(code, providedName),
+      name: friendlyServiceName(code, providedName || current?.name),
       price: price ?? current?.price ?? null,
       available: available ?? current?.available ?? null,
     });
@@ -116,7 +120,9 @@ function normalizePremiumServices(payload: any): PremiumService[] {
 }
 
 function money(value: number | null) {
-  return value === null ? "Price unavailable" : `₦${value.toLocaleString()}`;
+  return value === null
+    ? "Price unavailable"
+    : new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value);
 }
 
 function ServiceBrandIcon({ service }: { service: string }) {
@@ -170,7 +176,7 @@ export default function PremiumUsaPage() {
   const filteredServices = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return services;
-    return services.filter((item) => item.name.toLowerCase().includes(query));
+    return services.filter((item) => item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
   }, [search, services]);
 
   async function buy(service: PremiumService) {
@@ -218,13 +224,14 @@ export default function PremiumUsaPage() {
         {loading && <p className="buyNumberMessage" role="status">Loading Premium USA services…</p>}
         {!loading && error && <p className="buyNumberMessage" role="alert">{error}</p>}
         {!loading && !error && services.length === 0 && <p className="buyNumberMessage" role="status">No Premium USA services are available right now.</p>}
-        {!loading && services.length > 0 && filteredServices.length === 0 && <p className="buyNumberMessage" role="status">No services match your search.</p>}
+        {!loading && !error && services.length > 0 && filteredServices.length === 0 && <p className="buyNumberMessage" role="status">No services match your search.</p>}
 
-        {!loading && filteredServices.length > 0 && (
+        {!loading && !error && filteredServices.length > 0 && (
           <div style={{display:"grid",gap:10}}>
             {filteredServices.map((service) => {
               const isBuying = buyingCode === service.code;
-              const disabled = Boolean(buyingCode) || service.price === null || service.available === 0;
+              const unavailable = service.available !== null && service.available <= 0;
+              const disabled = Boolean(buyingCode) || service.price === null || unavailable;
               return (
                 <article key={service.code} className="selectorCard" style={{cursor:"default",display:"grid",gridTemplateColumns:"42px minmax(0,1fr) auto",gap:12,alignItems:"center"}}>
                   <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={service.name}/></span>
@@ -233,7 +240,7 @@ export default function PremiumUsaPage() {
                     <strong style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{service.name}</strong>
                     <span style={{fontSize:14,fontWeight:700,color:"#0866F5",marginTop:2}}>{money(service.price)}</span>
                   </span>
-                  <button className="priceBuyButton" type="button" disabled={disabled} onClick={() => buy(service)}>{isBuying ? "Buying…" : "Buy"}</button>
+                  <button className="priceBuyButton" type="button" disabled={disabled} onClick={() => buy(service)}>{isBuying ? "Buying…" : unavailable ? "Unavailable" : "Buy"}</button>
                 </article>
               );
             })}
