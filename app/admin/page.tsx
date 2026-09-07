@@ -1,5 +1,5 @@
-import AdminScreen from './AdminScreen';
+import LiveAdminDashboard from './LiveAdminDashboard';
 
 export default function AdminDashboardPage() {
-  return <AdminScreen screen="dashboard" />;
+  return <LiveAdminDashboard />;
 }
