@@ -3,12 +3,18 @@
   --wick-primary-pressed:#0757D9;
   --wick-primary-soft:#EEF5FF;
   --wick-primary-border:#CFE0FF;
+  --wick-primary-shadow:rgba(8,102,245,.20);
   --wick-text:#0A0A0A;
   --wick-muted:#6E6E73;
+  --primary:#0866F5;
+  --primary-color:#0866F5;
+  --accent:#0866F5;
+  --accent-color:#0866F5;
 }
 
-/* WickSpend brand/action colour layer.
-   Layout, typography, glass surfaces, service brand colours and backend behaviour remain unchanged. */
+/* Global WickSpend brand/action colour layer.
+   This file is loaded by the root layout so it applies to every app route,
+   including CSS-module pages, without changing layout or backend behaviour. */
 
 .primaryButton,
 .homePrimaryButton,
@@ -39,10 +45,31 @@
 .rentButton,
 .walletPrimaryButton,
 button[data-variant="primary"],
-a[data-variant="primary"]{
+a[data-variant="primary"],
+button[class*="primary" i],
+button[class*="cta" i],
+button[class*="submit" i],
+button[class*="continue" i],
+button[class*="confirm" i],
+button[class*="checkout" i],
+button[class*="purchase" i],
+button[class*="buy" i],
+button[class*="pay" i],
+button[class*="addfund" i],
+button[class*="boostnow" i],
+button[class*="login" i],
+button[class*="register" i],
+button[class*="createaccount" i],
+a[class*="primary" i],
+a[class*="cta" i],
+a[class*="checkout" i],
+a[class*="purchase" i],
+a[class*="buy" i]{
   background:var(--wick-primary) !important;
+  background-image:none !important;
   border-color:var(--wick-primary) !important;
   color:#fff !important;
+  box-shadow:0 10px 24px var(--wick-primary-shadow),inset 0 1px 1px rgba(255,255,255,.18) !important;
 }
 
 .primaryButton:active,
@@ -68,25 +95,51 @@ a[data-variant="primary"]{
 .orderPrimaryButton:active,
 .tempMailCta:active,
 button[data-variant="primary"]:active,
-a[data-variant="primary"]:active{
+a[data-variant="primary"]:active,
+button[class*="primary" i]:active,
+button[class*="cta" i]:active,
+button[class*="submit" i]:active,
+button[class*="continue" i]:active,
+button[class*="confirm" i]:active,
+button[class*="checkout" i]:active,
+button[class*="purchase" i]:active,
+button[class*="buy" i]:active,
+button[class*="pay" i]:active,
+button[class*="addfund" i]:active,
+a[class*="primary" i]:active,
+a[class*="cta" i]:active{
   background:var(--wick-primary-pressed) !important;
+  background-image:none !important;
   border-color:var(--wick-primary-pressed) !important;
 }
 
-/* Active navigation and selected states */
+/* CSS-module selected buttons and active choices */
+button.active,
+button[class*="active" i][aria-pressed="true"],
+button[class*="selected" i][aria-pressed="true"],
+[role="tab"][aria-selected="true"]{
+  background:var(--wick-primary) !important;
+  border-color:var(--wick-primary) !important;
+  color:#fff !important;
+}
+
+/* Active navigation and tabs */
 .navItem.active,
 .navItem.active .navIcon,
 .navItem.active .navLabel,
 [aria-current="page"].navItem,
-[aria-selected="true"],
+[aria-current="page"] .navIcon,
+[aria-current="page"] .navLabel,
 .tab.active,
 .tabs .active,
 .segment.active,
-.filterChip.active{
+.filterChip.active,
+[role="tab"][aria-selected="true"]{
   color:var(--wick-primary) !important;
 }
 
-.navItem.active .navIcon svg{
+.navItem.active .navIcon svg,
+[aria-current="page"] .navIcon svg{
   color:var(--wick-primary) !important;
 }
 
@@ -98,11 +151,13 @@ a[data-variant="primary"]:active{
 .authLink,
 .termsLink,
 .helpLink,
-a[data-accent="true"]{
+a[data-accent="true"],
+a[class*="link" i][class*="action" i],
+button[class*="link" i][class*="action" i]{
   color:var(--wick-primary) !important;
 }
 
-/* Selected cards, services, countries and inputs */
+/* Selected cards, services, countries, options and presets */
 .mailService.active,
 .serviceChip.active,
 .countryChip.active,
@@ -112,17 +167,24 @@ a[data-accent="true"]{
 .serviceCard.selected,
 .countryCard.selected,
 [aria-checked="true"].serviceChip,
-[aria-checked="true"].countryChip{
+[aria-checked="true"].countryChip,
+[role="option"][aria-selected="true"],
+[class*="option" i][aria-selected="true"],
+[class*="service" i][aria-selected="true"],
+[class*="country" i][aria-selected="true"],
+button[class*="preset" i].active{
   border-color:var(--wick-primary) !important;
-  box-shadow:0 0 0 1px var(--wick-primary-border) !important;
+  box-shadow:0 0 0 2px var(--wick-primary-border) !important;
 }
 
-/* Soft blue accents without tinting normal copy */
+/* Soft blue states */
 .accentSurface,
 .activeBadge,
 .selectedBadge,
 .progressTrack,
-.statusAccent{
+.statusAccent,
+[class*="selectedBadge" i],
+[class*="activeBadge" i]{
   background:var(--wick-primary-soft) !important;
   border-color:var(--wick-primary-border) !important;
 }
@@ -130,7 +192,9 @@ a[data-accent="true"]{
 .progressBar,
 .progressFill,
 .loadingBar,
-.spinnerAccent{
+.spinnerAccent,
+[class*="progressFill" i],
+[class*="loadingBar" i]{
   background:var(--wick-primary) !important;
   color:var(--wick-primary) !important;
 }
@@ -139,31 +203,56 @@ input:focus,
 select:focus,
 textarea:focus{
   border-color:var(--wick-primary-border) !important;
-  box-shadow:0 0 0 3px rgba(8,102,245,.08);
+  box-shadow:0 0 0 3px rgba(8,102,245,.08) !important;
 }
 
-input[type="checkbox"]:checked,
-input[type="radio"]:checked{
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible{
+  outline-color:var(--wick-primary) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+progress{
   accent-color:var(--wick-primary);
 }
 
-/* Brand/action icons that previously used monochrome black */
+/* Action icons and active monochrome controls */
 .actionIcon,
 .importantActionIcon,
 .walletActionIcon,
 .quickActionIcon,
 .headerAction.active,
-.circle.active{
+.circle.active,
+button[class*="actionIcon" i],
+button[class*="iconButton" i].active,
+[class*="quickAction" i] svg:not([data-brand]),
+[class*="walletAction" i] svg:not([data-brand]){
   color:var(--wick-primary) !important;
 }
 
-/* Keep avatar treatment branded while preserving white text */
 .avatar{
   background:var(--wick-primary) !important;
   color:#fff !important;
 }
 
-/* Preserve readable copy and neutral glass surfaces */
+/* Catch legacy inline black primary actions while leaving neutral secondary controls alone. */
+button[style*="background:#000" i],
+button[style*="background: #000" i],
+button[style*="background:#111" i],
+button[style*="background: #111" i],
+a[style*="background:#000" i],
+a[style*="background: #000" i]{
+  background:var(--wick-primary) !important;
+  border-color:var(--wick-primary) !important;
+  color:#fff !important;
+}
+
+/* Keep normal copy dark and glass surfaces neutral. */
 h1,h2,h3,h4,h5,h6,
 p,li,label,
 .pageHeading,
@@ -185,6 +274,11 @@ svg[data-brand],
 [class*="instagram" i],
 [class*="tiktok" i],
 [class*="facebook" i],
-[class*="google" i]{
+[class*="google" i],
+[class*="gmail" i],
+[class*="snapchat" i],
+[class*="discord" i],
+[class*="microsoft" i],
+[class*="apple" i]{
   filter:none !important;
 }
