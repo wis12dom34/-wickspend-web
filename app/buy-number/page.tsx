@@ -134,7 +134,7 @@ function ServiceBrandIcon({ service }: { service: string }) {
 
 export default function BuyNumberPage() {
   const router = useRouter();
-  const premium = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("premium") === "1";
+  const [premium, setPremium] = useState(false);
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [country, setCountry] = useState("19");
@@ -149,6 +149,8 @@ export default function BuyNumberPage() {
   const [search, setSearch] = useState("");
   const [loadingServices, setLoadingServices] = useState(false);
   const priceRequest = useRef(0);
+
+  useEffect(() => { setPremium(new URLSearchParams(window.location.search).get("premium") === "1"); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,7 +187,7 @@ export default function BuyNumberPage() {
       });
     }
     return () => { cancelled = true; priceRequest.current++; };
-  }, []);
+  }, [premium]);
 
   useEffect(() => {
     if (premium || !country) return;
