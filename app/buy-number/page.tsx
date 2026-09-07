@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
+import { NUMBER_SERVICE_NAMES } from "@/lib/number-service-names";
 
 type CountryOption = { flag: string; name: string; code: string; iso?: string };
 type ServiceOption = { name: string; code: string };
@@ -18,23 +19,38 @@ const fallbackCountries: CountryOption[] = [
   { flag: "🇵🇱", name: "Poland", code: "15", iso: "PL" },
 ];
 
-const KNOWN_SERVICE_NAMES: Record<string, string> = {
-  telegram: "Telegram",
-  whatsapp: "WhatsApp",
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  facebook: "Facebook",
-  google: "Google",
+const POPULAR_SERVICE_ORDER = ["WhatsApp", "Telegram", "Instagram", "Facebook", "TikTok", "Google / Gmail"];
+const POPULAR_SERVICE_RANK = new Map(POPULAR_SERVICE_ORDER.map((name, index) => [name.toLowerCase(), index]));
+
+const BRAND_ICON_SLUGS: Readonly<Record<string, string>> = {
+  "google / gmail": "google",
+  microsoft: "microsoft",
+  apple: "apple",
+  snapchat: "snapchat",
+  discord: "discord",
+  "x / twitter": "x",
+  twitter: "x",
+  tinder: "tinder",
+  uber: "uber",
+  netflix: "netflix",
+  amazon: "amazon",
+  linkedin: "linkedin",
+  paypal: "paypal",
+  airbnb: "airbnb",
+  ebay: "ebay",
+  spotify: "spotify",
+  alipay: "alipay",
 };
 
 function friendlyServiceName(code: string, providedName?: string) {
   const cleanCode = String(code || "").trim();
   const cleanName = String(providedName || "").trim();
-  const known = KNOWN_SERVICE_NAMES[cleanCode.toLowerCase()];
+  const known = NUMBER_SERVICE_NAMES[cleanCode.toLowerCase()];
   if (known) return known;
   if (cleanName && cleanName.toLowerCase() !== cleanCode.toLowerCase()) return cleanName;
   if (!cleanCode) return "Unknown service";
-  return cleanCode.length <= 5 ? cleanCode.toUpperCase() : cleanCode.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const formatted = cleanCode.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return cleanCode.length <= 5 ? `Service ${cleanCode.toUpperCase()}` : formatted;
 }
 
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? p?.price ?? p?.cost_ngn ?? null;
@@ -94,7 +110,11 @@ function normalizeServices(payload: any): ServiceOption[] {
     seen.add(key);
     const providedName = String(item?.service_name ?? item?.serviceName ?? item?.name ?? item?.title ?? item?.service ?? "").trim();
     return [{ name: friendlyServiceName(code, providedName), code }];
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  }).sort((a, b) => {
+    const aRank = POPULAR_SERVICE_RANK.get(a.name.toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+    const bRank = POPULAR_SERVICE_RANK.get(b.name.toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+    return aRank - bRank || a.name.localeCompare(b.name);
+  });
 }
 
 function normalizePrices(payload: any): any[] {
@@ -128,7 +148,9 @@ function ServiceBrandIcon({ service }: { service: string }) {
   if (key === "instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ig-buy" x1="3" y1="21" x2="21" y2="3"><stop stopColor="#FEDA75"/><stop offset=".35" stopColor="#FA7E1E"/><stop offset=".65" stopColor="#D62976"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-buy)"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="17.4" cy="6.7" r="1.1" fill="#fff"/></svg>;
   if (key === "facebook") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#1877F2"/><path d="M13.4 20v-7h2.4l.4-2.7h-2.8V8.6c0-.8.2-1.3 1.4-1.3h1.5V4.9c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v1.7H8V13h2.4v7h3Z" fill="#fff"/></svg>;
   if (key === "tiktok") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" fill="#000"/><path d="M14.2 6c.4 1.8 1.4 2.9 3.2 3.2v2.2c-1.2 0-2.3-.4-3.2-1.1v4.4a4 4 0 1 1-3.5-4v2.2a1.8 1.8 0 1 0 1.3 1.8V6h2.2Z" fill="#fff"/></svg>;
-  if (key === "google") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M19.6 12.2c0-.6-.1-1.2-.2-1.7H12v3h4.2a3.6 3.6 0 0 1-1.6 2.4v2h2.6c1.5-1.4 2.4-3.4 2.4-5.7Z" fill="#4285F4"/><path d="M12 20c2.2 0 4-.7 5.3-1.9l-2.6-2a4.8 4.8 0 0 1-7.1-2.5H4.9v2.1A8 8 0 0 0 12 20Z" fill="#34A853"/><path d="M7.6 13.6a4.8 4.8 0 0 1 0-3.1V8.4H4.9a8 8 0 0 0 0 7.3l2.7-2.1Z" fill="#FBBC05"/><path d="M12 7.3c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8 8 0 0 0 4.9 8.4l2.7 2.1A4.8 4.8 0 0 1 12 7.3Z" fill="#EA4335"/></svg>;
+  if (key === "google" || key === "google / gmail") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M19.6 12.2c0-.6-.1-1.2-.2-1.7H12v3h4.2a3.6 3.6 0 0 1-1.6 2.4v2h2.6c1.5-1.4 2.4-3.4 2.4-5.7Z" fill="#4285F4"/><path d="M12 20c2.2 0 4-.7 5.3-1.9l-2.6-2a4.8 4.8 0 0 1-7.1-2.5H4.9v2.1A8 8 0 0 0 12 20Z" fill="#34A853"/><path d="M7.6 13.6a4.8 4.8 0 0 1 0-3.1V8.4H4.9a8 8 0 0 0 0 7.3l2.7-2.1Z" fill="#FBBC05"/><path d="M12 7.3c1.3 0 2.4.4 3.3 1.3l2.5-2.5A8 8 0 0 0 4.9 8.4l2.7 2.1A4.8 4.8 0 0 1 12 7.3Z" fill="#EA4335"/></svg>;
+  const brandSlug = BRAND_ICON_SLUGS[key];
+  if (brandSlug) return <span aria-hidden="true" style={{width:"100%",height:"100%",borderRadius:"50%",background:"#fff",border:"1px solid #dadce0",display:"grid",placeItems:"center"}}><img src={`https://cdn.simpleicons.org/${brandSlug}`} alt="" width="18" height="18" loading="lazy" style={{display:"block",maxWidth:"65%",maxHeight:"65%"}}/></span>;
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="#6e6e73" strokeWidth="1.5"/><path d="M4.5 12h15M12 4.5c2 2.1 3 4.6 3 7.5s-1 5.4-3 7.5c-2-2.1-3-4.6-3-7.5s1-5.4 3-7.5Z" fill="none" stroke="#6e6e73" strokeWidth="1.2"/></svg>;
 }
 
@@ -138,7 +160,7 @@ export default function BuyNumberPage() {
   const [countries, setCountries] = useState<CountryOption[]>(fallbackCountries);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [country, setCountry] = useState("19");
-  const [service, setService] = useState("Telegram");
+  const [service, setService] = useState("telegram");
   const [prices, setPrices] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [buying, setBuying] = useState(false);
@@ -157,7 +179,7 @@ export default function BuyNumberPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
     const token = getSessionToken();
-    if (params.get("premium") === "1") {
+    if (premium) {
       setCountries([{ flag: "🇺🇸", name: "United States", code: "US", iso: "US" }]);
       setCountry("US");
       if (token) {
@@ -169,9 +191,6 @@ export default function BuyNumberPage() {
           if (next.length) setService(next[0].name);
         }).catch((err) => { if (!cancelled) setMessage(err instanceof Error ? err.message : "Unable to load Premium USA services."); })
           .finally(() => { if (!cancelled) setLoadingServices(false); });
-      } else {
-        setLoadingServices(false);
-        setMessage("Please sign in to view Premium USA services.");
       }
     } else api.numbers.countries().then((data: any) => {
       if (cancelled) return;
@@ -193,7 +212,7 @@ export default function BuyNumberPage() {
   }, [premium]);
 
   useEffect(() => {
-    if ((typeof window !== "undefined" && new URLSearchParams(window.location.search).get("premium") === "1") || !country) return;
+    if (premium || !country) return;
     let cancelled = false;
     setLoadingServices(true);
     api.numbers.services("", country).then((data: any) => {
@@ -203,9 +222,9 @@ export default function BuyNumberPage() {
       setServiceOptions(next);
       const requested = typeof window !== "undefined" ? String(new URLSearchParams(window.location.search).get("service") || "").toLowerCase() : "";
       setService((current) => {
-        const currentMatch = next.find((item) => item.name.toLowerCase() === current.toLowerCase() || item.code.toLowerCase() === current.toLowerCase());
+        const currentMatch = next.find((item) => item.code.toLowerCase() === current.toLowerCase() || item.name.toLowerCase() === current.toLowerCase());
         const requestedMatch = requested ? next.find((item) => item.name.toLowerCase() === requested || item.code.toLowerCase() === requested) : undefined;
-        return requestedMatch?.name || currentMatch?.name || next[0].name;
+        return requestedMatch?.code || currentMatch?.code || next[0].code;
       });
     }).catch(() => {
       if (!cancelled) { setServiceOptions([]); setMessage("Unable to load services. Please try again."); }
@@ -216,7 +235,7 @@ export default function BuyNumberPage() {
   }, [country, premium]);
 
   function currentServiceCode() {
-    return serviceOptions.find((item) => item.name === service)?.code || service;
+    return service;
   }
 
   function resetSelection(next: "country" | "service", value: string) {
@@ -290,6 +309,7 @@ export default function BuyNumberPage() {
   }
 
   const selectedCountry = countries.find((item) => item.code === country) || countries[0];
+  const selectedService = serviceOptions.find((item) => item.code.toLowerCase() === service.toLowerCase());
   const query = search.trim().toLowerCase();
   const filteredCountries = countries.filter((item) => !query || item.name.toLowerCase().includes(query) || item.iso?.toLowerCase().includes(query));
   const filteredServices = serviceOptions.filter((item) => !query || item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
@@ -304,8 +324,8 @@ export default function BuyNumberPage() {
         </button>
 
         <button type="button" className="selectorCard" onClick={() => openPicker("service")}>
-          <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={service}/></span>
-          <span className="selectorCopy"><small>Service</small><strong>{loadingServices ? "Loading services…" : service}</strong></span>
+          <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={selectedService?.name || friendlyServiceName(service)}/></span>
+          <span className="selectorCopy"><small>Service</small><strong>{loadingServices ? "Loading services…" : selectedService?.name || friendlyServiceName(service)}</strong></span>
           <span className="selectorChevron">⌄</span>
         </button>
 
@@ -349,10 +369,10 @@ export default function BuyNumberPage() {
                   {item.code === country && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
                 </button>
               )) : filteredServices.map((item) => (
-                <button key={item.code} type="button" onClick={() => { resetSelection("service", item.name); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.name === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
+                <button key={item.code} type="button" onClick={() => { resetSelection("service", item.code); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.code === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
                   <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={item.name}/></span>
                   <span style={{flex:1}}>{item.name}</span>
-                  {item.name === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+                  {item.code === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
                 </button>
               ))}
               {picker === "service" && loadingServices && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>Loading all services…</p>}
@@ -368,7 +388,7 @@ export default function BuyNumberPage() {
             <button type="button" className="sheetHandle" aria-label="Close" disabled={buying} onClick={() => setSheetOpen(false)} />
             <div className="priceSheetHeading">
               <h2>Available prices</h2>
-              <p>Live price and availability for {selectedCountry?.name || "your country"} · {service}.</p>
+              <p>Live price and availability for {selectedCountry?.name || "your country"} · {selectedService?.name || friendlyServiceName(service)}.</p>
             </div>
             <div className="priceSheetList">
               {prices.map((p: any, i) => {
