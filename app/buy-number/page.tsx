@@ -157,7 +157,7 @@ export default function BuyNumberPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedCountry = params.get("country");
     const token = getSessionToken();
-    if (premium) {
+    if (params.get("premium") === "1") {
       setCountries([{ flag: "🇺🇸", name: "United States", code: "US", iso: "US" }]);
       setCountry("US");
       if (token) {
@@ -169,6 +169,9 @@ export default function BuyNumberPage() {
           if (next.length) setService(next[0].name);
         }).catch((err) => { if (!cancelled) setMessage(err instanceof Error ? err.message : "Unable to load Premium USA services."); })
           .finally(() => { if (!cancelled) setLoadingServices(false); });
+      } else {
+        setLoadingServices(false);
+        setMessage("Please sign in to view Premium USA services.");
       }
     } else api.numbers.countries().then((data: any) => {
       if (cancelled) return;
@@ -190,7 +193,7 @@ export default function BuyNumberPage() {
   }, [premium]);
 
   useEffect(() => {
-    if (premium || !country) return;
+    if ((typeof window !== "undefined" && new URLSearchParams(window.location.search).get("premium") === "1") || !country) return;
     let cancelled = false;
     setLoadingServices(true);
     api.numbers.services("", country).then((data: any) => {
