@@ -1,0 +1,57 @@
+/* Responsive constraints for account/profile detail screens.
+   Keeps the mobile Figma composition readable while allowing the shared shell to expand. */
+@media (min-width: 768px) {
+  .appShell > .personalScreen,
+  .appShell > .securityScore,
+  .appShell > .securitySection,
+  .appShell > .securityAlert,
+  .appShell > .securityReviewButton,
+  .appShell > .walletHero,
+  .appShell > .walletHero ~ .profileGroup,
+  .appShell > .walletHero ~ .glassCard,
+  .appShell > .walletHero ~ .buyNumberCta,
+  .appShell > .walletHero ~ .screenMessage {
+    width: min(100%, 720px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .appShell > .personalScreen .personalDetailsCard {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    column-gap: 14px;
+  }
+
+  .appShell > .personalScreen .personalDetailsCard label:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .appShell > .securitySection .securityRows {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .appShell > .securitySection .securityRow {
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .appShell > .personalScreen,
+  .appShell > .securityScore,
+  .appShell > .securitySection,
+  .appShell > .securityAlert,
+  .appShell > .securityReviewButton,
+  .appShell > .walletHero,
+  .appShell > .walletHero ~ .profileGroup,
+  .appShell > .walletHero ~ .glassCard,
+  .appShell > .walletHero ~ .buyNumberCta,
+  .appShell > .walletHero ~ .screenMessage {
+    width: min(100%, 760px);
+  }
+
+  .appShell > .personalScreen .personalAvatarBlock {
+    margin-top: 8px;
+  }
+}
