@@ -141,8 +141,11 @@ function normalizePrices(payload: any): any[] {
   return [];
 }
 
-function ServiceBrandIcon({ service }: { service: string }) {
+function ServiceBrandIcon({ service, code }: { service: string; code?: string }) {
+  const [sourceFailed, setSourceFailed] = useState(false);
+  useEffect(() => { setSourceFailed(false); }, [code]);
   const key = service.toLowerCase();
+  if (code && !sourceFailed) return <span aria-hidden="true" style={{width:"100%",height:"100%",borderRadius:"50%",background:"#fff",border:"1px solid #dadce0",display:"grid",placeItems:"center",overflow:"hidden"}}><img src={`/api/number-service-icon?code=${encodeURIComponent(code)}`} alt="" width="22" height="22" loading="lazy" onError={() => setSourceFailed(true)} style={{display:"block",width:"72%",height:"72%",objectFit:"contain"}}/></span>;
   if (key === "whatsapp") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M7.1 17.3 8 14.9a6.4 6.4 0 1 1 2.3 2.2l-3.2.2Z" fill="none" stroke="#fff" strokeWidth="1.5"/><path d="M9.5 9.2c.2-.4.4-.4.7-.4h.4c.2 0 .4 0 .5.4l.6 1.4c.1.2.1.4-.1.6l-.5.6c-.2.2-.1.4 0 .6.5.9 1.2 1.6 2.1 2 .2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.4.7c.2.1.4.2.4.4 0 .2-.1 1.1-.7 1.6-.5.5-1.3.7-2 .5-1.2-.3-2.8-1.1-4-2.2-1.5-1.4-2.4-3.1-2.7-4.2-.2-.6.1-1.1.4-1.5l.6-.5Z" fill="#fff"/></svg>;
   if (key === "telegram") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#2AABEE"/><path d="m6.8 11.7 9.7-3.8c.5-.2.9.1.7.8l-1.7 7.9c-.1.6-.5.8-1 .5l-2.6-1.9-1.3 1.2c-.1.1-.3.3-.6.3l.2-2.7 4.9-4.4c.2-.2-.1-.3-.3-.1l-6 3.8-2.6-.8c-.6-.2-.6-.6.1-.8Z" fill="#fff"/></svg>;
   if (key === "instagram") return <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ig-buy" x1="3" y1="21" x2="21" y2="3"><stop stopColor="#FEDA75"/><stop offset=".35" stopColor="#FA7E1E"/><stop offset=".65" stopColor="#D62976"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-buy)"/><circle cx="12" cy="12" r="4" fill="none" stroke="#fff" strokeWidth="1.8"/><circle cx="17.4" cy="6.7" r="1.1" fill="#fff"/></svg>;
@@ -335,7 +338,7 @@ export default function BuyNumberPage() {
         </button>
 
         <button type="button" className="selectorCard" onClick={() => openPicker("service")}>
-          <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={selectedService?.name || friendlyServiceName(service)}/></span>
+          <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={selectedService?.name || friendlyServiceName(service)} code={selectedService?.code || service}/></span>
           <span className="selectorCopy"><small>Service</small><strong>{loadingServices ? "Loading services…" : selectedService?.name || friendlyServiceName(service)}</strong></span>
           <span className="selectorChevron">⌄</span>
         </button>
@@ -381,7 +384,7 @@ export default function BuyNumberPage() {
                 </button>
               )) : filteredServices.map((item) => (
                 <button key={item.code} type="button" onClick={() => { resetSelection("service", item.code); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.code === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
-                  <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={item.name}/></span>
+                  <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={item.name} code={item.code}/></span>
                   <span style={{flex:1}}>{item.name}</span>
                   {item.code === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
                 </button>
