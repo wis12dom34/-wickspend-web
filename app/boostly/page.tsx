@@ -7,7 +7,7 @@ import {getSessionToken} from "@/lib/session";
 import s from "./boostly.module.css";
 
 const platforms=[
- {name:'Instagram',icon:'https://cdn.simpleicons.org/instagram/E4405F'},
+ {name:'Instagram',icon:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cdefs%3E%3CradialGradient id=%22a%22 cx=%2230%25%22 cy=%22107%25%22 r=%22120%25%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd600%22/%3E%3Cstop offset=%22.3%22 stop-color=%22%23ff7a00%22/%3E%3Cstop offset=%22.55%22 stop-color=%22%23ff0169%22/%3E%3Cstop offset=%22.8%22 stop-color=%22%23d300c5%22/%3E%3Cstop offset=%221%22 stop-color=%22%237633fa%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%226%22 fill=%22url(%23a)%22/%3E%3Crect x=%226.4%22 y=%226.4%22 width=%2211.2%22 height=%2211.2%22 rx=%223.6%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.9%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22/%3E%3Ccircle cx=%2216.35%22 cy=%227.65%22 r=%221.05%22 fill=%22white%22/%3E%3C/svg%3E'},
  {name:'TikTok',icon:'https://cdn.simpleicons.org/tiktok/000000'},
  {name:'Facebook',icon:'https://cdn.simpleicons.org/facebook/0866FF'},
  {name:'YouTube',icon:'https://cdn.simpleicons.org/youtube/FF0000'},
