@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
@@ -41,9 +41,10 @@ export default function OtpPage() {
   const [cancelError, setCancelError] = useState(false);
   const [toast, setToast] = useState("");
   const [walletBalance,setWalletBalance]=useState("");
+  const [reference, setReference] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("reference") || "" : "");
+  const [recoveringReference, setRecoveringReference] = useState(false);
   const mounted = useRef(true);
   const seq = useRef(0);
-  const reference = useMemo(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("reference") || "" : "", []);
 
   useEffect(() => () => { mounted.current = false; seq.current++; }, []);
 
@@ -68,7 +69,29 @@ export default function OtpPage() {
   }
 
   useEffect(() => {
-    if (!reference) { setMessage("Number reference is missing."); return; }
+    if (!reference) {
+      const token = getSessionToken();
+      setMessage("");
+      if (!token) return;
+      let active = true;
+      setRecoveringReference(true);
+      api.numbers.active(token).then((response: any) => {
+        if (!active || !mounted.current) return;
+        const items = Array.isArray(response?.items) ? response.items : Array.isArray(response?.data?.items) ? response.data.items : [];
+        const candidates = items.filter((item: any) => {
+          const itemReference = String(item?.reference || "").trim();
+          const itemNumber = String(item?.phone_number || item?.number || "").trim();
+          const status = String(item?.status || item?.state || "").toLowerCase();
+          return itemReference && itemNumber && status === "active" && item?.provider_pending !== true;
+        });
+        if (candidates.length === 1) {
+          const recovered = String(candidates[0].reference).trim();
+          window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
+          setReference(recovered);
+        }
+      }).catch(() => {}).finally(() => { if (active && mounted.current) setRecoveringReference(false); });
+      return () => { active = false; };
+    }
     refresh();
     const timer = window.setInterval(() => { if (!busy) refresh(true); }, 5000);
     return () => window.clearInterval(timer);
@@ -164,7 +187,11 @@ export default function OtpPage() {
 
   return <main className="shell appShell">
     <div className={styles.screen}>
-      {refunded ? <section className={styles.refundedTerminal}>
+      {!reference ? <section className={styles.cancelledSuccess}>
+        <h2>{recoveringReference ? "Checking active numbers…" : "No active number selected"}</h2>
+        <p>{recoveringReference ? "Looking for a number that can be restored safely." : "Choose a number to view its OTP and status here."}</p>
+        <Link href="/buy-number" className={styles.primary}>Back to Buy Number</Link>
+      </section> : refunded ? <section className={styles.refundedTerminal}>
         <div className={styles.refundedCheck}>✓</div>
         <h1>Number cancelled</h1><p>The provider approved the cancellation.</p>
         <div className={styles.refundedCard}><small>REFUND</small><strong>{refund}</strong><p>Returned to WickSpend Wallet</p><div><span>New balance</span><b>{walletBalance||"Updated in wallet"}</b></div></div>
