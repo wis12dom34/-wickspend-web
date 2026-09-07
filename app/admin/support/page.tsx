@@ -1,5 +1,5 @@
-import AdminScreen from '../AdminScreen';
+import {AdminSmartSupport} from '../AdminSmartSupport';
 
-export default function AdminSupportPage() {
-  return <AdminScreen screen="support" />;
+export default function AdminSupportPage(){
+  return <AdminSmartSupport/>;
 }
