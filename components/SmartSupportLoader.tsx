@@ -33,14 +33,9 @@ export function SmartSupportLoader(){
     window.smartsupp("chat:hide");
 
     if(document.getElementById(SMARTSUPP_SCRIPT_ID))return;
-    const script=document.createElement("script");
-    script.id=SMARTSUPP_SCRIPT_ID;
-    script.type="text/javascript";
-    script.charset="utf-8";
-    script.async=true;
-    script.src="https://www.smartsuppchat.com/loader.js?";
-    script.onload=()=>window.smartsupp?.("chat:hide");
-    document.head.appendChild(script);
+    const loadScript=()=>{if(document.getElementById(SMARTSUPP_SCRIPT_ID))return;const script=document.createElement("script");script.id=SMARTSUPP_SCRIPT_ID;script.type="text/javascript";script.charset="utf-8";script.async=true;script.src="https://www.smartsuppchat.com/loader.js?";script.onload=()=>window.smartsupp?.("chat:hide");document.head.appendChild(script)};
+    const timer=window.setTimeout(loadScript,8000);
+    return()=>window.clearTimeout(timer);
   },[]);
 
   return <><SmartSupport/><SmartSupportContextEntry/></>;
