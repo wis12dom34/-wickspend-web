@@ -33,13 +33,15 @@ const imageUrlOf=(p:any)=>{
 };
 const brandIconUrl=(p:any)=>{
  const s=[nameOf(p),p?.description,p?.short_description,p?.category].filter(Boolean).join(" ").toLowerCase();
+ const category=String(p?.category??"").toLowerCase().trim();
+ if(category==="x"||category==="twitter")return "https://cdn.simpleicons.org/x";
  const brands:[RegExp,string][]=[
   [/\bfacebook\b/,"facebook"],[/\binstagram\b/,"instagram"],[/\btik[ -]?tok\b/,"tiktok"],
   [/\btelegram\b/,"telegram"],[/\bwhats[ -]?app\b/,"whatsapp"],[/\bgmail\b/,"gmail"],
   [/\bgoogle voice\b/,"googlevoice"],[/\bgoogle\b/,"google"],[/\b(hotmail|outlook)\b/,"microsoftoutlook"],
   [/\byahoo\b/,"yahoo"],[/\breddit\b/,"reddit"],[/\bsnapchat\b/,"snapchat"],
   [/\bdiscord\b/,"discord"],[/\blinked[ -]?in\b/,"linkedin"],[/\bpinterest\b/,"pinterest"],
-  [/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b/,"x"],[/\byoutube\b/,"youtube"],
+  [/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b|\bx\s*\/\s*twitter\b|\btwitter\s*\/\s*x\b/,"x"],[/\byoutube\b/,"youtube"],
   [/\bapple\b|\bicloud\b/,"apple"],[/\btinder\b/,"tinder"],[/\bonlyfans\b/,"onlyfans"],
   [/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"],[/\bpure ?vpn\b/,"purevpn"],
   [/\bip ?vanish\b/,"ipvanish"],[/\bhma\b|hide ?my ?ass/,"hidemyass"],[/\bproton ?vpn\b/,"protonvpn"],
@@ -90,7 +92,7 @@ function SkeletonCard(){return <article className={`${styles.productCard} ${styl
 
 export default function Marketplace(){
  const[products,setProducts]=useState<any[]>([]),[selected,setSelected]=useState<any|null>(null),[query,setQuery]=useState(""),[category,setCategory]=useState("All"),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[detailRefreshing,setDetailRefreshing]=useState(false),[liveVerified,setLiveVerified]=useState(false),[message,setMessage]=useState(""),[confirm,setConfirm]=useState(false),[result,setResult]=useState<any|null>(null);
- useEffect(()=>{let cancelled=false;const cacheKey="wickspend:marketplace:v2",cacheTtl=5*60*1000;
+ useEffect(()=>{let cancelled=false;const cacheKey="wickspend:marketplace:v3",cacheTtl=5*60*1000;
   const publish=(all:any[])=>{if(cancelled)return;const visible=all.filter(isInStock);setProducts(visible);setLoading(false);setMessage("");try{sessionStorage.setItem(cacheKey,JSON.stringify({ts:Date.now(),products:visible}))}catch{}};
   try{const raw=sessionStorage.getItem(cacheKey);if(raw){const cached=JSON.parse(raw);if(Array.isArray(cached?.products)&&Date.now()-Number(cached?.ts||0)<cacheTtl){setProducts(cached.products);setLoading(false)}}}catch{}
   (async()=>{const all:any[]=[];const seen=new Set<string>();const merge=(payload:any)=>{let added=0;for(const p of listOf(payload).filter((x:any)=>idOf(x))){const id=idOf(p);if(!seen.has(id)){seen.add(id);all.push(p);added++}}return added};
