@@ -14,22 +14,105 @@ const nameOf=(p:any)=>String(p?.name??p?.title??p?.product_name??"Product");
 const stockOf=(p:any)=>{const raw=p?.stock??p?.quantity_available??p?.available_stock??p?.available??null;const n=Number(raw);return raw!==null&&raw!==undefined&&raw!==""&&Number.isFinite(n)?n:null};
 const isInStock=(p:any)=>{if(p?.in_stock===false||p?.inStock===false||p?.available===false)return false;const stock=stockOf(p);if(stock!==null)return stock>0;if(p?.in_stock===true||p?.inStock===true||p?.available===true)return true;return true};
 const priceOf=(p:any)=>{const raw=p?.price_ngn??p?.final_price_ngn??p?.customer_price_ngn??null;const n=Number(raw);return raw!==null&&Number.isFinite(n)?n:null};
-const asImageUrl=(value:any):string|null=>{if(typeof value==="string"&&value.trim())return value.trim();if(value&&typeof value==="object"){for(const key of ["url","src","image_url","imageUrl","thumbnail_url","thumbnailUrl","icon_url","iconUrl","logo_url","logoUrl"]){const hit=asImageUrl(value?.[key]);if(hit)return hit}}return null};
-const imageUrlOf=(p:any)=>{const candidates=[p?.imageUrl,p?.image_url,p?.image,p?.thumbnail,p?.thumbnail_url,p?.thumbnailUrl,p?.icon,p?.icon_url,p?.iconUrl,p?.logo,p?.logo_url,p?.logoUrl,p?.cover,p?.cover_url,p?.coverUrl,p?.images,p?.media,p?.assets,p?.product_image,p?.productImage,p?.product_icon,p?.productIcon,p?.data?.image,p?.data?.thumbnail,p?.data?.icon,p?.data?.logo];for(const candidate of candidates){if(Array.isArray(candidate)){for(const item of candidate){const hit=asImageUrl(item);if(hit)return hit}}else{const hit=asImageUrl(candidate);if(hit)return hit}}return null};
-const brandIconUrl=(p:any)=>{const s=[nameOf(p),p?.description,p?.short_description,p?.category].filter(Boolean).join(" ").toLowerCase();const category=String(p?.category??"").toLowerCase().trim();if(category==="x"||category==="twitter")return "/icons/services/x.svg";const brands:[RegExp,string][]=[[/\bfacebook\b/,"facebook"],[/\binstagram\b/,"instagram"],[/\btik[ -]?tok\b/,"tiktok"],[/\btelegram\b/,"telegram"],[/\bwhats[ -]?app\b/,"whatsapp"],[/\bgmail\b/,"gmail"],[/\bgoogle voice\b/,"googlevoice"],[/\bgoogle\b/,"google"],[/\b(hotmail|outlook)\b/,"microsoftoutlook"],[/\byahoo\b/,"yahoo"],[/\breddit\b/,"reddit"],[/\bsnapchat\b/,"snapchat"],[/\bdiscord\b/,"discord"],[/\blinked[ -]?in\b/,"linkedin"],[/\bpinterest\b/,"pinterest"],[/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b|\bx\s*\/\s*twitter\b|\btwitter\s*\/\s*x\b/,"x"],[/\byoutube\b/,"youtube"],[/\bapple\b|\bicloud\b/,"apple"],[/\btinder\b/,"tinder"],[/\bonlyfans\b/,"onlyfans"],[/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"],[/\bpure ?vpn\b/,"purevpn"],[/\bip ?vanish\b/,"ipvanish"],[/\bhma\b|hide ?my ?ass/,"hidemyass"],[/\bproton ?vpn\b/,"protonvpn"],[/\bsteam\b/,"steam"],[/\btext ?plus\b/,"textplus"],[/\bdeep ?seek\b/,"deepseek"],[/\btwitch\b/,"twitch"],[/\bspotify\b/,"spotify"],[/\bnetflix\b/,"netflix"],[/\bpaypal\b/,"paypal"],[/\bamazon\b/,"amazon"],[/\bebay\b/,"ebay"],[/\bquora\b/,"quora"],[/\bwechat\b|we ?chat/,"wechat"],[/\bline\b/,"line"],[/\bsignal\b/,"signal"],[/\bproton ?mail\b/,"protonmail"],[/\byandex\b/,"yandexcloud"],[/\baol\b/,"aol"],[/\bthreads\b/,"threads"],[/\bskype\b/,"skype"],[/\bmicrosoft\b/,"microsoft"]];const hit=brands.find(([re])=>re.test(s));if(hit){const local=new Set(["facebook","instagram","tiktok","telegram","whatsapp","gmail","google","microsoftoutlook","snapchat","discord","x","apple","tinder","uber","netflix","microsoft","youtube","reddit","spotify","paypal","pinterest"]);return local.has(hit[1])?`/icons/services/${hit[1]}.svg`:`https://cdn.simpleicons.org/${hit[1]}`;}const facebookAccountPattern=/(?:\b\d+\+?\s*friends?\b|\bfriends?\s*included\b|\bmarketplace\b.*\b2fa\b|\b2fa\b.*\bmarketplace\b|\bprofile\s*(?:&|and)\s*cover\s*photo\b|\bstandard\b.*[\u{1F1E6}-\u{1F1FF}]{2}.*\bfriends?\b)/iu;if(facebookAccountPattern.test(s))return "/icons/services/facebook.svg";return null};
-const money=(n:number|null)=>n===null?"—":`₦${n.toLocaleString(undefined,{maximumFractionDigits:0})}`;const statusOf=(x:any)=>String(x?.status??x?.state??x?.order_status??"").toLowerCase();const refOf=(x:any)=>String(x?.reference??x?.order_reference??x?.order_id??x?.id??"");const listOf=(x:any)=>Array.isArray(x)?x:Array.isArray(x?.products)?x.products:Array.isArray(x?.items)?x.items:Array.isArray(x?.data)?x.data:Array.isArray(x?.data?.products)?x.data.products:[];const hasMoreOf=(x:any)=>Boolean(x?.has_more??x?.hasMore??x?.pagination?.has_more??x?.pagination?.hasMore??x?.data?.has_more??x?.data?.hasMore??x?.data?.pagination?.has_more??x?.data?.pagination?.hasMore);
-const categoryLabel=(p:any)=>{const c=String(p?.category??"").toLowerCase().trim();const labels:Record<string,string>={facebook:"Facebook",instagram:"Instagram",tiktok:"TikTok",telegram:"Telegram",x:"X / Twitter",twitter:"X / Twitter",reddit:"Reddit",email:"Email Accounts",gmail:"Gmail",hotmail:"Hotmail",outlook:"Outlook",dating:"Dating Accounts",vpn_proxy:"VPN / Proxy",vpn:"VPN / Proxy",proxy:"VPN / Proxy",other:"Other"};if(labels[c])return labels[c];if(c)return c.split(/[_-]+/).map((x:string)=>x?x[0].toUpperCase()+x.slice(1):x).join(" ");return"Other"};
-const countryOf=(p:any)=>{const s=nameOf(p).toUpperCase();const known:[RegExp,string][]=[[/\bUSA\b|UNITED STATES|🇺🇸/,"United States"],[/\bUK\b|UNITED KINGDOM|🇬🇧/,"United Kingdom"],[/NIGERIA|🇳🇬/,"Nigeria"],[/CANADA|🇨🇦/,"Canada"],[/GERMANY|🇩🇪/,"Germany"],[/POLAND|🇵🇱/,"Poland"],[/AUSTRALIA|🇦🇺/,"Australia"],[/JAPAN|🇯🇵/,"Japan"],[/INDIA|🇮🇳/,"India"],[/ITALY|🇮🇹/,"Italy"],[/SPAIN|🇪🇸/,"Spain"],[/THAILAND|🇹🇭/,"Thailand"],[/VIETNAM|🇻🇳/,"Vietnam"],[/INDONESIA|🇮🇩/,"Indonesia"],[/CZECH REPUBLIC|🇨🇿/,"Czech Republic"],[/PHILIPPINES|🇵🇭/,"Philippines"],[/TAIWAN|🇹🇼/,"Taiwan"],[/KOREA|🇰🇷/,"Korea"]];return known.find(([re])=>re.test(s))?.[1]??null};
+const asImageUrl=(value:any):string|null=>{
+ if(typeof value==="string"&&value.trim())return value.trim();
+ if(value&&typeof value==="object"){
+  for(const key of ["url","src","image_url","imageUrl","thumbnail_url","thumbnailUrl","icon_url","iconUrl","logo_url","logoUrl"]){const hit=asImageUrl(value?.[key]);if(hit)return hit}
+ }
+ return null;
+};
+const imageUrlOf=(p:any)=>{
+ const candidates=[
+  p?.imageUrl,p?.image_url,p?.image,p?.thumbnail,p?.thumbnail_url,p?.thumbnailUrl,p?.icon,p?.icon_url,p?.iconUrl,p?.logo,p?.logo_url,p?.logoUrl,p?.cover,p?.cover_url,p?.coverUrl,
+  p?.images,p?.media,p?.assets,p?.product_image,p?.productImage,p?.product_icon,p?.productIcon,p?.data?.image,p?.data?.thumbnail,p?.data?.icon,p?.data?.logo
+ ];
+ for(const candidate of candidates){
+  if(Array.isArray(candidate)){for(const item of candidate){const hit=asImageUrl(item);if(hit)return hit}}
+  else{const hit=asImageUrl(candidate);if(hit)return hit}
+ }
+ return null;
+};
+const brandIconUrl=(p:any)=>{
+ const s=[nameOf(p),p?.description,p?.short_description,p?.category].filter(Boolean).join(" ").toLowerCase();
+ const category=String(p?.category??"").toLowerCase().trim();
+ if(category==="x"||category==="twitter")return "/icons/services/x.svg";
+ const brands:[RegExp,string][]=[
+  [/\bfacebook\b/,"facebook"],[/\binstagram\b/,"instagram"],[/\btik[ -]?tok\b/,"tiktok"],
+  [/\btelegram\b/,"telegram"],[/\bwhats[ -]?app\b/,"whatsapp"],[/\bgmail\b/,"gmail"],
+  [/\bgoogle voice\b/,"googlevoice"],[/\bgoogle\b/,"google"],[/\b(hotmail|outlook)\b/,"microsoftoutlook"],
+  [/\byahoo\b/,"yahoo"],[/\breddit\b/,"reddit"],[/\bsnapchat\b/,"snapchat"],
+  [/\bdiscord\b/,"discord"],[/\blinked[ -]?in\b/,"linkedin"],[/\bpinterest\b/,"pinterest"],
+  [/\btwitter\b|\bx\s*\(twitter\)|\bx\s+account\b|\bx\s*\/\s*twitter\b|\btwitter\s*\/\s*x\b/,"x"],[/\byoutube\b/,"youtube"],
+  [/\bapple\b|\bicloud\b/,"apple"],[/\btinder\b/,"tinder"],[/\bonlyfans\b/,"onlyfans"],
+  [/\bnord ?vpn\b/,"nordvpn"],[/\bexpress ?vpn\b/,"expressvpn"],[/\bpure ?vpn\b/,"purevpn"],
+  [/\bip ?vanish\b/,"ipvanish"],[/\bhma\b|hide ?my ?ass/,"hidemyass"],[/\bproton ?vpn\b/,"protonvpn"],
+  [/\bsteam\b/,"steam"],[/\btext ?plus\b/,"textplus"],[/\bdeep ?seek\b/,"deepseek"],
+  [/\btwitch\b/,"twitch"],[/\bspotify\b/,"spotify"],[/\bnetflix\b/,"netflix"],
+  [/\bpaypal\b/,"paypal"],[/\bamazon\b/,"amazon"],[/\bebay\b/,"ebay"],[/\bquora\b/,"quora"],
+  [/\bwechat\b|we ?chat/,"wechat"],[/\bline\b/,"line"],[/\bsignal\b/,"signal"],
+  [/\bproton ?mail\b/,"protonmail"],[/\byandex\b/,"yandexcloud"],[/\baol\b/,"aol"],
+  [/\bthreads\b/,"threads"],[/\bskype\b/,"skype"],[/\bmicrosoft\b/,"microsoft"]
+ ];
+ const hit=brands.find(([re])=>re.test(s));
+ if(hit){const local=new Set(["facebook","instagram","tiktok","telegram","whatsapp","gmail","google","microsoftoutlook","snapchat","discord","x","apple","tinder","uber","netflix","microsoft","youtube","reddit","spotify","paypal","pinterest"]);return local.has(hit[1])?`/icons/services/${hit[1]}.svg`:`https://cdn.simpleicons.org/${hit[1]}`;}
+ const facebookAccountPattern=/(?:\b\d+\+?\s*friends?\b|\bfriends?\s*included\b|\bmarketplace\b.*\b2fa\b|\b2fa\b.*\bmarketplace\b|\bprofile\s*(?:&|and)\s*cover\s*photo\b|\bstandard\b.*[\u{1F1E6}-\u{1F1FF}]{2}.*\bfriends?\b)/iu;
+ if(facebookAccountPattern.test(s))return "/icons/services/facebook.svg";
+ return null;
+};
+const money=(n:number|null)=>n===null?"—":`₦${n.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+const statusOf=(x:any)=>String(x?.status??x?.state??x?.order_status??"").toLowerCase();
+const refOf=(x:any)=>String(x?.reference??x?.order_reference??x?.order_id??x?.id??"");
+const listOf=(x:any)=>Array.isArray(x)?x:Array.isArray(x?.products)?x.products:Array.isArray(x?.items)?x.items:Array.isArray(x?.data)?x.data:Array.isArray(x?.data?.products)?x.data.products:[];
+const hasMoreOf=(x:any)=>Boolean(x?.has_more??x?.hasMore??x?.pagination?.has_more??x?.pagination?.hasMore??x?.data?.has_more??x?.data?.hasMore??x?.data?.pagination?.has_more??x?.data?.pagination?.hasMore);
+
+const categoryLabel=(p:any)=>{
+ const c=String(p?.category??"").toLowerCase().trim();
+ const labels:Record<string,string>={
+  facebook:"Facebook",instagram:"Instagram",tiktok:"TikTok",telegram:"Telegram",x:"X / Twitter",twitter:"X / Twitter",reddit:"Reddit",
+  email:"Email Accounts",gmail:"Gmail",hotmail:"Hotmail",outlook:"Outlook",dating:"Dating Accounts",
+  vpn_proxy:"VPN / Proxy",vpn:"VPN / Proxy",proxy:"VPN / Proxy",other:"Other"
+ };
+ if(labels[c])return labels[c];
+ if(c)return c.split(/[_-]+/).map((x:string)=>x?x[0].toUpperCase()+x.slice(1):x).join(" ");
+ return"Other";
+};
+
+const countryOf=(p:any)=>{
+ const s=nameOf(p).toUpperCase();
+ const known:[RegExp,string][]=[
+  [/\bUSA\b|UNITED STATES|🇺🇸/,"United States"],[/\bUK\b|UNITED KINGDOM|🇬🇧/,"United Kingdom"],
+  [/NIGERIA|🇳🇬/,"Nigeria"],[/CANADA|🇨🇦/,"Canada"],[/GERMANY|🇩🇪/,"Germany"],[/POLAND|🇵🇱/,"Poland"],
+  [/AUSTRALIA|🇦🇺/,"Australia"],[/JAPAN|🇯🇵/,"Japan"],[/INDIA|🇮🇳/,"India"],[/ITALY|🇮🇹/,"Italy"],
+  [/SPAIN|🇪🇸/,"Spain"],[/THAILAND|🇹🇭/,"Thailand"],[/VIETNAM|🇻🇳/,"Vietnam"],[/INDONESIA|🇮🇩/,"Indonesia"],
+  [/CZECH REPUBLIC|🇨🇿/,"Czech Republic"],[/PHILIPPINES|🇵🇭/,"Philippines"],[/TAIWAN|🇹🇼/,"Taiwan"],[/KOREA|🇰🇷/,"Korea"]
+ ];
+ return known.find(([re])=>re.test(s))?.[1]??null;
+};
+
 function ProductFallbackIcon(){return <span className={styles.fallbackIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5.5 7.5 12 4l6.5 3.5v9L12 20l-6.5-3.5v-9Z"/><path d="m5.8 7.6 6.2 3.5 6.2-3.5M12 11.1V20"/></svg></span>}
 function ProductVisual({product}:{product:any}){const[srcFailed,setSrcFailed]=useState(false),src=imageUrlOf(product)??brandIconUrl(product);if(!src||srcFailed)return <div className={styles.productIcon}><ProductFallbackIcon/></div>;return <div className={styles.productIcon}><img src={src} alt={`${nameOf(product)} icon`} width="64" height="64" loading="lazy" decoding="async" onError={()=>setSrcFailed(true)}/></div>}
 function ProductCard({product,busy,onView}:{product:any;busy:boolean;onView:(p:any)=>void}){const stock=stockOf(product),price=priceOf(product),country=countryOf(product);const activate=()=>{if(!busy)onView(product)};return <article className={styles.productCard} role="button" tabIndex={busy?-1:0} aria-disabled={busy} onClick={activate} onKeyDown={e=>{if(!busy&&(e.key==="Enter"||e.key===" ")){e.preventDefault();activate()}}}><div className={styles.cardTop}><ProductVisual product={product}/><div className={styles.cardCopy}><span>{categoryLabel(product).toUpperCase()}</span><h3 title={nameOf(product)}>{nameOf(product)}</h3>{country&&<p>{country}</p>}<p className={styles.stockLine}><i/>{stock===null?"In stock":`${stock} in stock`}</p></div></div><div className={styles.cardBottom}><strong>{money(price)}</strong><button type="button" disabled={busy} onClick={e=>{e.stopPropagation();activate()}}>View</button></div></article>}
 function SkeletonCard(){return <article className={`${styles.productCard} ${styles.skeletonCard}`}><div className={styles.cardTop}><div className={`${styles.productIcon} ${styles.skeleton}`}/><div className={styles.cardCopy}><span className={`${styles.skeleton} ${styles.skCategory}`}/><h3 className={`${styles.skeleton} ${styles.skTitle}`}/><p className={`${styles.skeleton} ${styles.skMeta}`}/><p className={`${styles.skeleton} ${styles.skStock}`}/></div></div><div className={styles.cardBottom}><strong className={`${styles.skeleton} ${styles.skPrice}`}/><span className={`${styles.skeleton} ${styles.skButton}`}/></div></article>}
+
 export default function Marketplace(){
  const[products,setProducts]=useState<any[]>([]),[selected,setSelected]=useState<any|null>(null),[query,setQuery]=useState(""),[category,setCategory]=useState("All"),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[detailRefreshing,setDetailRefreshing]=useState(false),[liveVerified,setLiveVerified]=useState(false),[message,setMessage]=useState(""),[confirm,setConfirm]=useState(false),[result,setResult]=useState<any|null>(null),[renderLimit,setRenderLimit]=useState(30);
- useEffect(()=>{let cancelled=false;const publish=(all:any[])=>{if(cancelled)return;const visible=all.filter(isInStock);setProducts(visible);setLoading(false);setMessage("");writeMarketplaceCache(visible)};const cached=readMarketplaceCache();if(cached.length){setProducts(cached.filter(isInStock));setLoading(false)};(async()=>{const all:any[]=[];const seen=new Set<string>();const merge=(payload:any)=>{let added=0;for(const p of listOf(payload).filter((x:any)=>idOf(x))){const id=idOf(p);if(!seen.has(id)){seen.add(id);all.push(p);added++}}return added};try{const manualPromise=wickspendApi("wickspend/backend/marketplace/manual-products?page=1&limit=50").catch(()=>null);const first:any=await api.marketplace.products({page:1,limit:50});if(cancelled)return;merge(first);publish(all);const total=Number(first?.total??first?.pagination?.total??first?.data?.total);if(hasMoreOf(first)&&Number.isFinite(total)&&total>50){const pages=Math.min(20,Math.ceil(total/50));const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>api.marketplace.products({page:i+2,limit:50}).catch(()=>null)));if(cancelled)return;for(const d of rest)if(d)merge(d);publish(all)}else if(hasMoreOf(first)){for(let page=2;page<=20;page++){const d:any=await api.marketplace.products({page,limit:50});if(cancelled)return;const batch=listOf(d);const added=merge(d);if(!hasMoreOf(d)||batch.length===0||added===0)break}publish(all)}const manual:any=await manualPromise;if(cancelled)return;if(manual){merge(manual);publish(all)}}catch(e){if(!cancelled){if(all.length===0&&!cached.length){setProducts([]);setMessage(e instanceof Error?e.message:"Marketplace unavailable right now.")}setLoading(false)}}})();return()=>{cancelled=true}},[]);
+ useEffect(()=>{let cancelled=false;
+  const publish=(all:any[])=>{if(cancelled)return;const visible=all.filter(isInStock);setProducts(visible);setLoading(false);setMessage("");writeMarketplaceCache(visible)};
+  const cached=readMarketplaceCache();if(cached.length){setProducts(cached.filter(isInStock));setLoading(false)}
+  (async()=>{const all:any[]=[];const seen=new Set<string>();const merge=(payload:any)=>{let added=0;for(const p of listOf(payload).filter((x:any)=>idOf(x))){const id=idOf(p);if(!seen.has(id)){seen.add(id);all.push(p);added++}}return added};
+   try{
+    const manualPromise=wickspendApi("wickspend/backend/marketplace/manual-products?page=1&limit=50").catch(()=>null);
+    const first:any=await api.marketplace.products({page:1,limit:50});if(cancelled)return;merge(first);publish(all);
+    const total=Number(first?.total??first?.pagination?.total??first?.data?.total);
+    if(hasMoreOf(first)&&Number.isFinite(total)&&total>50){const pages=Math.min(20,Math.ceil(total/50));const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>api.marketplace.products({page:i+2,limit:50}).catch(()=>null)));if(cancelled)return;for(const d of rest)if(d)merge(d);publish(all)}
+    else if(hasMoreOf(first)){for(let page=2;page<=20;page++){const d:any=await api.marketplace.products({page,limit:50});if(cancelled)return;const batch=listOf(d);const added=merge(d);if(!hasMoreOf(d)||batch.length===0||added===0)break}publish(all)}
+    const manual:any=await manualPromise;if(cancelled)return;if(manual){merge(manual);publish(all)}
+   }catch(e){if(!cancelled){if(all.length===0&&!cached.length){setProducts([]);setMessage(e instanceof Error?e.message:"Marketplace unavailable right now.")}setLoading(false)}}
+  })();return()=>{cancelled=true}},[]);
  const categories=useMemo(()=>["All",...Array.from(new Set(products.map(categoryLabel))).sort((a,b)=>a.localeCompare(b))],[products]);
  const shown=useMemo(()=>{const q=query.trim().toLowerCase();return products.filter(p=>{const matchesCategory=category==="All"||categoryLabel(p)===category;const matchesQuery=!q||[nameOf(p),p?.category,p?.short_description,p?.description,countryOf(p)].filter(Boolean).join(" ").toLowerCase().includes(q);return matchesCategory&&matchesQuery})},[products,query,category]);
- const renderedShown=useMemo(()=>shown.slice(0,renderLimit),[shown,renderLimit]);useEffect(()=>setRenderLimit(30),[query,category]);
+ const renderedShown=useMemo(()=>shown.slice(0,renderLimit),[shown,renderLimit]);
+ useEffect(()=>setRenderLimit(30),[query,category]);
  const groupedShown=useMemo(()=>{const groups=new Map<string,any[]>();for(const p of renderedShown){const key=categoryLabel(p);const list=groups.get(key)??[];list.push(p);groups.set(key,list)}return Array.from(groups.entries()).sort(([a],[b])=>a.localeCompare(b))},[renderedShown]);
  async function getLive(p:any){const id=idOf(p);return isManual(p)?wickspendApi(`wickspend/backend/marketplace/manual-product?product_id=${encodeURIComponent(id)}`):api.marketplace.product(id)}
  async function open(p:any){setSelected(p);setLiveVerified(false);setDetailRefreshing(true);setMessage("");try{const d:any=await getLive(p);const live=d?.product??d?.data?.product??d?.data??d;if(idOf(live)===idOf(p)){setSelected(live);setLiveVerified(true)}}catch(e){setMessage(e instanceof Error?e.message:"Unable to refresh live product details.")}finally{setDetailRefreshing(false)}}
