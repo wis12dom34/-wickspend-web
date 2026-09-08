@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { AppTestimonials } from "@/components/AppTestimonials";
 import { SmartSupportLoader } from "@/components/SmartSupportLoader";
+import { NavigationWarmup } from "@/components/NavigationWarmup";
 import "./globals.css";
 import "./home-promo-fix.css";
 import "./responsive.css";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         {children}
+        <NavigationWarmup />
         <AppTestimonials />
         <Suspense fallback={null}>
           <SmartSupportLoader />

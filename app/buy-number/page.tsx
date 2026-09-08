@@ -276,13 +276,7 @@ export default function BuyNumberPage() {
 
   function openPremiumFlow() {
     if (buying || loadingPrices) return;
-    window.history.pushState({}, "", "/buy-number?country=USA&premium=1");
-    setMessage("Loading Premium USA services…");
-    setPrices([]);
-    setSheetOpen(false);
-    setServiceOptions([]);
-    setCountry("US");
-    setPremium(true);
+    router.push("/buy-number/premium-usa");
   }
 
   async function load(e: FormEvent) {

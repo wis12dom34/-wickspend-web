@@ -5,7 +5,7 @@ Production frontend for WickSpend.
 - Next.js / React / TypeScript
 - Responsive mobile-first interface
 - WickSpend API integration via `NEXT_PUBLIC_WICKSPEND_API_BASE`
-- Intended deployment: Vercel
+- Production deployment: WickSpend VPS behind Nginx
 - Production branch: `main`
 
 ## Environment

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type IconName = "home" | "phone" | "bag" | "rocket" | "wallet";
 const items: readonly [IconName,string,string][] = [
@@ -24,6 +24,7 @@ function NavIcon({name,active}:{name:IconName;active:boolean}) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(()=>{
     if(pathname!=="/profile") return;
@@ -32,10 +33,10 @@ export function BottomNav() {
     button.disabled=false;
     button.removeAttribute("title");
     button.setAttribute("aria-label","Open Refer & Earn");
-    const openReferral=()=>window.location.assign("/refer-earn");
+    const openReferral=()=>router.push("/refer-earn");
     button.addEventListener("click",openReferral);
     return()=>button.removeEventListener("click",openReferral);
-  },[pathname]);
+  },[pathname,router]);
 
-  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} prefetch={false} className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
+  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} prefetch className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
 }
