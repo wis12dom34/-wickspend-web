@@ -100,66 +100,29 @@ function money(value: number | null) {
     : new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value);
 }
 
-const SIMPLE_ICON_ALIASES: Readonly<Record<string, string>> = {
-  aol: "aol",
-  bankamerica: "bankofamerica",
-  battlenet: "battledotnet",
-  cashapp: "cashapp",
-  chatgpt: "openai",
-  chime: "chime",
-  cleartrip: "cleartrip",
-  doordash: "doordash",
-  facebook: "facebook",
-  github: "github",
-  google: "google",
-  googlechat: "googlechat",
-  googlemessenger: "googlemessages",
-  googlevoice: "googlevoice",
-  instagram: "instagram",
-  linkedin: "linkedin",
-  microsoft: "microsoft",
-  moneylion: "moneylion",
-  paypal: "paypal",
-  pof: "pof",
-  protonmail: "protonmail",
-  snapchat: "snapchat",
-  telegram: "telegram",
-  tiktok: "tiktok",
-  twitter: "x",
-  venmo: "venmo",
-  whatsapp: "whatsapp",
-  x: "x",
-};
-
-function iconSlug(value: string) {
-  const base = value
-    .trim()
-    .toLowerCase()
-    .replace(/_(du|sm|re|canada|co)$/i, "")
-    .replace(/[^a-z0-9]/g, "");
-  return SIMPLE_ICON_ALIASES[base] || base;
-}
-
 function ServiceBrandIcon({ code, service }: { code: string; service: string }) {
-  const candidates = [...new Set([iconSlug(code), iconSlug(service)].filter(Boolean))];
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const slug = candidates[candidateIndex];
+  const [failed, setFailed] = useState(false);
+  const label = service.trim() || code.trim() || "Service";
+  const src = `/api/premium-service-icon?code=${encodeURIComponent(code)}&name=${encodeURIComponent(service)}`;
 
-  if (!slug) {
-    return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#dadce0"/><path d="M7 12h10M12 7v10" stroke="#6e6e73" strokeWidth="1.4" strokeLinecap="round"/></svg>;
+  if (failed) {
+    return (
+      <span aria-hidden="true" style={{width:"100%",height:"100%",borderRadius:"50%",background:"#eef5ff",border:"1px solid #cfe0ff",display:"grid",placeItems:"center",color:"#0866f5",fontSize:13,fontWeight:800}}>
+        {label.slice(0, 1).toUpperCase()}
+      </span>
+    );
   }
 
   return (
     <span aria-hidden="true" style={{width:"100%",height:"100%",borderRadius:"50%",background:"#fff",border:"1px solid #e5e7eb",display:"grid",placeItems:"center",overflow:"hidden"}}>
       <img
-        src={`https://cdn.simpleicons.org/${encodeURIComponent(slug)}`}
+        src={src}
         alt=""
-        width="22"
-        height="22"
+        width="24"
+        height="24"
         loading="lazy"
-        referrerPolicy="no-referrer"
-        onError={() => setCandidateIndex((index) => index + 1)}
-        style={{display:"block",width:"62%",height:"62%",objectFit:"contain"}}
+        onError={() => setFailed(true)}
+        style={{display:"block",width:"66%",height:"66%",objectFit:"contain"}}
       />
     </span>
   );
