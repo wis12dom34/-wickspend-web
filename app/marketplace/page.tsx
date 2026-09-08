@@ -13,7 +13,24 @@ const nameOf=(p:any)=>String(p?.name??p?.title??p?.product_name??"Product");
 const stockOf=(p:any)=>{const raw=p?.stock??p?.quantity_available??p?.available_stock??p?.available??null;const n=Number(raw);return raw!==null&&raw!==undefined&&raw!==""&&Number.isFinite(n)?n:null};
 const isInStock=(p:any)=>{if(p?.in_stock===false||p?.inStock===false||p?.available===false)return false;const stock=stockOf(p);if(stock!==null)return stock>0;if(p?.in_stock===true||p?.inStock===true||p?.available===true)return true;return true};
 const priceOf=(p:any)=>{const raw=p?.price_ngn??p?.final_price_ngn??p?.customer_price_ngn??null;const n=Number(raw);return raw!==null&&Number.isFinite(n)?n:null};
-const imageUrlOf=(p:any)=>{const raw=p?.imageUrl??p?.image_url;return typeof raw==="string"&&raw.trim()?raw.trim():null};
+const asImageUrl=(value:any):string|null=>{
+ if(typeof value==="string"&&value.trim())return value.trim();
+ if(value&&typeof value==="object"){
+  for(const key of ["url","src","image_url","imageUrl","thumbnail_url","thumbnailUrl","icon_url","iconUrl","logo_url","logoUrl"]){const hit=asImageUrl(value?.[key]);if(hit)return hit}
+ }
+ return null;
+};
+const imageUrlOf=(p:any)=>{
+ const candidates=[
+  p?.imageUrl,p?.image_url,p?.image,p?.thumbnail,p?.thumbnail_url,p?.thumbnailUrl,p?.icon,p?.icon_url,p?.iconUrl,p?.logo,p?.logo_url,p?.logoUrl,p?.cover,p?.cover_url,p?.coverUrl,
+  p?.images,p?.media,p?.assets,p?.product_image,p?.productImage,p?.product_icon,p?.productIcon,p?.data?.image,p?.data?.thumbnail,p?.data?.icon,p?.data?.logo
+ ];
+ for(const candidate of candidates){
+  if(Array.isArray(candidate)){for(const item of candidate){const hit=asImageUrl(item);if(hit)return hit}}
+  else{const hit=asImageUrl(candidate);if(hit)return hit}
+ }
+ return null;
+};
 const brandIconUrl=(p:any)=>{
  const s=nameOf(p).toLowerCase();
  const brands:[RegExp,string][]=[
