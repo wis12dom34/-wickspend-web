@@ -37,5 +37,5 @@ export function BottomNav() {
     return()=>button.removeEventListener("click",openReferral);
   },[pathname]);
 
-  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
+  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} prefetch={false} className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
 }
