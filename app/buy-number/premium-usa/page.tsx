@@ -14,28 +14,6 @@ type PremiumService = {
   available: number | null;
 };
 
-const BRAND_ICON_SLUGS: Readonly<Record<string, string>> = {
-  "google / gmail": "google",
-  google: "google",
-  gmail: "gmail",
-  microsoft: "microsoft",
-  apple: "apple",
-  snapchat: "snapchat",
-  discord: "discord",
-  "x / twitter": "x",
-  twitter: "x",
-  tinder: "tinder",
-  uber: "uber",
-  netflix: "netflix",
-  amazon: "amazon",
-  linkedin: "linkedin",
-  paypal: "paypal",
-  airbnb: "airbnb",
-  ebay: "ebay",
-  spotify: "spotify",
-  alipay: "alipay",
-};
-
 function friendlyServiceName(code: string, providedName?: string) {
   const cleanCode = String(code || "").trim();
   const cleanName = String(providedName || "").trim();
