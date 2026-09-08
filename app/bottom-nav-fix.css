@@ -9,7 +9,9 @@
   max-width: 366px !important;
   min-width: 0 !important;
   margin: 0 !important;
-  bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  /* In mobile Safari the browser toolbar already occupies the hardware safe area.
+     Keep the nav visually resting just above that toolbar instead of floating high above it. */
+  bottom: 4px !important;
   grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   overflow: hidden;
   box-sizing: border-box;
@@ -35,6 +37,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
+}
+
+/* Installed/standalone mode has no Safari address bar, so retain hardware safe-area clearance there. */
+@media (display-mode: standalone) {
+  .bottomNav {
+    bottom: calc(6px + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 @media (max-width: 430px) {
