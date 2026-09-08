@@ -1,0 +1,293 @@
+/* Mobile viewport containment and shrink-safety.
+   This layer fixes horizontal stretching at the source while preserving the existing WickSpend design. */
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  position: relative;
+  min-width: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* App Router does not normally render #root/#__next, but keep both safe for embedded/legacy surfaces. */
+#root,
+#__next {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+main,
+.shell,
+.appShell,
+.homeShell,
+.profileScreen {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.appShell,
+.homeShell {
+  margin-inline: auto;
+}
+
+/* Prevent intrinsic content width from forcing flex/grid parents wider than the viewport. */
+.homeHeader,
+.headerActions,
+.pageHeader,
+.pageHeading,
+.homeActionGrid,
+.quickActionCard,
+.activeServiceCard,
+.activeServiceFooter,
+.serviceGrid,
+.countryGrid,
+.marketList,
+.marketItem,
+.marketplaceGrid,
+.marketplaceProduct,
+.walletQuickGrid,
+.walletQuickCard,
+.walletTransactions,
+.walletTransaction,
+.buyNumberPanel,
+.selectorCard,
+.selectorCopy,
+.purchaseSummary,
+.priceRow,
+.priceRowCopy,
+.boostList,
+.boostService,
+.boostCopy,
+.mailServices,
+.mailService,
+.mailMessages,
+.orderList,
+.notificationList,
+.recentCard,
+.profileRows,
+.fundingCard,
+.rentalForm,
+.rentalInfo,
+.sheetBackdrop,
+.confirmBackdrop,
+.priceSheet,
+.confirmSheet,
+.smartSupportRoot,
+.smartSupportPanel,
+.smartSupportHeader,
+.smartSupportHeader > *,
+.smartSupportMessages,
+.smartSupportBubble,
+.smartSupportComposer,
+.smartSupportComposer > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.homeActionGrid,
+.walletQuickGrid,
+.countryGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.serviceGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+input,
+textarea,
+select,
+button {
+  max-width: 100%;
+}
+
+input,
+textarea,
+select {
+  min-width: 0;
+}
+
+.marketplaceSearch input,
+.boostSearch input,
+.mailSearch input,
+.field input,
+.field select,
+.boostDetails input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Bottom sheets/modals are constrained by their inset rather than viewport-width math. */
+.sheetBackdrop,
+.confirmBackdrop {
+  width: 100%;
+  max-width: 100%;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.priceSheet,
+.confirmSheet {
+  width: min(100%, 390px);
+  max-width: 100%;
+}
+
+/* Long API/user content must wrap instead of establishing a wider intrinsic width. */
+.smartSupportBubble p,
+.smartSupportContext,
+.smartSupportError,
+.priceRowAvailability,
+.marketplaceProductCopy,
+.boostCopy,
+.walletTransactionCopy,
+.recentCard p,
+.emailAddress,
+.otpCard {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Smart Support: never size from 100vw inside an offset/fixed container. */
+.smartSupportRoot {
+  max-width: calc(100% - max(18px, env(safe-area-inset-left)) - max(18px, env(safe-area-inset-right)));
+}
+
+.smartSupportPanel {
+  width: min(390px, calc(100% - 32px));
+  max-width: calc(100% - 32px);
+}
+
+.smartSupportComposer {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.smartSupportComposer textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.smartSupportMessages {
+  width: 100%;
+}
+
+.smartSupportBubble {
+  min-width: 0;
+}
+
+/* Keep the floating bottom navigation inside the physical viewport and safe areas. */
+.bottomNav {
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  width: auto;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.bottomNav .navItem,
+.bottomNav .navLabel,
+.bottomNav .navIcon {
+  min-width: 0;
+}
+
+@media (max-width: 699px) {
+  .shell,
+  .appShell,
+  .homeShell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .homeHeader {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .homeHeader > div:first-child,
+  .pageHeading {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .headerActions {
+    flex: 0 0 auto;
+  }
+
+  .quickActionCard,
+  .activeServiceCard,
+  .homeBalanceCard,
+  .walletHero,
+  .selectorCard,
+  .marketplaceProduct,
+  .boostService,
+  .mailService {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .smartSupportRoot {
+    right: max(14px, env(safe-area-inset-right));
+    left: auto;
+    max-width: calc(100% - max(14px, env(safe-area-inset-left)) - max(14px, env(safe-area-inset-right)));
+  }
+
+  .smartSupportPanel {
+    position: fixed;
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    height: min(82dvh, 720px);
+    max-height: 100dvh;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .smartSupportHeader {
+    grid-template-columns: 42px minmax(0, 1fr) 34px 34px;
+  }
+
+  .smartSupportHeader > div:nth-child(2) {
+    min-width: 0;
+  }
+
+  .smartSupportHeader strong,
+  .smartSupportHeader span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .smartSupportSuggestions {
+    max-width: 100%;
+  }
+
+  .smartSupportContextEntry {
+    right: max(76px, calc(env(safe-area-inset-right) + 62px));
+    max-width: calc(100% - 100px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 932px) {
+  .smartSupportPanel {
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+}
