@@ -55,7 +55,17 @@ function friendlyServiceName(code: string, providedName?: string) {
 
 const priceNgn = (p: any) => p?.price_ngn ?? p?.final_price_ngn ?? p?.amount_ngn ?? p?.price ?? p?.cost_ngn ?? null;
 const walletBalance = (wallet: any) => wallet?.balance_ngn ?? wallet?.wallet_balance_ngn ?? wallet?.balance ?? wallet?.wallet?.balance_ngn ?? wallet?.data?.balance_ngn ?? wallet?.data?.balance;
-const money = (value: any) => { const n = Number(value); return Number.isFinite(n) ? `₦${n.toLocaleString()}` : "—"; };
+const money = (value: any) => { const n = Number(value); return Number.isFinite(n) ? `₦${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(n)}` : "—"; };
+const finiteNumber = (value: any): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+const formatNgn = (value: any) => {
+  const n = finiteNumber(value);
+  return n === null ? "Price at checkout" : `₦${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(n)}`;
+};
+const availabilityCount = (p: any) => finiteNumber(p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability);
 
 function isoFlag(iso?: string) {
   const code = String(iso || "").trim().toUpperCase();
@@ -466,16 +476,21 @@ export default function BuyNumberPage() {
             </div>
             <div className="priceSheetList">
               {prices.map((p: any, i) => {
-                const rawPrice = priceNgn(p);
-                const formattedPrice = rawPrice != null && Number.isFinite(Number(rawPrice)) ? `₦${Number(rawPrice).toLocaleString()}` : "Price at checkout";
-                const available = p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability;
+                const formattedPrice = formatNgn(priceNgn(p));
+                const available = availabilityCount(p);
+                const unavailable = available !== null && available <= 0;
+                const availabilityLabel = unavailable
+                  ? "Unavailable"
+                  : available === null
+                    ? "Availability unavailable"
+                    : `${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(available)} ${available === 1 ? "number" : "numbers"} available`;
                 return (
                   <div className="priceRow" key={p.id || p.price_id || p.provider_id || `${p.service_code || "offer"}-${i}`}>
-                    <div>
-                      <strong>{formattedPrice}</strong>
-                      <small>{Number.isFinite(Number(available)) ? `${Number(available).toLocaleString()} numbers available` : "Available now"}</small>
+                    <div className="priceRowCopy">
+                      <strong className="priceRowPrice">{formattedPrice}</strong>
+                      <small className="priceRowAvailability">{availabilityLabel}</small>
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={buying} onClick={() => buy(p)}>{buying ? "Buying…" : "Buy"}</button>
+                    <button className="priceBuyButton" type="button" disabled={buying || unavailable} onClick={() => buy(p)}>{buying ? "Buying…" : "Buy"}</button>
                   </div>
                 );
               })}
