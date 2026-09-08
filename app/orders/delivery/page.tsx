@@ -8,7 +8,47 @@ import { marketplaceDeliveryEntries, marketplaceDeliveryText } from "@/lib/marke
 import styles from "./delivery.module.css";
 
 const money = (v: any) => `₦${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-const refOf = (o: any) => String(o?.reference || o?.order_reference || o?.ref || o?.id || "");
+const refCandidates = (o: any) => [
+  o?.reference,
+  o?.order_reference,
+  o?.ref,
+  o?.id,
+  o?.order_id,
+  o?.delivery_reference,
+  o?.marketplace_reference,
+  o?.provider_reference,
+  o?.data?.reference,
+  o?.data?.order_reference,
+  o?.data?.ref,
+  o?.data?.id,
+].filter((v) => v !== undefined && v !== null && String(v).trim() !== "").map((v) => String(v).trim());
+const refOf = (o: any) => refCandidates(o)[0] || "";
+const normalizeRef = (v: any) => String(v ?? "").trim().replace(/^#/, "").toLowerCase();
+const matchesReference = (o: any, reference: string) => {
+  const target = normalizeRef(reference);
+  return refCandidates(o).some((value) => normalizeRef(value) === target);
+};
+
+function listOf(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  for (const value of [payload?.orders, payload?.items, payload?.data]) {
+    if (Array.isArray(value)) return value;
+  }
+  for (const value of [payload?.data?.orders, payload?.data?.items, payload?.data?.data]) {
+    if (Array.isArray(value)) return value;
+  }
+  if (payload?.order && typeof payload.order === "object") return [payload.order];
+  if (payload?.data?.order && typeof payload.data.order === "object") return [payload.data.order];
+  return [];
+}
+
+function unwrapOrder(payload: any, reference: string) {
+  const direct = [payload?.order, payload?.data?.order, payload?.data, payload].find(
+    (value) => value && typeof value === "object" && !Array.isArray(value) && matchesReference(value, reference)
+  );
+  if (direct) return direct;
+  return listOf(payload).find((item: any) => matchesReference(item, reference)) || null;
+}
 
 async function copyText(value: string) {
   if (!value) return false;
@@ -52,15 +92,30 @@ export default function DeliveryPage() {
         if (!reference) throw new Error("Order reference is missing.");
 
         let found: any = null;
+
+        // Manual Marketplace orders can expose a dedicated detail endpoint.
         try {
-          const d: any = await wickspendApi(`wickspend/backend/marketplace/manual-order?reference=${encodeURIComponent(reference)}`, { token });
-          if (d?.ok && d?.order) found = d.order;
+          const payload: any = await wickspendApi(
+            `wickspend/backend/marketplace/manual-order?reference=${encodeURIComponent(reference)}`,
+            { token }
+          );
+          found = unwrapOrder(payload, reference);
         } catch {}
 
+        // FADDED / live Marketplace orders are normally available here and can
+        // contain the actual delivery payload even when the generic Orders feed
+        // only contains summary fields.
         if (!found) {
-          const d: any = await api.orders(token);
-          const list = Array.isArray(d) ? d : (d?.orders || d?.items || d?.data || []);
-          found = (Array.isArray(list) ? list : []).find((item: any) => refOf(item) === reference);
+          try {
+            const payload: any = await api.marketplace.orders(token);
+            found = unwrapOrder(payload, reference);
+          } catch {}
+        }
+
+        // Fall back to the unified Orders feed so historical/manual orders still work.
+        if (!found) {
+          const payload: any = await api.orders(token);
+          found = unwrapOrder(payload, reference);
         }
 
         if (cancelled) return;
@@ -99,10 +154,10 @@ export default function DeliveryPage() {
         ) : order && (
           <>
             <section className={`${styles.card} ${styles.meta}`}>
-              <div className={styles.row}><span>Product</span><strong>{order.product_name || order.product || order.title || order.service || "Marketplace Product"}</strong></div>
-              <div className={styles.row}><span>Order</span><strong>{refOf(order)}</strong></div>
-              <div className={styles.row}><span>Price</span><strong>{money(order.amount_ngn ?? order.final_amount_ngn ?? order.price_ngn)}</strong></div>
-              <div className={styles.row}><span>Status</span><strong>{String(order.status || "").replaceAll("_", " ")}</strong></div>
+              <div className={styles.row}><span>Product</span><strong>{order.product_name || order.product || order.title || order.service || order?.product?.name || "Marketplace Product"}</strong></div>
+              <div className={styles.row}><span>Order</span><strong>{refOf(order) || new URLSearchParams(window.location.search).get("reference") || "—"}</strong></div>
+              <div className={styles.row}><span>Price</span><strong>{money(order.amount_ngn ?? order.final_amount_ngn ?? order.price_ngn ?? order?.data?.amount_ngn)}</strong></div>
+              <div className={styles.row}><span>Status</span><strong>{String(order.status || order.state || order.order_status || order?.data?.status || "").replaceAll("_", " ")}</strong></div>
             </section>
 
             <section className={`${styles.card} ${styles.delivery}`}>
