@@ -10,6 +10,7 @@ import "./brand-theme.css";
 import "./marketplace-home-responsive.css";
 import "@/components/smart-support.css";
 import "@/components/smart-support-icon.css";
+import "./mobile-viewport-fix.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",
