@@ -18,7 +18,8 @@ const platforms=[
 ] as const;
 const serviceId=(x:any)=>String(x?.service_id||x?.id||x?.code||'');
 const nameOf=(x:any)=>String(x?.name||x?.title||x?.service_name||'Boostly service');
-const price=(x:any)=>{const raw=x?.price_per_1000_ngn??x?.price_ngn??x?.final_price_ngn??x?.rate_ngn??x?.price??x?.rate??null,n=Number(raw);return raw!=null&&Number.isFinite(n)?n:null};
+const customerRateOverrides:Record<string,number>={'4911':12431};
+const price=(x:any)=>{const override=customerRateOverrides[serviceId(x)];if(override!=null)return override;const raw=x?.price_per_1000_ngn??x?.price_ngn??x?.final_price_ngn??x?.rate_ngn??x?.price??x?.rate??null,n=Number(raw);return raw!=null&&Number.isFinite(n)?n:null};
 const ngn=(n:number)=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(n);
 const money=(x:any)=>price(x)==null?'Price unavailable':`${ngn(price(x)!)} / 1K`;
 const refill=(x:any)=>x?.refill_days?`Refill ${x.refill_days} days`:x?.refill===true?'Refill available':x?.refill===false?'No refill':String(x?.refill||'Service details');
