@@ -11,6 +11,7 @@ import "./marketplace-home-responsive.css";
 import "@/components/smart-support.css";
 import "@/components/smart-support-icon.css";
 import "./mobile-viewport-fix.css";
+import "./bottom-nav-fix.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",
