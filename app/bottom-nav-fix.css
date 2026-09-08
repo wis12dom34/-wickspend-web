@@ -1,37 +1,59 @@
-/* Keep the existing WickSpend mobile bottom navigation centered and fully inside the viewport. */
+/* Mobile bottom navigation: force one unambiguous positioning model.
+   Keep the existing WickSpend design, but center the bar from the viewport itself. */
 .bottomNav {
-  left: max(12px, env(safe-area-inset-left));
-  right: max(12px, env(safe-area-inset-right));
-  width: auto;
-  max-width: none;
-  transform: none;
-  margin: 0;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: calc(100% - 24px) !important;
+  max-width: 366px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .bottomNav .navItem {
-  min-width: 0;
-  width: 100%;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 1px;
+  padding-right: 1px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .bottomNav .navIcon,
 .bottomNav .navLabel {
-  min-width: 0;
-  max-width: 100%;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.bottomNav .navLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 @media (max-width: 430px) {
   .bottomNav {
-    left: max(10px, env(safe-area-inset-left));
-    right: max(10px, env(safe-area-inset-right));
+    width: calc(100% - 20px) !important;
+    max-width: 366px !important;
   }
 
-  .navItem {
-    padding-inline: 1px;
-  }
-
-  .navLabel {
-    white-space: nowrap;
+  .bottomNav .navLabel {
     font-size: 8px;
+  }
+}
+
+@media (max-width: 340px) {
+  .bottomNav {
+    width: calc(100% - 16px) !important;
+  }
+
+  .bottomNav .navLabel {
+    font-size: 7px;
   }
 }
