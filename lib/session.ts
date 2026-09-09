@@ -12,10 +12,23 @@ export function saveSessionToken(token: string) {
   localStorage.removeItem(LEGACY_SESSION_TOKEN_KEY);
 }
 
+export function canonicalSessionTokenFromResponse(response: any) {
+  return response?.session_token || response?.wickspend_session_token ||
+    response?.data?.session_token || response?.data?.wickspend_session_token ||
+    response?.session?.session_token || response?.data?.session?.session_token || "";
+}
+
 export function sessionTokenFromResponse(response: any) {
-  return response?.session_token || response?.token || response?.access_token || response?.accessToken ||
+  return response?.session_token || response?.token ||
     response?.data?.session_token || response?.data?.token || response?.session?.session_token ||
     response?.session?.token || response?.data?.session?.session_token || response?.data?.session?.token || "";
+}
+
+export function supabaseAccessTokenFromResponse(response: any) {
+  return response?.access_token || response?.accessToken || response?.token ||
+    response?.data?.access_token || response?.data?.accessToken || response?.data?.token ||
+    response?.session?.access_token || response?.session?.accessToken || response?.session?.token ||
+    response?.data?.session?.access_token || response?.data?.session?.accessToken || response?.data?.session?.token || "";
 }
 
 export function saveSessionResponse(response: any) {
