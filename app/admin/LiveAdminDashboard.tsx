@@ -43,7 +43,7 @@ type IconName = 'menu' | 'bell' | 'wallet' | 'calendar' | 'trend' | 'swap' | 'us
 type Period = 'all' | 'today' | '7d' | '30d' | 'month';
 
 const routes = {
-  users: '/admin/users', activity: '/admin/live-activity', transactions: '/admin/transactions', revenue: '/admin/revenue', support: '/admin/support', chats: '/admin/chats', notifications: '/admin/notifications', menu: '/admin/menu', period: '/admin/period',
+  users: '/admin', activity: '/admin', transactions: '/admin#analytics', revenue: '/admin#analytics', support: '/admin/support', chats: '/admin/support', notifications: '/admin', menu: '/admin/menu', period: '/admin#analytics',
 } as const;
 
 const n = (value: number | string | null | undefined) => Number(value || 0);
@@ -186,7 +186,7 @@ export default function LiveAdminDashboard() {
       <Link href={routes.period} className="ws-date-control"><Icon name="calendar" size={17}/><span>{new Date().toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span><b>⌄</b></Link>
     </section>
 
-    <section className="ws-card ws-revenue-card">
+    <section id="analytics" className="ws-card ws-revenue-card">
       <div className="ws-revenue-head">
         <div><span>Total Revenue</span><strong>{stats ? money(stats.total_revenue) : '—'}</strong>{comparison !== null && <small className={comparison >= 0 ? 'positive' : 'negative'}>{comparison >= 0 ? '↑' : '↓'} {Math.abs(comparison).toFixed(1)}% vs previous period</small>}</div>
         <select value={period} onChange={(e) => setPeriod(e.target.value as Period)} aria-label="Revenue period">
