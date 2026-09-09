@@ -1,4 +1,5 @@
 import './overrides.css';
+import './admin-responsive.css';
 import type { ReactNode } from 'react';
 import AdminAccessGate from './AdminAccessGate';
 
