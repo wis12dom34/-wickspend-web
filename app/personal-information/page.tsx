@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {PageShell} from "@/components/PageShell";
 import {api,ApiError} from "@/lib/api";
-import {clearSessionToken,getSessionToken} from "@/lib/session";
+import {clearSessionTokenIfMatches,getSessionToken} from "@/lib/session";
 
 function valueOf(user:any,...keys:string[]){for(const key of keys){const v=user?.[key];if(v!==undefined&&v!==null&&String(v).trim())return String(v)}return ""}
 function avatarOf(user:any){return user?.photo_url||user?.profile_photo_url||user?.avatar_url||user?.telegram_photo_url||user?.photoUrl||user?.avatarUrl||""}
@@ -10,7 +10,7 @@ function maskPhone(value:string){const digits=value.replace(/\D/g,"");if(!digits
 
 export default function PersonalInformation(){
   const[user,setUser]=useState<any>(null),[message,setMessage]=useState("Loading personal information…"),[loading,setLoading]=useState(true);
-  useEffect(()=>{let active=true;const token=getSessionToken();if(!token){setMessage("Please sign in to view your personal information.");setLoading(false);return()=>{active=false}}api.auth.session(token).then((d:any)=>{if(!active)return;const next=d?.user||d?.session?.user||d?.data?.user||d?.data||d;setUser(next&&typeof next==="object"?next:null);setMessage("");setLoading(false)}).catch(e=>{if(!active)return;if(e instanceof ApiError&&(e.status===401||e.status===403)){clearSessionToken();setMessage("Your session has expired. Please sign in again.")}else setMessage(e instanceof Error?e.message:"Unable to load personal information");setLoading(false)});return()=>{active=false}},[]);
+  useEffect(()=>{let active=true;const token=getSessionToken();if(!token){setMessage("Please sign in to view your personal information.");setLoading(false);return()=>{active=false}}api.auth.session(token).then((d:any)=>{if(!active)return;const next=d?.user||d?.session?.user||d?.data?.user||d?.data||d;setUser(next&&typeof next==="object"?next:null);setMessage("");setLoading(false)}).catch(e=>{if(!active)return;if(e instanceof ApiError&&(e.status===401||e.status===403)){clearSessionTokenIfMatches(token);setMessage("Your session has expired. Please sign in again.")}else setMessage(e instanceof Error?e.message:"Unable to load personal information");setLoading(false)});return()=>{active=false}},[]);
   const first=valueOf(user,"first_name","firstName"),last=valueOf(user,"last_name","lastName"),username=valueOf(user,"username","telegram_username"),email=valueOf(user,"email"),phone=valueOf(user,"phone_number","phone","mobile"),photo=avatarOf(user);
   const initials=useMemo(()=>{const raw=`${first} ${last}`.trim()||username||"WickSpend";return raw.split(/\s+/).slice(0,2).map(x=>x.charAt(0).toUpperCase()).join("")||"W"},[first,last,username]);
   return <PageShell title="Personal Information" subtitle="Manage your personal details" back="/profile">
