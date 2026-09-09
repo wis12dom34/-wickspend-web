@@ -1,5 +1,5 @@
 "use client";
-import {ClipboardEvent,FormEvent,KeyboardEvent,useEffect,useRef,useState} from "react";
+import {FormEvent,useEffect,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
 import {ApiError,api,wickspendApi} from "@/lib/api";
 import {clearSessionToken,getSessionToken,saveSessionToken} from "@/lib/session";
@@ -9,7 +9,6 @@ const digitsOnly=(value:string)=>/^\d+$/.test(value);
 const validEmail=(value:string)=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
 type Step="email"|"emailVerify"|"telegram"|"telegramVerify";
 type PasswordMode="login"|"register";
-const blankOtp=()=>Array(6).fill("") as string[];
 const safeNext=()=>{if(typeof window==="undefined")return"/";const value=new URLSearchParams(window.location.search).get("next")||"/";return value.startsWith("/")&&!value.startsWith("//")?value:"/"};
 const sessionTokenOf=(r:any)=>r?.session_token||r?.token||r?.data?.session_token||r?.data?.token||r?.session?.session_token||r?.session?.token||r?.data?.session?.session_token||r?.data?.session?.token;
 
@@ -18,17 +17,14 @@ const TelegramIcon=()=> <svg className={styles.providerIcon} viewBox="0 0 24 24"
 
 export default function Login(){
   const router=useRouter();
-  const [step,setStep]=useState<Step>("email"),[mode,setMode]=useState<PasswordMode>("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[confirmPassword,setConfirmPassword]=useState(""),[telegramId,setTelegramId]=useState(""),[otp,setOtp]=useState<string[]>(blankOtp),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
-  const actionSeq=useRef(0),mounted=useRef(true),otpRefs=useRef<Array<HTMLInputElement|null>>([]);
-  const code=otp.join("");
+  const [step,setStep]=useState<Step>("email"),[mode,setMode]=useState<PasswordMode>("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[confirmPassword,setConfirmPassword]=useState(""),[telegramId,setTelegramId]=useState(""),[code,setCode]=useState(""),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
+  const actionSeq=useRef(0),mounted=useRef(true),otpRef=useRef<HTMLInputElement|null>(null);
 
   useEffect(()=>{mounted.current=true;let active=true;const t=getSessionToken();if(t)api.auth.session(t).then(()=>{if(active&&mounted.current)router.replace(safeNext())}).catch(()=>{if(active&&mounted.current)clearSessionToken()});return()=>{active=false;mounted.current=false;actionSeq.current++}},[router]);
-  useEffect(()=>{if(step==="telegramVerify"||step==="emailVerify")window.setTimeout(()=>otpRefs.current[0]?.focus(),0)},[step]);
+  useEffect(()=>{if(step==="telegramVerify"||step==="emailVerify")window.setTimeout(()=>otpRef.current?.focus(),0)},[step]);
 
-  function clearOtp(){setOtp(blankOtp())}
-  function updateOtp(index:number,value:string){const digits=value.replace(/\D/g,"");if(digits.length>1){const fill=digits.slice(0,6-index);setOtp(current=>{const next=[...current];for(let i=0;i<fill.length;i++)next[index+i]=fill[i];return next});otpRefs.current[Math.min(index+fill.length,6)-1]?.focus();if(message)setMessage("");return}const digit=digits.slice(-1);setOtp(current=>{const next=[...current];next[index]=digit;return next});if(digit&&index<5)otpRefs.current[index+1]?.focus();if(message)setMessage("")}
-  function handleOtpKeyDown(index:number,e:KeyboardEvent<HTMLInputElement>){if(e.key==="Backspace"&&!otp[index]&&index>0)otpRefs.current[index-1]?.focus();if(e.key==="ArrowLeft"&&index>0){e.preventDefault();otpRefs.current[index-1]?.focus()}if(e.key==="ArrowRight"&&index<5){e.preventDefault();otpRefs.current[index+1]?.focus()}}
-  function handleOtpPaste(e:ClipboardEvent<HTMLDivElement>){const pasted=e.clipboardData.getData("text").replace(/\D/g,"").slice(0,6);if(!pasted)return;e.preventDefault();setOtp(Array.from({length:6},(_,i)=>pasted[i]||""));otpRefs.current[Math.min(pasted.length,6)-1]?.focus();if(message)setMessage("")}
+  function clearOtp(){setCode("")}
+  function updateCode(value:string){setCode(value.replace(/\D/g,"").slice(0,6));if(message)setMessage("")}
 
   async function completePasswordAuth(e:FormEvent){
     e.preventDefault();if(busy)return;
@@ -67,7 +63,7 @@ export default function Login(){
   function reset(next:Step="email"){actionSeq.current++;setBusy(false);clearOtp();setStep(next);setMessage("")}
   function switchMode(next:PasswordMode){setMode(next);setPassword("");setConfirmPassword("");setMessage("")}
   const lead=step==="email"?(mode==="login"?"Enter your email and password to continue to WickSpend.":"Create your WickSpend account with email and password."):step==="emailVerify"?`Enter the verification code sent to ${email.trim().toLowerCase()}.`:step==="telegram"?"Sign in securely with your Telegram-linked WickSpend account.":`Enter the verification code sent for Telegram ID ${telegramId}.`;
-  const otpInputs=<div className={styles.otpGroup} onPaste={handleOtpPaste} aria-label="6-digit verification code">{otp.map((digit,index)=><input key={index} ref={el=>{otpRefs.current[index]=el}} className={styles.otpBox} inputMode="numeric" autoComplete={index===0?"one-time-code":"off"} pattern="[0-9]*" maxLength={1} value={digit} onChange={e=>updateOtp(index,e.target.value)} onKeyDown={e=>handleOtpKeyDown(index,e)} aria-label={`Digit ${index+1}`} disabled={busy}/>)}</div>;
+  const otpInputs=<input ref={otpRef} className={styles.field} style={{textAlign:"center",fontSize:22,fontWeight:700,letterSpacing:".22em"}} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} value={code} onChange={e=>updateCode(e.target.value)} aria-label="6-digit verification code" placeholder="Enter 6-digit code" disabled={busy}/>;
 
   if(step==="telegramVerify"||step==="emailVerify"){const isEmailVerify=step==="emailVerify";return <main className={styles.screen}><p className={styles.brand}>WickSpend</p><section className={styles.content} aria-busy={busy}><h1 className={styles.title}>Verify your account</h1><p className={`${styles.lead} ${styles.verifyLead}`}>{lead}</p><form className={styles.form} onSubmit={isEmailVerify?verifyEmail:verifyTelegram}>{otpInputs}<div className={styles.emailSummary}>{isEmailVerify?email.trim().toLowerCase():`Telegram ID ${telegramId}`}</div><button className={styles.primary} type="submit" disabled={busy||code.length!==6}>{busy?"Verifying…":"Verify & Sign In"}</button><div className={styles.verifyActions}><button className={styles.helperButton} type="button" disabled={busy} onClick={()=>reset(isEmailVerify?"email":"telegram")}>{isEmailVerify?"Change email":"Change Telegram ID"}</button></div></form>{message&&<p className={styles.message} role="status" aria-live="polite">{message}</p>}<p className={styles.secure}>Secure access to your wallet, purchases and WickSpend services.</p></section></main>}
 
