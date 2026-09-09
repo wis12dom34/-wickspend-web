@@ -3,7 +3,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {PageShell} from "@/components/PageShell";
 import {api,ApiError} from "@/lib/api";
-import {clearSessionToken,getSessionToken} from "@/lib/session";
+import {clearSessionTokenIfMatches,getSessionToken} from "@/lib/session";
 
 function firstValue(source:any,keys:string[]){for(const key of keys){const value=source?.[key];if(value!==undefined&&value!==null&&value!=="")return value}return undefined}
 function boolValue(value:any){if(typeof value==="boolean")return value;if(typeof value==="number")return value===1;if(typeof value==="string"){const v=value.toLowerCase();if(["true","1","yes","enabled","active","verified"].includes(v))return true;if(["false","0","no","disabled","inactive"].includes(v))return false}return undefined}
@@ -27,7 +27,7 @@ export default function AccountSecurity(){
       setSignedIn(true);setStatus("");setChecking(false);
     }).catch(e=>{
       if(!active)return;
-      if(e instanceof ApiError&&(e.status===401||e.status===403)){clearSessionToken();setSignedIn(false);setStatus("Your session has expired.");}
+      if(e instanceof ApiError&&(e.status===401||e.status===403)){clearSessionTokenIfMatches(token);setSignedIn(false);setStatus("Your session has expired.");}
       else setStatus("Couldn’t verify your session right now.");
       setChecking(false);
     });
