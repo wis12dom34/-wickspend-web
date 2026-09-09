@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminTransactionsPage() {
-  return <AdminScreen screen="transactions" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin#analytics"); }

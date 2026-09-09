@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminLiveActivityPage() {
-  return <AdminScreen screen="live-activity" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin"); }

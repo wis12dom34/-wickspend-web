@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminReferralsPage() {
-  return <AdminScreen screen="referrals" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin"); }

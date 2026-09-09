@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminSessionRefreshedPage() {
-  return <AdminScreen screen="session-refreshed" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin"); }

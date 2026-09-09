@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminPeriodPage() {
-  return <AdminScreen screen="period" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin#analytics"); }

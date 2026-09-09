@@ -1,5 +1,2 @@
-import AdminScreen from '../AdminScreen';
-
-export default function AdminChatsPage() {
-  return <AdminScreen screen="chats" />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/admin/support"); }

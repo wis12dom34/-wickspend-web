@@ -1,6 +1,13 @@
-import Link from 'next/link';
-import AdminScreen from '../AdminScreen';
+import Link from "next/link";
+
+const items = [
+  ["Dashboard", "Live revenue, activity and platform statistics", "/admin"],
+  ["Marketplace Products", "Create, edit, stock and publish manual products", "/admin/marketplace"],
+  ["Marketplace Orders", "Review manual orders and legitimate fulfillment", "/admin/marketplace/orders"],
+  ["Support", "View and reply to Smart Support conversations", "/admin/support"],
+  ["Analytics", "Live revenue and transaction aggregates", "/admin#analytics"],
+] as const;
 
 export default function AdminMenuPage() {
-  return <><AdminScreen screen="menu" /><Link href="/admin/marketplace" style={{position:'fixed',right:18,bottom:'calc(24px + env(safe-area-inset-bottom))',zIndex:20,background:'#111',color:'#fff',textDecoration:'none',fontWeight:750,fontSize:14,padding:'13px 17px',borderRadius:16,boxShadow:'0 12px 30px rgba(15,23,42,.18)'}}>Marketplace</Link></>;
+  return <main className="ws-admin-menu-page"><section className="ws-admin-menu-shell"><header><Link href="/admin" aria-label="Back to admin">‹</Link><div><h1>Admin Menu</h1><p>Only production-backed modules are shown.</p></div></header><nav>{items.map(([title, subtitle, href]) => <Link href={href} key={title}><div><strong>{title}</strong><span>{subtitle}</span></div><b>›</b></Link>)}</nav></section></main>;
 }
