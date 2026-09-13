@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const items = [
   ["Dashboard", "Live revenue, activity and platform statistics", "/admin"],
+  ["Reseller Control Center", "Manage reseller plans, accounts, revenue and domains", "/admin/resellers"],
   ["Marketplace Products", "Create, edit, stock and publish manual products", "/admin/marketplace"],
   ["Marketplace Orders", "Review manual orders and legitimate fulfillment", "/admin/marketplace/orders"],
   ["Support", "View and reply to Smart Support conversations", "/admin/support"],
