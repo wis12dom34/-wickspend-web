@@ -10,6 +10,16 @@ on:
       - "app/webhook/wickspend/store/**"
       - "scripts/reseller-smoke.mjs"
       - ".github/workflows/reseller-verify.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/reseller/**"
+      - "app/admin/resellers/**"
+      - "app/api/v1/**"
+      - "app/store/**"
+      - "app/webhook/wickspend/store/**"
+      - "scripts/reseller-smoke.mjs"
+      - ".github/workflows/reseller-verify.yml"
   workflow_dispatch:
 
 jobs:
