@@ -1,0 +1,57 @@
+name: Reseller Verify
+
+on:
+  pull_request:
+    paths:
+      - "app/reseller/**"
+      - "app/admin/resellers/**"
+      - "app/api/v1/**"
+      - "app/store/**"
+      - "app/webhook/wickspend/store/**"
+      - "scripts/reseller-smoke.mjs"
+      - ".github/workflows/reseller-verify.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/reseller/**"
+      - "app/admin/resellers/**"
+      - "app/api/v1/**"
+      - "app/store/**"
+      - "app/webhook/wickspend/store/**"
+      - "scripts/reseller-smoke.mjs"
+      - ".github/workflows/reseller-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
+      - name: Start application
+        run: |
+          npm start -- -H 127.0.0.1 -p 3080 > /tmp/wickspend.log 2>&1 &
+          echo $! > /tmp/wickspend.pid
+          for i in {1..30}; do
+            curl --fail --silent http://127.0.0.1:3080/reseller >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/wickspend.log
+          exit 1
+      - name: Reseller smoke tests
+        run: node scripts/reseller-smoke.mjs
+      - name: Application log
+        if: failure()
+        run: cat /tmp/wickspend.log || true
+      - name: Stop application
+        if: always()
+        run: kill "$(cat /tmp/wickspend.pid)" 2>/dev/null || true
