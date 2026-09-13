@@ -29,6 +29,7 @@ export default function Settings(){
     <section className="profileGroup settingsSupportGroup">
       <p>Connections &amp; support</p>
       <div className="profileRows">
+        <Link className="profileRow settingsRow" href="/reseller"><span aria-hidden="true">◇</span><span><b>Reseller Center</b><small>Launch and manage your reseller store</small></span><i aria-hidden="true">›</i></Link>
         <Link className="profileRow settingsRow" href="/telegram-connection"><span aria-hidden="true">▣</span><span><b>Telegram</b><small>Manage Telegram connection</small></span><i aria-hidden="true">›</i></Link>
         <Link className="profileRow settingsRow" href="/help-support"><span aria-hidden="true">?</span><span><b>Help &amp; Support</b><small>Get assistance</small></span><i aria-hidden="true">›</i></Link>
         <div className="profileRow settingsRow" aria-disabled="true"><span aria-hidden="true">≡</span><span><b>Privacy &amp; Terms</b><small>Review our policies</small></span><i aria-hidden="true">›</i></div>
