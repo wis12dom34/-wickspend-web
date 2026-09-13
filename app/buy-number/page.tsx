@@ -13,11 +13,39 @@ type ServiceOption = { name: string; code: string };
 const fallbackCountries: CountryOption[] = [
   { flag: "🇳🇬", name: "Nigeria", code: "19", iso: "NG" },
   { flag: "🇺🇸", name: "United States", code: "187", iso: "US" },
+  { flag: "🇺🇸", name: "United States (virtual)", code: "12", iso: "US" },
   { flag: "🇬🇧", name: "United Kingdom", code: "16", iso: "GB" },
   { flag: "🇩🇪", name: "Germany", code: "43", iso: "DE" },
   { flag: "🇨🇦", name: "Canada", code: "36", iso: "CA" },
   { flag: "🇵🇱", name: "Poland", code: "15", iso: "PL" },
 ];
+
+const COUNTRY_ALIASES: Readonly<Record<string, string>> = {
+  us: "187",
+  usa: "187",
+  "united states": "187",
+  "united states (virtual)": "12",
+  "us virtual": "12",
+  "usa virtual": "12",
+  uk: "16",
+};
+
+function resolveRequestedCountry(countries: CountryOption[], requestedCountry: string | null) {
+  const requested = String(requestedCountry || "").trim().toLowerCase();
+  if (!requested) return undefined;
+
+  const exactCode = countries.find((item) => item.code.toLowerCase() === requested);
+  if (exactCode) return exactCode;
+
+  const exactName = countries.find((item) => item.name.toLowerCase() === requested);
+  if (exactName) return exactName;
+
+  const aliasCode = COUNTRY_ALIASES[requested];
+  if (aliasCode) return countries.find((item) => item.code === aliasCode);
+
+  const isoMatches = countries.filter((item) => item.iso?.toLowerCase() === requested);
+  return isoMatches.length === 1 ? isoMatches[0] : undefined;
+}
 
 const POPULAR_SERVICE_ORDER = ["WhatsApp", "Telegram", "Instagram", "Facebook", "TikTok", "Google / Gmail"];
 const POPULAR_SERVICE_RANK = new Map(POPULAR_SERVICE_ORDER.map((name, index) => [name.toLowerCase(), index]));
@@ -212,8 +240,7 @@ export default function BuyNumberPage() {
       const next = normalizeCountries(data);
       if (!next.length) return;
       setCountries(next);
-      const requested = String(requestedCountry || "").toLowerCase();
-      const match = next.find((item) => item.code === requestedCountry || item.iso?.toLowerCase() === requested || item.name.toLowerCase() === requested || (requested === "usa" && item.iso === "US") || (requested === "uk" && item.iso === "GB"));
+      const match = resolveRequestedCountry(next, requestedCountry);
       setCountry(match?.code || next.find((item) => item.name.toLowerCase() === "nigeria")?.code || next[0].code);
     }).catch(() => {});
     if (token) {
@@ -333,10 +360,18 @@ export default function BuyNumberPage() {
       const token = getSessionToken();
       if (!token) throw new Error("Please sign in first");
       const providerId = String(selectedOffer?.provider_id ?? "").trim();
+      const offerId = String(selectedOffer?.offer_id ?? selectedOffer?.id ?? "").trim();
+      const operatorId = String(selectedOffer?.operator_id ?? "").trim();
       if (!premium && !providerId) throw new Error("This price is no longer available. Please refresh prices.");
       const result: any = premium
         ? await api.numbers.premiumBuy(token, { service_code: currentServiceCode() })
-        : await api.numbers.buy(token, { country_code: country, service_code: currentServiceCode(), provider_id: providerId });
+        : await api.numbers.buy(token, {
+            country_code: country,
+            service_code: currentServiceCode(),
+            provider_id: providerId,
+            ...(offerId ? { offer_id: offerId } : {}),
+            ...(operatorId ? { operator_id: operatorId } : {}),
+          });
       const payload = result?.data || result?.order || result;
       const reference = String(payload?.reference || result?.reference || "").trim();
       const purchasedNumber = String(payload?.number || payload?.phone_number || result?.number || result?.phone_number || "").trim();
@@ -479,7 +514,7 @@ export default function BuyNumberPage() {
                     ? "Availability unavailable"
                     : `${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(available)} ${available === 1 ? "number" : "numbers"} available`;
                 return (
-                  <div className="priceRow" key={p.id || p.price_id || p.provider_id || `${p.service_code || "offer"}-${i}`}>
+                  <div className="priceRow" key={p.offer_id || p.id || p.price_id || p.operator_id || p.provider_id || `${country}-${service}-${i}`}>
                     <div className="priceRowCopy">
                       <strong className="priceRowPrice">{formattedPrice}</strong>
                       <small className="priceRowAvailability">{availabilityLabel}</small>

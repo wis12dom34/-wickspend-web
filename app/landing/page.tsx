@@ -16,8 +16,8 @@ const services = [
 ] as const;
 
 const countries = [
-  ["🇺🇸", "United States"], ["🇬🇧", "United Kingdom"], ["🇩🇪", "Germany"], ["🇳🇬", "Nigeria"],
-  ["🇨🇦", "Canada"], ["🇵🇱", "Poland"], ["🇫🇷", "France"], ["🇳🇱", "Netherlands"],
+  ["🇺🇸", "United States", "187"], ["🇬🇧", "United Kingdom", "16"], ["🇩🇪", "Germany", "43"], ["🇳🇬", "Nigeria", "19"],
+  ["🇨🇦", "Canada", "36"], ["🇵🇱", "Poland", "15"], ["🇫🇷", "France", "78"], ["🇳🇱", "Netherlands", "48"],
 ] as const;
 
 const faqs = [
@@ -33,7 +33,7 @@ function NumberPreview({ compact = false }: { compact?: boolean }) {
     <div className="previewHeader">WickSpend</div>
     <div className="previewTabs"><Link href="/buy-number">Numbers</Link><Link href="/marketplace">Marketplace</Link><Link href="/wallet">Wallet</Link></div>
     <div className="selectorRow">
-      <Link className="selector selectorLink" href="/buy-number?country=United%20States"><small>Country</small><strong>United States</strong></Link>
+      <Link className="selector selectorLink" href="/buy-number?country=187"><small>Country</small><strong>United States</strong></Link>
       <Link className="selector selectorLink" href="/buy-number?service=WhatsApp"><small>Service</small><strong>WhatsApp</strong></Link>
     </div>
     <div className="numberCard"><div><strong>+1 (415) 526-XXXX</strong><div className="numberMeta">Available • 20 min validity</div></div><Link className="miniBtn" href="/buy-number">Buy Number</Link></div>
@@ -76,7 +76,7 @@ export default function LandingPage() {
       <section className="section" id="wallet"><div className="eyebrow">WALLET</div><h2>One balance. Every purchase.</h2><p className="sectionIntro">Fund your wallet, track spending, view transactions and manage numbers and marketplace purchases from one dashboard.</p><div className="glass preview productPreview"><div className="muted">Total Balance</div><div className="walletBalance">₦124,560</div><div className="ctaRow"><Link href="/add-funds" className="btn btnPrimary">Add Funds</Link><Link href="/wallet" className="btn btnSecondary">View Wallet</Link></div><div className="transactionList">{[['Number Rental','-₦800'],['Wallet Top Up','+₦50,000'],['Marketplace Purchase','-₦4,500']].map(([t,a]) => <div className="transaction" key={t}><span>{t}</span><span>{a}</span></div>)}</div></div></section>
 
       <section className="section"><div className="eyebrow">POPULAR SERVICES</div><h2>Everything people ask for most.</h2><p className="sectionIntro">Quick access to the most-used verification and social platforms.</p><div className="chipGrid">{services.map(([icon,name]) => <Link className="glass chip" href={`/buy-number?service=${encodeURIComponent(name)}`} key={name}><img src={icon} alt=""/><span>{name}</span></Link>)}</div></section>
-      <section className="section"><div className="eyebrow">POPULAR COUNTRIES</div><h2>Pick your market in one tap.</h2><p className="sectionIntro">Fast entry points for frequently requested countries.</p><div className="chipGrid">{countries.map(([flag,name]) => <Link className="glass chip" href={`/buy-number?country=${encodeURIComponent(name)}`} key={name}><span>{flag}</span><span>{name}</span></Link>)}</div></section>
+      <section className="section"><div className="eyebrow">POPULAR COUNTRIES</div><h2>Pick your market in one tap.</h2><p className="sectionIntro">Fast entry points for frequently requested countries.</p><div className="chipGrid">{countries.map(([flag,name,code]) => <Link className="glass chip" href={`/buy-number?country=${code}`} key={code}><span>{flag}</span><span>{name}</span></Link>)}</div></section>
       <section className="section"><div className="eyebrow">WHY WICKSPEND</div><h2>Built to remove unnecessary steps.</h2><p className="sectionIntro">The product focuses on speed, clear pricing, consistent workflows and unified order management.</p><div className="whyGrid">{[['Simple','Short flows.'],['Fast','Live availability.'],['Transparent','Clear pricing.'],['Unified','Orders in one place.']].map(([t,d]) => <article className="glass whyCard" key={t}><b>{t}</b><small>{d}</small></article>)}</div></section>
       <section className="section" id="faq"><div className="eyebrow">FAQ</div><h2>Questions, answered.</h2><p className="sectionIntro">Clear answers before you buy.</p><div className="faqList">{faqs.map(([q,a]) => <details className="faqItem" key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>
       <section className="finalCta"><h2>Start with WickSpend today.</h2><p>Numbers, OTP, rentals and marketplace products—kept simple in one account.</p><div className="ctaRow"><Link href="/login" className="btn btnSecondary">Get Started</Link><Link href="/buy-number" className="btn btnDarkOutline">Browse Numbers</Link></div></section>
