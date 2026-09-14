@@ -26,8 +26,18 @@ async function expectStatus(path, status, options = {}) {
   return result;
 }
 
-for (const path of ["/reseller", "/reseller/developer", "/api/v1/docs"]) {
-  await expectStatus(path, 200);
+const pageChecks = [
+  ["/reseller", []],
+  ["/reseller/developer", ["v1.6 live", "Notifications"]],
+  ["/reseller/orders", ["Rentals"]],
+  ["/api/v1/docs", []],
+];
+for (const [path, snippets] of pageChecks) {
+  const result = await expectStatus(path, 200);
+  for (const snippet of snippets) {
+    if (!result.text.includes(snippet)) fail(`${path}: missing UI text ${JSON.stringify(snippet)}`);
+    else pass(`${path}: contains ${JSON.stringify(snippet)}`);
+  }
 }
 
 const specResult = await expectStatus("/api/v1/openapi.json", 200);
