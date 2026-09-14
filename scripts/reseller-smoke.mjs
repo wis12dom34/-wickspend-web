@@ -1,4 +1,5 @@
 const base = (process.env.BASE_URL || "http://127.0.0.1:3080").replace(/\/$/, "");
+const backendBase = (process.env.RESELLER_BACKEND_BASE || "https://n8n.wickspend.com/webhook").replace(/\/$/, "");
 const invalidKey = "wick_smoke_invalid_key";
 let failures = 0;
 
@@ -42,6 +43,27 @@ for (const [path, snippets] of pageChecks) {
     if (!result.text.includes(snippet)) fail(`${path}: missing UI text ${JSON.stringify(snippet)}`);
     else pass(`${path}: contains ${JSON.stringify(snippet)}`);
   }
+}
+
+const sessionProtectedReads = [
+  "wickspend/backend/reseller/profile",
+  "wickspend/backend/reseller/customers?page=1&limit=5",
+  "wickspend/backend/reseller/finance/summary",
+  "wickspend/backend/reseller/orders?page=1&limit=5",
+  "wickspend/backend/reseller/api-keys",
+  "wickspend/backend/reseller/webhook",
+  "wickspend/backend/reseller/subscription/history",
+  "wickspend/backend/reseller/pricing",
+  "wickspend/backend/reseller/domain/status",
+];
+for (const path of sessionProtectedReads) {
+  const response = await fetch(`${backendBase}/${path}`, { redirect: "manual" });
+  const text = await response.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
+  if (response.status !== 401) fail(`GET ${path}: expected unauthenticated 401, got ${response.status}`);
+  else if (json?.code !== "UNAUTHORIZED") fail(`GET ${path}: expected UNAUTHORIZED`);
+  else pass(`GET ${path}: session auth boundary 401`);
 }
 
 const specResult = await expectStatus("/api/v1/openapi.json", 200);
