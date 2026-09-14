@@ -56,6 +56,10 @@ export async function GET(_request: Request, context: RouteContext) {
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
   }
+  const contentSecurityPolicy = headers.get("content-security-policy");
+  if (contentSecurityPolicy?.includes("sandbox") && !contentSecurityPolicy.includes("allow-same-origin")) {
+    headers.set("Content-Security-Policy", contentSecurityPolicy.replace("sandbox", "sandbox allow-same-origin"));
+  }
   headers.set("Content-Type", headers.get("content-type") || "text/html; charset=utf-8");
   headers.set("Cache-Control", "no-store, max-age=0");
   return new Response(html, { status: 200, headers });
