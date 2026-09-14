@@ -46,6 +46,43 @@ for (const [path, snippets] of pageChecks) {
   }
 }
 
+// The Mini Store intentionally supports Numbers, Marketplace and Boostly only.
+// These public, purchase-free checks guard its fail-closed routing and ensure
+// Rentals or Temp Mail are not silently exposed by later frontend changes.
+const invalidStore = await expectStatus("/store/a", 404);
+if (!/no-store/i.test(invalidStore.response.headers.get("cache-control") || "")) fail("/store/a: missing no-store cache policy");
+else pass("/store/a: fail-closed cache policy");
+if (invalidStore.response.headers.get("x-content-type-options") !== "nosniff") fail("/store/a: missing nosniff policy");
+else pass("/store/a: nosniff policy");
+
+const missingSlug = "this-store-should-not-exist-smoke";
+const missingStore = await expectStatus(`/store/${missingSlug}`, 404);
+if (!missingStore.text.includes("Store unavailable")) fail("missing storefront: expected branded unavailable page");
+else pass("missing storefront: branded unavailable page");
+
+const storeScript = await expectStatus("/webhook/wickspend/store/app.js", 200);
+for (const supported of ["wickspend/store/numbers/buy", "wickspend/store/marketplace/buy", "wickspend/store/boostly/buy"]) {
+  if (!storeScript.text.includes(supported)) fail(`Mini Store app: missing supported route ${supported}`);
+  else pass(`Mini Store app: exposes ${supported}`);
+}
+for (const skipped of ["wickspend/store/rentals/", "wickspend/store/temp-mail/"]) {
+  if (storeScript.text.includes(skipped)) fail(`Mini Store app: unexpectedly exposes skipped route ${skipped}`);
+  else pass(`Mini Store app: does not expose ${skipped}`);
+}
+
+const storeSession = await expectStatus("/webhook/wickspend/store/auth/session", 401);
+if (storeSession.json?.code !== "UNAUTHORIZED") fail("Mini Store session: expected UNAUTHORIZED");
+else pass("Mini Store session boundary rejects missing customer token");
+
+for (const catalogPath of [
+  `/webhook/wickspend/store/catalog/numbers?store_slug=${missingSlug}`,
+  `/webhook/wickspend/store/catalog/marketplace?slug=${missingSlug}`,
+  `/webhook/wickspend/store/catalog/boostly?store_slug=${missingSlug}`,
+]) {
+  const result = await expectStatus(catalogPath, 404);
+  if (!["STORE_NOT_FOUND", "STORE_UNAVAILABLE"].includes(result.json?.code)) fail(`${catalogPath}: expected unavailable-store rejection`);
+}
+
 const sessionProtectedReads = [
   "wickspend/backend/reseller/profile",
   "wickspend/backend/reseller/customers?page=1&limit=5",
