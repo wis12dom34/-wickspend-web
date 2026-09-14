@@ -1,2 +1,2 @@
-import { redirect } from "next/navigation";
-export default function Page() { redirect("/admin"); }
+import AdminUsers from './AdminUsers';
+export default function Page(){return <AdminUsers/>}

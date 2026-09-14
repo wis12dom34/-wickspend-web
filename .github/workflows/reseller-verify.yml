@@ -9,6 +9,10 @@ on:
       - "app/store/**"
       - "app/webhook/wickspend/store/**"
       - "scripts/reseller-smoke.mjs"
+      - "scripts/build-production-aware.sh"
+      - "scripts/deploy-production.sh"
+      - "scripts/verify-production-runtime.sh"
+      - "package.json"
       - ".github/workflows/reseller-verify.yml"
   push:
     branches: [main]
@@ -19,6 +23,10 @@ on:
       - "app/store/**"
       - "app/webhook/wickspend/store/**"
       - "scripts/reseller-smoke.mjs"
+      - "scripts/build-production-aware.sh"
+      - "scripts/deploy-production.sh"
+      - "scripts/verify-production-runtime.sh"
+      - "package.json"
       - ".github/workflows/reseller-verify.yml"
   workflow_dispatch:
 

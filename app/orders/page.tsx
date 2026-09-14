@@ -9,7 +9,35 @@ import {getSessionToken} from "@/lib/session";
 import styles from "./orders.module.css";
 
 const refOf=(o:any)=>String(o?.reference||o?.order_reference||o?.ref||o?.id||"");
-const otpOf=(p:any)=>p?.otp||p?.code||p?.sms_code||p?.data?.otp||p?.data?.code||p?.sms?.code||"";
+const otpOf = (input: any): string => {
+  const seen = new Set<any>();
+  const directKeys = ["otp","sms_code","smsCode","verification_code","verificationCode","code"];
+  const nestedKeys = ["data","order","sms","messages","message","provider_response","providerResponse","provider_status","providerStatus","result","results"];
+  const fromString = (value: string) => {
+    const text = value.trim();
+    const statusMatch = text.match(/(?:STATUS_OK|CODE_RECEIVED|OTP_RECEIVED)\s*[:=-]\s*([0-9]{3,12})/i);
+    if (statusMatch) return statusMatch[1];
+    const labeled = text.match(/(?:otp|code|verification)[^0-9]{0,20}([0-9]{3,12})/i);
+    return labeled ? labeled[1] : "";
+  };
+  const visit = (value: any, depth = 0): string => {
+    if (value == null || depth > 7) return "";
+    if (typeof value === "string") return fromString(value);
+    if (Array.isArray(value)) { for (const item of value) { const hit = visit(item, depth + 1); if (hit) return hit; } return ""; }
+    if (typeof value !== "object" || seen.has(value)) return "";
+    seen.add(value);
+    for (const key of directKeys) {
+      const raw = value?.[key];
+      if (raw == null) continue;
+      const text = String(raw).trim();
+      if (/^[0-9]{3,12}$/.test(text)) return text;
+      const hit = fromString(text); if (hit) return hit;
+    }
+    for (const key of nestedKeys) { const hit = visit(value?.[key], depth + 1); if (hit) return hit; }
+    return "";
+  };
+  return visit(input);
+};
 type Filter="all"|"numbers"|"rentals"|"marketplace"|"boostly"|"temp-mail";
 function orderKind(o:any):Exclude<Filter,"all">|"other"{const type=String([o?.type,o?.category,o?.product_type,o?.service_type,o?.order_type].filter(Boolean).join(" ")).toLowerCase(),raw=String([type,o?.provider,o?.title,o?.product,o?.service,o?.item_name].filter(Boolean).join(" ")).toLowerCase(),reference=refOf(o).toUpperCase();if(reference.startsWith("WICK-MAIL-")||/temp[ -]?mail|temporary[ -]?mail/.test(raw))return "temp-mail";if(/rent|rental/.test(type)||o?.rental_reference||o?.rental_id)return "rentals";if(/number|sms|otp|activation/.test(type)||o?.phone_number||o?.number)return "numbers";if(/boostly|smm|social growth/.test(type)||/boostly|followers|likes|views|social growth/.test(raw))return "boostly";if(o?.delivery_available===true||/market|fadded|reseller|digital product/.test(type)||/fadded|marketplace/.test(raw))return "marketplace";return "other"}
 function amountOf(o:any){const ngn=o?.amount_ngn??o?.final_amount_ngn??o?.total_ngn??o?.total_amount_ngn??o?.charged_amount_ngn??o?.charged_ngn??o?.price_ngn??o?.sale_amount_ngn;if(ngn!==undefined&&ngn!==null&&Number.isFinite(Number(ngn)))return `₦${Number(ngn).toLocaleString()}`;const usd=o?.amount_usd??o?.price_usd??o?.amount??o?.price;if(usd!==undefined&&usd!==null&&Number.isFinite(Number(usd)))return `$${Number(usd).toFixed(2)}`;return ""}
