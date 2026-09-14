@@ -60,6 +60,10 @@ const missingStore = await expectStatus(`/store/${missingSlug}`, 404);
 if (!missingStore.text.includes("Store unavailable")) fail("missing storefront: expected branded unavailable page");
 else pass("missing storefront: branded unavailable page");
 
+const storefrontSource = await import("node:fs/promises").then(({ readFile }) => readFile("app/store/[slug]/route.ts", "utf8"));
+if (!storefrontSource.includes('sandbox allow-same-origin')) fail("Mini Store route: CSP must allow same-origin registration and session requests");
+else pass("Mini Store route: CSP allows same-origin registration and session requests");
+
 const storeScript = await expectStatus("/webhook/wickspend/store/app.js", 200);
 if (!storeScript.text.includes("authNotice")) fail("Mini Store app: auth feedback is not rendered inside the open account dialog");
 else pass("Mini Store app: auth feedback remains visible inside the account dialog");
