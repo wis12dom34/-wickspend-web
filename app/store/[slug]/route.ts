@@ -1,6 +1,10 @@
 const STORE_APP_URL = "https://n8n.wickspend.com/webhook/wickspend/store/app";
 const STORE_RESOLVE_URL = "https://n8n.wickspend.com/webhook/wickspend/store/resolve";
 const APP_SCRIPT = '<script src="/webhook/wickspend/store/app.js"></script>';
+const MANUAL_FUNDING_CSS = `.manualTransferBtn{flex-basis:100%}.manualAccountDetails{display:grid;gap:7px;padding:15px;border:1px solid var(--line);border-radius:15px;background:#f8fafc}.manualAccountDetails .transferLabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.manualAccountDetails strong{font-size:18px}.manualAccountDetails b{font-size:24px;letter-spacing:1.4px}.manualAccountDetails span{font-size:14px}.manualAccountDetails p{font-size:12px;line-height:1.5;color:var(--muted);margin:4px 0 0}.manualPaymentForm{display:grid;gap:8px;margin-top:12px}.manualHistoryRow{padding:13px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.8fr);gap:12px}.manualHistoryRow:last-child{border-bottom:0}.manualHistoryRow b,.manualHistoryRow small{display:block}.manualHistoryRow small{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4}.manualHistoryRow>div:last-child{text-align:right}@media(max-width:520px){.manualHistoryRow{grid-template-columns:1fr}.manualHistoryRow>div:last-child{text-align:left}}`;
+const MANUAL_FUNDING_BUTTON = '<button class="btn light manualTransferBtn" onclick="openManualFunding()">Manual Bank Transfer</button>';
+const MANUAL_FUNDING_HISTORY = '<section class="section"><div class="row"><h2 class="grow" style="margin:0">Manual funding</h2><button class="btn light" onclick="loadManualFundingHistory()">Refresh</button></div><div id="manualFundingHistory" class="card" style="margin-top:12px"><div class="empty">Sign in to see manual funding requests.</div></div></section>';
+const MANUAL_FUNDING_DIALOG = `<dialog id="manualFundingDialog"><div class="modal"><div class="row"><h2 class="grow">Manual Bank Transfer</h2><button class="btn light" onclick="document.getElementById('manualFundingDialog').close()">Close</button></div><div id="manualAccountDetails" class="manualAccountDetails"></div><button id="manualMadeButton" class="btn blue" style="width:100%;margin-top:12px" onclick="showManualPaymentForm()">I’ve Made Payment</button><div id="manualPaymentForm" class="manualPaymentForm hide"><input id="manualAmount" class="field" type="number" min="0.01" step="0.01" placeholder="Amount transferred"><input id="manualSender" class="field" placeholder="Sender / account name"><input id="manualBank" class="field" placeholder="Bank used"><input id="manualReference" class="field" placeholder="Transaction / reference ID (optional)"><label class="muted">Payment date and time<input id="manualPaymentTime" class="field" type="datetime-local" style="margin-top:5px"></label><button class="btn blue" style="width:100%" onclick="submitManualFunding()">Submit Payment</button></div></div></dialog>`;
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
@@ -43,12 +47,17 @@ export async function GET(_request: Request, context: RouteContext) {
     redirect: "manual",
     headers: { "X-Forwarded-Host": "wickspend.com" },
   });
-  const body = await upstream.text();
+  let body = await upstream.text();
   if (!upstream.ok) {
     if (upstream.status === 404 || upstream.status === 403) return brandedPage("Store unavailable", "This reseller store is currently unavailable.", 404);
     return brandedPage("Store temporarily unavailable", "We could not load this reseller store right now. Please try again shortly.", 503);
   }
 
+  body = body
+    .replace("</style>", `${MANUAL_FUNDING_CSS}</style>`)
+    .replace('<button class="btn blue" onclick="fundWallet()">Add funds</button>', `<button class="btn blue" onclick="fundWallet()">Add funds</button>${MANUAL_FUNDING_BUTTON}`)
+    .replace('<div class="footer">Powered by WickSpend</div>', `${MANUAL_FUNDING_HISTORY}<div class="footer">Powered by WickSpend</div>`)
+    .replace('<dialog id="boostDialog">', `${MANUAL_FUNDING_DIALOG}<dialog id="boostDialog">`);
   const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
   const html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
   const headers = new Headers();
