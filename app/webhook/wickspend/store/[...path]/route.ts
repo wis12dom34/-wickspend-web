@@ -1,4 +1,6 @@
 const UPSTREAM_BASE = "https://n8n.wickspend.com/webhook/wickspend/store/";
+const NOTICE_START = "function note(m,e){var n=document.getElementById('notice');";
+const DIALOG_NOTICE_START = "function note(m,e){var d=document.getElementById('authDialog'),n=document.getElementById('notice');if(d&&d.open){n=d.querySelector('.authNotice');if(!n){n=document.createElement('div');n.className='notice authNotice';d.prepend(n)}}";
 
 type ProxyContext = { params: Promise<{ path: string[] }> };
 
@@ -38,7 +40,13 @@ async function proxy(request: Request, context: ProxyContext) {
     if (value) responseHeaders.set(name, value);
   }
   if (!responseHeaders.has("Cache-Control")) responseHeaders.set("Cache-Control", "no-store");
-  return new Response(await upstream.arrayBuffer(), { status: upstream.status, headers: responseHeaders });
+  const upstreamBody = await upstream.arrayBuffer();
+  if (safePath === "app.js" && upstream.ok) {
+    const script = new TextDecoder().decode(upstreamBody);
+    const rewritten = script.replace(NOTICE_START, DIALOG_NOTICE_START);
+    return new Response(rewritten, { status: upstream.status, headers: responseHeaders });
+  }
+  return new Response(upstreamBody, { status: upstream.status, headers: responseHeaders });
 }
 
 export async function GET(request: Request, context: ProxyContext) { return proxy(request, context); }

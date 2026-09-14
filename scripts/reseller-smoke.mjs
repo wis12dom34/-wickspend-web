@@ -61,6 +61,8 @@ if (!missingStore.text.includes("Store unavailable")) fail("missing storefront: 
 else pass("missing storefront: branded unavailable page");
 
 const storeScript = await expectStatus("/webhook/wickspend/store/app.js", 200);
+if (!storeScript.text.includes("authNotice")) fail("Mini Store app: auth feedback is not rendered inside the open account dialog");
+else pass("Mini Store app: auth feedback remains visible inside the account dialog");
 for (const supported of ["wickspend/store/numbers/buy", "wickspend/store/marketplace/buy", "wickspend/store/boostly/buy"]) {
   if (!storeScript.text.includes(supported)) fail(`Mini Store app: missing supported route ${supported}`);
   else pass(`Mini Store app: exposes ${supported}`);
