@@ -49,7 +49,7 @@ export default function AdminResellersPage(){
    setBusy("plan");setMessage("");
    try{
     const features={api_access:plan.api_access,api_key_limit:Math.max(1,Math.min(20,Number(plan.api_key_limit||1))),custom_domain:plan.custom_domain};
-    await adminApi("wickspend/backend/admin/reseller/plans",{method:"POST",body:JSON.stringify({code,name,monthly_price_ngn:plan.monthly?Number(plan.monthly):0,annual_price_ngn:plan.annual?Number(plan.annual):0,features,is_active:plan.is_active})});
+    await adminApi("wickspend/backend/admin/reseller/plans",{method:"POST",body:JSON.stringify({code,name,monthly_price_ngn:plan.monthly===""?null:Number(plan.monthly),annual_price_ngn:plan.annual===""?null:Number(plan.annual),features,is_active:plan.is_active})});
     setMessage("Plan saved.");setPlan(blankPlan);await load();
    }catch(e){setMessage(errorText(e))}finally{setBusy("")}
  }
