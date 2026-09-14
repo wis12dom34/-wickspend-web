@@ -67,6 +67,8 @@ else pass("Mini Store route: CSP allows same-origin registration and session req
 const storeScript = await expectStatus("/webhook/wickspend/store/app.js", 200);
 if (!storeScript.text.includes("authNotice")) fail("Mini Store app: auth feedback is not rendered inside the open account dialog");
 else pass("Mini Store app: auth feedback remains visible inside the account dialog");
+if (!storeScript.text.includes("loadNumberFilters") || !storeScript.text.includes("loadNumberServices")) fail("Mini Store app: dynamic country and service selectors are missing");
+else pass("Mini Store app: loads dynamic country and service selectors");
 for (const supported of ["wickspend/store/numbers/buy", "wickspend/store/marketplace/buy", "wickspend/store/boostly/buy"]) {
   if (!storeScript.text.includes(supported)) fail(`Mini Store app: missing supported route ${supported}`);
   else pass(`Mini Store app: exposes ${supported}`);
