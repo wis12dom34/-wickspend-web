@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "bash scripts/build-production-aware.sh",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "deploy:production": "bash scripts/deploy-production.sh"
   },
   "dependencies": {
     "next": "15.5.24",

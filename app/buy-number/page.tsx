@@ -398,7 +398,17 @@ export default function BuyNumberPage() {
       }
 
       setMessage("Number purchased successfully.");
-      router.push(`/otp?reference=${encodeURIComponent(reference)}`);
+      const numberContext = JSON.stringify({
+        service: selectedService?.name || currentServiceCode(),
+        service_code: currentServiceCode(),
+        country: selectedCountry?.name || country,
+        country_code: country,
+      });
+      window.sessionStorage.setItem("wickspend:lastNumberReference", reference);
+      window.localStorage.setItem("wickspend:lastNumberReference", reference);
+      window.sessionStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
+      window.localStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
+      window.location.assign(`/otp?reference=${encodeURIComponent(reference)}`);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : null;
       const code = String(apiError?.code || "").toUpperCase();

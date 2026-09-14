@@ -8,3 +8,7 @@ out/
 *.log
 *.tsbuildinfo
 .DS_Store
+.env.production
+.next.*/
+.npm/
+.config/

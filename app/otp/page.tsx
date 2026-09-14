@@ -8,7 +8,35 @@ import { getSessionToken } from "@/lib/session";
 import styles from "./otp.module.css";
 
 const payloadOf = (v: any) => v?.data || v?.order || v;
-const otpOf = (v: any) => String(v?.otp || v?.code || v?.sms_code || v?.sms?.code || v?.data?.otp || v?.data?.code || "");
+const otpOf = (input: any): string => {
+  const seen = new Set<any>();
+  const directKeys = ["otp","sms_code","smsCode","verification_code","verificationCode","code"];
+  const nestedKeys = ["data","order","sms","messages","message","provider_response","providerResponse","provider_status","providerStatus","result","results"];
+  const fromString = (value: string) => {
+    const text = value.trim();
+    const statusMatch = text.match(/(?:STATUS_OK|CODE_RECEIVED|OTP_RECEIVED)\s*[:=-]\s*([0-9]{3,12})/i);
+    if (statusMatch) return statusMatch[1];
+    const labeled = text.match(/(?:otp|code|verification)[^0-9]{0,20}([0-9]{3,12})/i);
+    return labeled ? labeled[1] : "";
+  };
+  const visit = (value: any, depth = 0): string => {
+    if (value == null || depth > 7) return "";
+    if (typeof value === "string") return fromString(value);
+    if (Array.isArray(value)) { for (const item of value) { const hit = visit(item, depth + 1); if (hit) return hit; } return ""; }
+    if (typeof value !== "object" || seen.has(value)) return "";
+    seen.add(value);
+    for (const key of directKeys) {
+      const raw = value?.[key];
+      if (raw == null) continue;
+      const text = String(raw).trim();
+      if (/^[0-9]{3,12}$/.test(text)) return text;
+      const hit = fromString(text); if (hit) return hit;
+    }
+    for (const key of nestedKeys) { const hit = visit(value?.[key], depth + 1); if (hit) return hit; }
+    return "";
+  };
+  return visit(input);
+};
 const phoneOf = (v: any) => String(v?.phone_number || v?.number || v?.phone || "");
 const serviceOf = (v: any) => String(v?.service_name || v?.service || v?.product || "WhatsApp");
 const countryOf = (v: any) => String(v?.country_name || v?.country || v?.country_code || "United States");
@@ -114,7 +142,8 @@ export default function OtpPage() {
           const status = String(item?.status || item?.state || "").toLowerCase();
           const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type,item?.service,item?.service_name].filter(Boolean).join(" ")).toLowerCase();
           const looksLikeNumber = Boolean(phoneOf(item)) || /number|sms|otp|activation/.test(type) || /WICKWEB-NUM-/i.test(itemReference);
-          return itemReference && looksLikeNumber && !/failed|refunded|cancelled|canceled|rejected|error/.test(status) && item?.provider_pending !== true;
+          const isTerminal = /failed|refunded|cancelled|canceled|rejected|error|completed|complete|expired|delivered|fulfilled/.test(status);
+          return itemReference && looksLikeNumber && !isTerminal && item?.provider_pending !== true;
         });
         const unique = Array.from(new Map(candidates.map((item: any) => [referenceOf(item), item])).values()) as any[];
         unique.sort((a: any,b: any) => timeOf(b) - timeOf(a));

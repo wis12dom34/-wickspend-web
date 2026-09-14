@@ -32,6 +32,7 @@ export default function Profile(){
   {icon:"user",label:"Personal Information",sub:"Manage your personal details",href:"/personal-information"},
   {icon:"id",label:"KYC Verification",sub:"Verify your identity",href:"/kyc"},
   {icon:"card",label:"Payment Methods",sub:"Manage your saved payment methods",href:"/payment-methods"},
+  {icon:"globe",label:"Reseller Center",sub:"Launch and manage your own WickSpend-powered store",href:"/reseller"},
   {icon:"pin",label:"Addresses",sub:"Manage your delivery addresses",href:null},
   {icon:"bell",label:"Notifications",sub:"Manage your notification preferences",href:"/notification-preferences"},
   {icon:"globe",label:"Language",sub:"English",href:null},
