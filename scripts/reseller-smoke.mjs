@@ -35,6 +35,7 @@ const pageChecks = [
   ["/reseller/store", ["Loading store settings"]],
   ["/reseller/customers", ["Customers"]],
   ["/reseller/finance", ["Money movement"]],
+  ["/reseller/notifications", ["Notifications"]],
   ["/api/v1/docs", []],
 ];
 for (const [path, snippets] of pageChecks) {

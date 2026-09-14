@@ -10,6 +10,7 @@ const links = [
   ["Store", "/reseller/store"],
   ["Finance", "/reseller/finance"],
   ["Billing", "/reseller/billing"],
+  ["Notifications", "/reseller/notifications"],
   ["API", "/reseller/developer"],
 ] as const;
 
