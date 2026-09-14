@@ -30,6 +30,10 @@ const pageChecks = [
   ["/reseller", []],
   ["/reseller/developer", ["v1.6 live", "Notifications"]],
   ["/reseller/orders", ["Rentals"]],
+  ["/reseller/billing", ["Billing"]],
+  ["/reseller/store", ["Loading store settings"]],
+  ["/reseller/customers", ["Customers"]],
+  ["/reseller/finance", ["Money movement"]],
   ["/api/v1/docs", []],
 ];
 for (const [path, snippets] of pageChecks) {
