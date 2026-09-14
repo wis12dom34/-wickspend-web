@@ -58,6 +58,8 @@ async function proxy(request: Request, context: ProxyContext) {
   }
   out.set("Content-Type", isDocs ? "text/html; charset=utf-8" : (out.get("content-type") || upstreamType));
   if (!out.has("Cache-Control")) out.set("Cache-Control", "no-store");
+  if (!out.has("X-Content-Type-Options")) out.set("X-Content-Type-Options", "nosniff");
+  if (!out.has("Referrer-Policy")) out.set("Referrer-Policy", "no-referrer");
   return new Response(responseBody, { status:upstream.status, headers:out });
 }
 

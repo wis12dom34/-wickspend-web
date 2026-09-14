@@ -105,6 +105,10 @@ for (const path of sessionProtectedReads) {
 }
 
 const specResult = await expectStatus("/api/v1/openapi.json", 200);
+for (const [header, expected] of [["x-content-type-options", "nosniff"], ["referrer-policy", "no-referrer"]]) {
+  if (specResult.response.headers.get(header) !== expected) fail(`OpenAPI response: expected ${header}=${expected}`);
+  else pass(`OpenAPI response: ${header}=${expected}`);
+}
 const requiredPaths = [
   "/numbers/orders",
   "/rentals/orders",
