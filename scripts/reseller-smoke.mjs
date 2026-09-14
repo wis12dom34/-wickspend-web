@@ -34,7 +34,7 @@ const pageChecks = [
   ["/reseller/billing", ["Billing"]],
   ["/reseller/store", ["Loading store settings"]],
   ["/reseller/customers", ["Customers"]],
-  ["/reseller/finance", ["Money movement"]],
+  ["/reseller/finance", ["Money movement", "Settlement Account", "Withdraw Mini Store funds"]],
   ["/reseller/notifications", ["Notifications"]],
   ["/api/v1/docs", []],
 ];
@@ -65,8 +65,8 @@ if (!storefrontSource.includes('sandbox allow-same-origin')) fail("Mini Store ro
 else pass("Mini Store route: CSP allows same-origin registration and session requests");
 
 const storeScript = await expectStatus("/webhook/wickspend/store/app.js", 200);
-if (!storeScript.text.includes("authNotice")) fail("Mini Store app: auth feedback is not rendered inside the open account dialog");
-else pass("Mini Store app: auth feedback remains visible inside the account dialog");
+if (!storeScript.text.includes("dialogNotice")) fail("Mini Store app: auth feedback is not rendered inside open dialogs");
+else pass("Mini Store app: auth feedback remains visible inside open dialogs");
 if (!storeScript.text.includes("loadNumberFilters") || !storeScript.text.includes("loadNumberServices")) fail("Mini Store app: dynamic country and service selectors are missing");
 else pass("Mini Store app: loads dynamic country and service selectors");
 for (const supported of ["wickspend/store/numbers/buy", "wickspend/store/marketplace/buy", "wickspend/store/boostly/buy"]) {
@@ -95,6 +95,8 @@ const sessionProtectedReads = [
   "wickspend/backend/reseller/profile",
   "wickspend/backend/reseller/customers?page=1&limit=5",
   "wickspend/backend/reseller/finance/summary",
+  "wickspend/backend/reseller/settlement-account",
+  "wickspend/backend/reseller/settlement-banks",
   "wickspend/backend/reseller/orders?page=1&limit=5",
   "wickspend/backend/reseller/api-keys",
   "wickspend/backend/reseller/webhook",
@@ -147,6 +149,27 @@ for (const path of [
   const result = await expectStatus(path, 401, { headers: invalidHeaders });
   if (result.json?.code !== "INVALID_API_KEY") fail(`${path}: expected INVALID_API_KEY`);
 }
+
+const settlementSource = await import("node:fs/promises").then(({ readFile }) => readFile("app/reseller/finance/page.tsx", "utf8"));
+for (const required of ["settlement-account/verify", "reseller/withdrawals", "account_number_masked"]) {
+  if (!settlementSource.includes(required)) fail(`Settlement UI: missing ${required}`);
+  else pass(`Settlement UI: contains ${required}`);
+}
+
+const invalidSettlementWrites = [
+  ["wickspend/backend/reseller/settlement-account/verify", { bank_code:"044", account_number:"0000000000", save:false }],
+  ["wickspend/backend/reseller/withdrawals", { amount_ngn:100, request_key:"smoke-no-session-withdrawal" }],
+];
+for (const [path, body] of invalidSettlementWrites) {
+  const response = await fetch(`${backendBase}/${path}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body), redirect:"manual" });
+  const json = await response.json().catch(() => null);
+  if (response.status !== 401 || json?.code !== "UNAUTHORIZED") fail(`POST ${path}: expected session boundary 401`);
+  else pass(`POST ${path}: session auth boundary 401`);
+}
+const removeSettlement = await fetch(`${backendBase}/wickspend/backend/reseller/settlement-account/remove`, { method:"POST", headers:{ "Content-Type":"application/json" }, body:"{}", redirect:"manual" });
+const removeSettlementJson = await removeSettlement.json().catch(() => null);
+if (removeSettlement.status !== 401 || removeSettlementJson?.code !== "UNAUTHORIZED") fail("POST remove settlement account: expected session boundary 401");
+else pass("POST remove settlement account: session auth boundary 401");
 
 const invalidWrites = [
   ["/api/v1/numbers/buy", { country_code:"187", service_code:"wa", provider_id:"invalid", request_key:"smoke-numbers-invalid-key" }],
