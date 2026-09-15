@@ -1,5 +1,5 @@
 const BALANCE_PREFIX="wickspend:verified-balance:v1:";
-const MARKETPLACE_KEY="wickspend:marketplace:v7";
+const MARKETPLACE_KEY="wickspend:marketplace:v8";
 function tokenKey(token:string){let h=2166136261;for(let i=0;i<token.length;i++){h^=token.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)}
 export function readVerifiedBalance(token:string,maxAgeMs=7*24*60*60*1000):number|null{if(typeof window==="undefined")return null;try{const raw=localStorage.getItem(BALANCE_PREFIX+tokenKey(token));if(!raw)return null;const v=JSON.parse(raw),n=Number(v?.balance),ts=Number(v?.ts);return Number.isFinite(n)&&Number.isFinite(ts)&&Date.now()-ts<=maxAgeMs?n:null}catch{return null}}
 export function writeVerifiedBalance(token:string,balance:number){if(typeof window==="undefined"||!Number.isFinite(balance))return;try{localStorage.setItem(BALANCE_PREFIX+tokenKey(token),JSON.stringify({balance,ts:Date.now()}))}catch{}}
