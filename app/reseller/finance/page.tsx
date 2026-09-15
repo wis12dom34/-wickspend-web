@@ -43,15 +43,10 @@ export default function ResellerFinance() {
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [deposits, setDeposits] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [manualRequests, setManualRequests] = useState<any[]>([]);
-  const [manualCounts, setManualCounts] = useState<any>({ pending: 0, approved: 0, rejected: 0 });
-  const [manualFilter, setManualFilter] = useState<"pending" | "approved" | "rejected" | "">("pending");
-  const [paymentAccount, setPaymentAccount] = useState({ bank_name: "", account_number: "", account_name: "", enabled: false });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState<"transactions" | "deposits" | "settlements">("transactions");
   const [busy, setBusy] = useState("");
-  const [manualBusy, setManualBusy] = useState("");
 
   const load = useCallback(async () => {
     const token = getSessionToken();
@@ -59,13 +54,11 @@ export default function ResellerFinance() {
     setLoading(true);
     setMessage("");
     try {
-      const [s, d, t, p, a, m, bankAccount] = await Promise.all([
+      const [s, d, t, p, bankAccount] = await Promise.all([
         wickspendApi<any>("wickspend/backend/reseller/finance/summary", { token }),
         wickspendApi<any>("wickspend/backend/reseller/finance/deposits?page=1&limit=50", { token }),
         wickspendApi<any>("wickspend/backend/reseller/finance/transactions?page=1&limit=50", { token }),
         wickspendApi<any>("wickspend/backend/reseller/settlements", { token }),
-        wickspendApi<any>("wickspend/backend/reseller/manual-funding/account", { token }),
-        wickspendApi<any>(`wickspend/backend/reseller/manual-funding/requests${manualFilter ? `?status=${manualFilter}` : ""}`, { token }),
         wickspendApi<any>("wickspend/backend/reseller/settlement-account", { token }),
       ]);
       setSummary(s);
@@ -74,16 +67,12 @@ export default function ResellerFinance() {
       setSettlements(p || { items: [] });
       setSettlementAccount(bankAccount?.account || null);
       setWithdrawalAmount(String(Math.max(0, Number(p?.wickspend_wallet_balance_ngn || 0))));
-      const account = a?.account || {};
-      setPaymentAccount({ bank_name: account.bank_name || "", account_number: account.account_number || "", account_name: account.account_name || "", enabled: Boolean(account.enabled) });
-      setManualRequests(Array.isArray(m?.items) ? m.items : []);
-      setManualCounts(m?.counts || { pending: 0, approved: 0, rejected: 0 });
     } catch (error) {
       setMessage(errorText(error));
     } finally {
       setLoading(false);
     }
-  }, [router, manualFilter]);
+  }, [router]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -162,37 +151,6 @@ export default function ResellerFinance() {
     finally { setBusy(""); }
   }
 
-  async function savePaymentAccount() {
-    const token = getSessionToken(); if (!token) return;
-    setManualBusy("account"); setMessage("");
-    try {
-      await wickspendApi("wickspend/backend/reseller/manual-funding/account", { method: "POST", token, body: JSON.stringify(paymentAccount) });
-      setMessage(paymentAccount.enabled ? "Manual transfer account saved." : "Manual bank transfer disabled.");
-      await load();
-    } catch (error) { setMessage(errorText(error)); }
-    finally { setManualBusy(""); }
-  }
-
-  async function reviewRequest(item: any, action: "approve" | "reject") {
-    const token = getSessionToken(); if (!token) return;
-    let reason = "";
-    if (action === "approve" && !window.confirm(`Approve ${money(item.amount_ngn)} for ${item.customer_name || item.customer_email}? The customer wallet will be credited immediately.`)) return;
-    if (action === "reject") {
-      const value = window.prompt("Optional rejection reason", "");
-      if (value === null) return;
-      reason = value.trim();
-    }
-    setManualBusy(`${action}-${item.id}`); setMessage("");
-    try {
-      const result: any = await wickspendApi(`wickspend/backend/reseller/manual-funding/${action}`, {
-        method: "POST", token, body: JSON.stringify({ request_id: item.id, request_key: `manual-review-${requestKey()}`, reason }),
-      });
-      setMessage(result?.duplicate ? `Request was already ${action === "approve" ? "approved" : "rejected"}.` : `Manual funding request ${action === "approve" ? "approved and credited" : "rejected"}.`);
-      await load();
-    } catch (error) { setMessage(errorText(error)); }
-    finally { setManualBusy(""); }
-  }
-
   const payoutItems = Array.isArray(settlements?.items) ? settlements.items : [];
   const success = /completed|saved|removed|requested|approved|rejected|already|active/i.test(message);
 
@@ -221,15 +179,11 @@ export default function ResellerFinance() {
       {settlementAccount ? <><div className="withdrawDestination"><span>Settlement Account</span><b>{settlementAccount.bank_name}</b><strong>{settlementAccount.account_name}</strong><small>{settlementAccount.account_number_masked}</small></div><label>Amount<input inputMode="decimal" value={withdrawalAmount} onChange={event => setWithdrawalAmount(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="₦0" /></label><button className="primaryButton accountCta" disabled={busy === "withdraw"} onClick={withdraw}>{busy === "withdraw" ? "Submitting…" : "Withdraw"}</button></> : <div className="emptyState">Add a settlement account before requesting a withdrawal.<div><button className="primaryButton" onClick={openSettlementForm}>Add Settlement Account</button></div></div>}
     </section>
 
-    <section className="resellerCard formCard manualAccountCard"><div className="cardHead"><div><span className="eyebrow">Manual bank transfer</span><h2>Customer payment account</h2><p className="subtle">Only this account is shown to Mini Store customers paying manually.</p></div><span className={`status ${paymentAccount.enabled ? "good" : "muted"}`}>{paymentAccount.enabled ? "Enabled" : "Disabled"}</span></div><div className="manualAccountGrid"><label>Bank<input value={paymentAccount.bank_name} onChange={e => setPaymentAccount({ ...paymentAccount, bank_name: e.target.value })} placeholder="OPay" /></label><label>Account number<input inputMode="numeric" value={paymentAccount.account_number} onChange={e => setPaymentAccount({ ...paymentAccount, account_number: e.target.value.replace(/\D/g, "") })} placeholder="1234567890" /></label><label>Account name<input value={paymentAccount.account_name} onChange={e => setPaymentAccount({ ...paymentAccount, account_name: e.target.value })} placeholder="John Digital Services" /></label></div><label className="toggleLine"><input type="checkbox" checked={paymentAccount.enabled} onChange={e => setPaymentAccount({ ...paymentAccount, enabled: e.target.checked })} /><span>Enable manual bank transfer in my Mini Store</span></label><button className="primaryButton" disabled={manualBusy === "account"} onClick={savePaymentAccount}>{manualBusy === "account" ? "Saving…" : "Save payment account"}</button></section>
-
-    <section className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Customer deposits</span><h2>Manual Funding Requests</h2></div><button className="secondaryButton" onClick={load}>Refresh</button></div><div className="tabRow manualTabs"><button className={manualFilter === "pending" ? "active" : ""} onClick={() => setManualFilter("pending")}>Pending ({Number(manualCounts.pending || 0)})</button><button className={manualFilter === "approved" ? "active" : ""} onClick={() => setManualFilter("approved")}>Approved ({Number(manualCounts.approved || 0)})</button><button className={manualFilter === "rejected" ? "active" : ""} onClick={() => setManualFilter("rejected")}>Rejected ({Number(manualCounts.rejected || 0)})</button><button className={manualFilter === "" ? "active" : ""} onClick={() => setManualFilter("")}>All</button></div>{loading ? <div className="emptyState">Loading manual funding requests…</div> : <ManualRequests items={manualRequests} busy={manualBusy} onReview={reviewRequest} />}</section>
     <section className="resellerCard"><div className="tabRow"><button className={tab === "transactions" ? "active" : ""} onClick={() => setTab("transactions")}>Transactions</button><button className={tab === "deposits" ? "active" : ""} onClick={() => setTab("deposits")}>Deposits</button><button className={tab === "settlements" ? "active" : ""} onClick={() => setTab("settlements")}>Settlements</button></div>{loading ? <div className="emptyState">Loading finance data…</div> : tab === "transactions" ? <Transactions items={transactions} /> : tab === "deposits" ? <Deposits items={deposits} /> : <SettlementHistory items={payoutItems} />}</section>
   </main>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <article className="metricCard"><span>{label}</span><strong>{value}</strong></article>; }
-function ManualRequests({ items, busy, onReview }: { items: any[]; busy: string; onReview: (item: any, action: "approve" | "reject") => void }) { return items.length ? <div className="tableWrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Sender / bank</th><th>Reference</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead><tbody>{items.map(x => <tr key={x.id}><td><b>{x.customer_name || "Customer"}</b><small>{x.customer_email}</small></td><td><b>{money(x.amount_ngn)}</b></td><td>{x.sender_name}<small>{x.sender_bank}</small></td><td><b>{x.transaction_reference || "Not provided"}</b><small>{x.payment_date_time ? new Date(x.payment_date_time).toLocaleString() : "Payment time unavailable"}</small></td><td>{new Date(x.submitted_at).toLocaleString()}</td><td><span className={`status ${x.status === "APPROVED" ? "good" : x.status === "PENDING" ? "warn" : "muted"}`}>{x.status}</span>{x.rejection_reason && <small>{x.rejection_reason}</small>}</td><td>{x.status === "PENDING" ? <div className="reviewActions"><button className="primaryButton compact" disabled={Boolean(busy)} onClick={() => onReview(x, "approve")}>{busy === `approve-${x.id}` ? "Approving…" : "Approve"}</button><button className="dangerButton" disabled={Boolean(busy)} onClick={() => onReview(x, "reject")}>{busy === `reject-${x.id}` ? "Rejecting…" : "Reject"}</button></div> : "—"}</td></tr>)}</tbody></table></div> : <div className="emptyState">No manual funding requests in this state.</div>; }
 function Transactions({ items }: { items: any[] }) { return items.length ? <div className="tableWrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Type</th><th>Purpose</th><th>Amount</th><th>Status</th></tr></thead><tbody>{items.map(x => <tr key={`${x.reference}-${x.created_at}`}><td><b>{x.reference}</b><small>{new Date(x.created_at).toLocaleString()}</small></td><td>{x.customer?.full_name || x.customer?.email || "Customer"}</td><td>{x.type}</td><td>{x.purpose || "—"}</td><td>{money(x.amount_ngn)}</td><td><span className="status muted">{x.status}</span></td></tr>)}</tbody></table></div> : <div className="emptyState">No customer wallet transactions yet.</div>; }
 function Deposits({ items }: { items: any[] }) { return items.length ? <div className="tableWrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Status</th><th>Credited</th><th>Date</th></tr></thead><tbody>{items.map(x => <tr key={x.reference}><td><b>{x.reference}</b></td><td>{x.customer?.full_name || x.customer?.email || "Customer"}</td><td>{money(x.amount_ngn)}</td><td><span className="status muted">{x.status}</span></td><td>{x.credited ? "Yes" : "No"}</td><td>{new Date(x.created_at).toLocaleString()}</td></tr>)}</tbody></table></div> : <div className="emptyState">No customer deposits yet.</div>; }
 function SettlementHistory({ items }: { items: any[] }) { return items.length ? <div className="tableWrap"><table><thead><tr><th>Reference</th><th>Amount</th><th>Destination</th><th>Balance after</th><th>Status</th><th>Date</th></tr></thead><tbody>{items.map(x => <tr key={x.reference}><td><b>{x.reference}</b></td><td>{money(x.amount_ngn)}</td><td>{x.destination === "bank_account" ? "Settlement account" : "WickSpend wallet"}</td><td>{money(x.balance_after_ngn)}</td><td><span className={`status ${x.status === "completed" ? "good" : x.status === "pending" ? "warn" : "muted"}`}>{x.status}</span></td><td>{new Date(x.created_at).toLocaleString()}</td></tr>)}</tbody></table></div> : <div className="emptyState">No settlements or withdrawals yet.</div>; }
