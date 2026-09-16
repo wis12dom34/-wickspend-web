@@ -95,6 +95,24 @@ const formatNgn = (value: any) => {
 };
 const availabilityCount = (p: any) => finiteNumber(p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability);
 
+function purchaseOfferKey(p: any, country: string, service: string, index: number) {
+  const providerId = String(p?.provider_id ?? "").trim();
+  const offerId = String(p?.offer_id ?? p?.id ?? "").trim();
+  const priceId = String(p?.price_id ?? "").trim();
+  const operatorId = String(p?.operator_id ?? "").trim();
+  const price = String(priceNgn(p) ?? "").trim();
+  return [
+    providerId ? `provider:${providerId}` : "",
+    offerId ? `offer:${offerId}` : "",
+    priceId ? `price-id:${priceId}` : "",
+    operatorId ? `operator:${operatorId}` : "",
+    price ? `price:${price}` : "",
+    `country:${country}`,
+    `service:${service}`,
+    !providerId && !offerId && !priceId && !operatorId ? `row:${index}` : "",
+  ].filter(Boolean).join("|");
+}
+
 function isoFlag(iso?: string) {
   const code = String(iso || "").trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(code)) return "🌐";
@@ -205,7 +223,7 @@ export default function BuyNumberPage() {
   const [prices, setPrices] = useState<any[]>([]);
   const [message, setMessage] = useState("");
   const [messageTitle, setMessageTitle] = useState("");
-  const [buying, setBuying] = useState(false);
+  const [buyingOfferKey, setBuyingOfferKey] = useState<string | null>(null);
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [balance, setBalance] = useState("—");
@@ -214,6 +232,7 @@ export default function BuyNumberPage() {
   const [loadingServices, setLoadingServices] = useState(false);
   const priceRequest = useRef(0);
   const buyingRef = useRef(false);
+  const buying = buyingOfferKey !== null;
 
   useEffect(() => { setPremium(new URLSearchParams(window.location.search).get("premium") === "1"); }, []);
 
@@ -350,10 +369,10 @@ export default function BuyNumberPage() {
     }
   }
 
-  async function buy(selectedOffer: any) {
+  async function buy(selectedOffer: any, selectedOfferKey: string) {
     if (buyingRef.current) return;
     buyingRef.current = true;
-    setBuying(true);
+    setBuyingOfferKey(selectedOfferKey);
     setMessageTitle("");
     setMessage("Purchasing number…");
     try {
@@ -427,7 +446,7 @@ export default function BuyNumberPage() {
       }
     } finally {
       buyingRef.current = false;
-      setBuying(false);
+      setBuyingOfferKey(null);
     }
   }
 
@@ -518,18 +537,20 @@ export default function BuyNumberPage() {
                 const formattedPrice = formatNgn(priceNgn(p));
                 const available = availabilityCount(p);
                 const unavailable = available !== null && available <= 0;
+                const rowKey = purchaseOfferKey(p, country, service, i);
+                const isBuyingThisOffer = buyingOfferKey === rowKey;
                 const availabilityLabel = unavailable
                   ? "Unavailable"
                   : available === null
                     ? "Availability unavailable"
                     : `${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(available)} ${available === 1 ? "number" : "numbers"} available`;
                 return (
-                  <div className="priceRow" key={p.offer_id || p.id || p.price_id || p.operator_id || p.provider_id || `${country}-${service}-${i}`}>
+                  <div className="priceRow" key={rowKey}>
                     <div className="priceRowCopy">
                       <strong className="priceRowPrice">{formattedPrice}</strong>
                       <small className="priceRowAvailability">{availabilityLabel}</small>
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={buying || unavailable} onClick={() => buy(p)}>{buying ? "Buying…" : "Buy"}</button>
+                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => buy(p, rowKey)}>{isBuyingThisOffer ? "Buying…" : "Buy"}</button>
                   </div>
                 );
               })}
