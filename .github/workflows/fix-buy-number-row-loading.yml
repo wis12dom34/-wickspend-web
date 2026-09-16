@@ -1,0 +1,109 @@
+name: Fix Buy Number Row Loading
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-buy-number-row-loading.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply focused Buy Number loading fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/buy-number/page.tsx")
+          source = path.read_text()
+
+          def replace_once(old: str, new: str) -> None:
+              global source
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match, found {count}: {old[:100]!r}")
+              source = source.replace(old, new, 1)
+
+          replace_once(
+              'const availabilityCount = (p: any) => finiteNumber(p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability);\n',
+              '''const availabilityCount = (p: any) => finiteNumber(p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability);\n\nfunction purchaseOfferKey(p: any, country: string, service: string, index: number) {\n  const providerId = String(p?.provider_id ?? "").trim();\n  const offerId = String(p?.offer_id ?? p?.id ?? "").trim();\n  const priceId = String(p?.price_id ?? "").trim();\n  const operatorId = String(p?.operator_id ?? "").trim();\n  const price = String(priceNgn(p) ?? "").trim();\n  return [\n    providerId ? `provider:${providerId}` : "",\n    offerId ? `offer:${offerId}` : "",\n    priceId ? `price-id:${priceId}` : "",\n    operatorId ? `operator:${operatorId}` : "",\n    price ? `price:${price}` : "",\n    `country:${country}`,\n    `service:${service}`,\n    !providerId && !offerId && !priceId && !operatorId ? `row:${index}` : "",\n  ].filter(Boolean).join("|");\n}\n'''
+          )
+          replace_once('  const [buying, setBuying] = useState(false);', '  const [buyingOfferKey, setBuyingOfferKey] = useState<string | null>(null);')
+          replace_once('  const buyingRef = useRef(false);\n', '  const buyingRef = useRef(false);\n  const buying = buyingOfferKey !== null;\n')
+          replace_once('  async function buy(selectedOffer: any) {', '  async function buy(selectedOffer: any, selectedOfferKey: string) {')
+          replace_once('    setBuying(true);', '    setBuyingOfferKey(selectedOfferKey);')
+          replace_once('      setBuying(false);', '      setBuyingOfferKey(null);')
+          replace_once(
+              '                const unavailable = available !== null && available <= 0;\n',
+              '                const unavailable = available !== null && available <= 0;\n                const rowKey = purchaseOfferKey(p, country, service, i);\n                const isBuyingThisOffer = buyingOfferKey === rowKey;\n'
+          )
+          replace_once(
+              '                  <div className="priceRow" key={p.offer_id || p.id || p.price_id || p.operator_id || p.provider_id || `${country}-${service}-${i}`}>',
+              '                  <div className="priceRow" key={rowKey}>'
+          )
+          replace_once(
+              '                    <button className="priceBuyButton" type="button" disabled={buying || unavailable} onClick={() => buy(p)}>{buying ? "Buying…" : "Buy"}</button>',
+              '                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => buy(p, rowKey)}>{isBuyingThisOffer ? "Buying…" : "Buy"}</button>'
+          )
+
+          path.write_text(source)
+          PY
+      - name: Verify row-specific state invariants
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("app/buy-number/page.tsx").read_text()
+          required = [
+              'const [buyingOfferKey, setBuyingOfferKey] = useState<string | null>(null);',
+              'const isBuyingThisOffer = buyingOfferKey === rowKey;',
+              'disabled={isBuyingThisOffer || unavailable}',
+              'onClick={() => buy(p, rowKey)}',
+              '{isBuyingThisOffer ? "Buying…" : "Buy"}',
+              'setBuyingOfferKey(null);',
+              'const [loadingPrices, setLoadingPrices] = useState(false);',
+              'provider_id: providerId',
+              '...(offerId ? { offer_id: offerId } : {})',
+              '...(operatorId ? { operator_id: operatorId } : {})',
+          ]
+          for item in required:
+              if item not in source:
+                  raise SystemExit(f"Missing invariant: {item}")
+          forbidden = [
+              'disabled={buying || unavailable}',
+              '{buying ? "Buying…" : "Buy"}',
+              'setBuying(true);',
+              'setBuying(false);',
+          ]
+          for item in forbidden:
+              if item in source:
+                  raise SystemExit(f"Global row loading state remains: {item}")
+          print("Row-specific purchase loading invariants verified")
+          PY
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
+      - name: Commit verified fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/buy-number/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(buy-number): scope purchase loading to selected offer"
+          git push origin HEAD:main
