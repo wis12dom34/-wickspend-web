@@ -27,6 +27,21 @@ export default function SmartSupport(){
  const hidden=HIDE_ON.some(p=>pathname===p||pathname.startsWith(`${p}/`));
  useEffect(()=>{const handler=(event:Event)=>{const detail=((event as CustomEvent).detail||{}) as Record<string,unknown>;setOverride(detail as Partial<SupportContext>);if(typeof detail.prefill==="string")setText(clean(detail.prefill,4000));setOpen(true);setMinimized(false)};window.addEventListener("wickspend:smart-support",handler);return()=>window.removeEventListener("wickspend:smart-support",handler)},[]);
  useEffect(()=>{if(!open||loaded||!token)return;let cancelled=false;(async()=>{try{setError("");const r:any=await supportApi.history(token,context);if(cancelled)return;const list=Array.isArray(r?.messages)?r.messages:[];setMessages(list.map((m:any)=>({id:m.id,role:m.sender==="customer"?"user":m.sender==="admin"?"admin":"assistant",text:String(m.message_text||m.text||""),created_at:m.created_at})).filter((m:Message)=>m.text));setUnread(Number(r?.unread_count||0));setHandoff(r?.status==="waiting_human");setLoaded(true)}catch(e){if(!cancelled){setLoaded(true);setError(e instanceof Error?e.message:"Unable to load support history")}}})();return()=>{cancelled=true}},[open,loaded,token,context]);
+ useEffect(()=>{
+  if(!open||minimized||!loaded||!token||busy)return;
+  let cancelled=false;
+  const sync=async()=>{
+   try{
+    const r:any=await supportApi.history(token,context);
+    if(cancelled)return;
+    const list=Array.isArray(r?.messages)?r.messages:[];
+    setMessages(list.map((m:any)=>({id:m.id,role:m.sender==="customer"?"user":m.sender==="admin"?"admin":"assistant",text:String(m.message_text||m.text||""),created_at:m.created_at})).filter((m:Message)=>m.text));
+    setHandoff(r?.status==="waiting_human");
+   }catch{}
+  };
+  const timer=window.setInterval(sync,5000);
+  return()=>{cancelled=true;window.clearInterval(timer)};
+ },[open,minimized,loaded,token,busy,context]);
  useEffect(()=>{if(open&&!minimized){setUnread(0);bottomRef.current?.scrollIntoView({behavior:"smooth"})}},[open,minimized,messages.length]);
  async function send(e?:FormEvent,messageOverride?:string){e?.preventDefault();const message=clean(messageOverride||text,4000);if(!message||busy)return;if(!token){setError("Please sign in to use Smart Support.");return}setText("");setError("");setMessages(m=>[...m,{role:"user",text:message,created_at:new Date().toISOString()}]);setBusy(true);try{if(message.toLowerCase().includes("talk to human support")){const r:any=await supportApi.handoff(token,{message,context});setHandoff(true);if(r?.message)setMessages(m=>[...m,{role:"assistant",text:String(r.message)}]);return}const r:any=await supportApi.chat(token,{message,context});const reply=String(r?.reply||r?.message||"").trim();if(!reply)throw new Error("Support did not return a reply.");setMessages(m=>[...m,{role:"assistant",text:reply,created_at:new Date().toISOString()}]);setHandoff(r?.status==="waiting_human")}catch(e){setText(message);setError(e instanceof Error?e.message:"Unable to contact support")}finally{setBusy(false)}}
  if(hidden||!token)return null;

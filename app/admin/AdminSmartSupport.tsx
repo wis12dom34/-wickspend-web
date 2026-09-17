@@ -1,19 +1,217 @@
 'use client';
 
 import Link from 'next/link';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import styles from './admin.module.css';
+import support from './AdminSmartSupport.module.css';
 import {getSessionToken} from '@/lib/session';
 import {supportApi} from '@/lib/support';
 
-type Conversation={id:number;status:string;customer:string;email?:string;latest_message?:string;module?:string;reference?:string;last_message_at?:string};
+type Conversation={
+  id:number;
+  status:string;
+  customer:string;
+  email?:string;
+  latest_message?:string;
+  module?:string;
+  reference?:string;
+  last_message_at?:string;
+};
+
 type Message={id:number;sender:string;message_text:string;created_at:string};
 
 export function AdminSmartSupport(){
- const [filter,setFilter]=useState('all'),[rows,setRows]=useState<Conversation[]>([]),[selected,setSelected]=useState<Conversation|null>(null),[messages,setMessages]=useState<Message[]>([]),[reply,setReply]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[counts,setCounts]=useState({open:0,waiting_human:0,resolved:0});
- async function load(status=filter){const token=getSessionToken();if(!token){setError('Admin session required.');return}setBusy(true);setError('');try{const r:any=await supportApi.adminList(token,status);setRows(Array.isArray(r?.conversations)?r.conversations:[]);setCounts({open:Number(r?.open||0),waiting_human:Number(r?.waiting_human||0),resolved:Number(r?.resolved||0)})}catch(e){setError(e instanceof Error?e.message:'Unable to load support inbox')}finally{setBusy(false)}}
- async function openConversation(item:Conversation){const token=getSessionToken();if(!token)return;setSelected(item);setBusy(true);setError('');try{const r:any=await supportApi.adminConversation(token,item.id);setSelected(r?.conversation||item);setMessages(Array.isArray(r?.messages)?r.messages:[])}catch(e){setError(e instanceof Error?e.message:'Unable to load conversation')}finally{setBusy(false)}}
- async function send(status:'open'|'resolved'='open'){const token=getSessionToken();if(!token||!selected)return;if(status==='open'&&!reply.trim())return;setBusy(true);setError('');try{await supportApi.adminReply(token,{conversation_id:selected.id,message:reply.trim(),status});setReply('');await openConversation({...selected,status});await load(filter)}catch(e){setError(e instanceof Error?e.message:'Unable to update conversation')}finally{setBusy(false)}}
- useEffect(()=>{load(filter)},[filter]);
- return <main className={styles.page}><Link href="/admin" className={styles.backButton} aria-label="Back to admin dashboard">←</Link><header className={styles.screenHeader}><h1>Smart Support</h1><p>View and respond to WickSpend customer conversations.</p></header><section className={styles.summary}><article className={styles.summaryCard}><strong>{counts.waiting_human}</strong><span>Waiting for human</span></article><article className={styles.summaryCard}><strong>{counts.open}</strong><span>Open</span></article><article className={styles.summaryCard}><strong>{counts.resolved}</strong><span>Resolved</span></article></section><div className={styles.filters}>{[['all','All'],['waiting_human','Waiting'],['open','Open'],['resolved','Resolved']].map(([value,label])=><button key={value} type="button" className={filter===value?styles.filterActive:styles.filter} onClick={()=>setFilter(value)}>{label}</button>)}</div>{error&&<div className={styles.glass} role="alert" style={{padding:14,marginBottom:12}}>{error}</div>}<section style={{display:'grid',gridTemplateColumns:'minmax(260px,.9fr) minmax(320px,1.4fr)',gap:16,alignItems:'start'}}><div className={`${styles.glass} ${styles.dataList}`}>{busy&&!rows.length?<div style={{padding:18}}>Loading support…</div>:rows.length?rows.map(item=><button key={item.id} type="button" onClick={()=>openConversation(item)} style={{width:'100%',border:0,background:selected?.id===item.id?'rgba(8,102,245,.07)':'transparent',textAlign:'left',padding:0,cursor:'pointer'}}><article className={styles.dataRow}><div className={styles.rowCopy}><strong>{item.customer||item.email||'Customer'}</strong><span className={styles.accentLine}>{item.module||'WickSpend'}{item.reference?` · ${item.reference}`:''}</span><small>{item.latest_message||'No message yet'}</small></div><span className={item.status==='waiting_human'?styles.statusAccent:styles.status}>{item.status==='waiting_human'?'Waiting':item.status}</span></article></button>):<div style={{padding:22,textAlign:'center'}}>No support conversations in this view.</div>}</div><div className={styles.glass} style={{minHeight:420,padding:16}}>{selected?<><div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'center',paddingBottom:12,borderBottom:'1px solid rgba(0,0,0,.07)'}}><div><strong>{selected.customer}</strong><small style={{display:'block',marginTop:4,color:'#6e6e73'}}>{selected.email||''}{selected.reference?` · ${selected.reference}`:''}</small></div><span className={selected.status==='waiting_human'?styles.statusAccent:styles.status}>{selected.status}</span></div><div style={{display:'grid',gap:9,maxHeight:360,overflow:'auto',padding:'14px 0'}}>{messages.map(m=><div key={m.id} style={{justifySelf:m.sender==='admin'?'end':'start',maxWidth:'82%'}}><div style={{background:m.sender==='admin'?'#0866f5':'#f2f2f7',color:m.sender==='admin'?'#fff':'#111',padding:'9px 11px',borderRadius:15,fontSize:11,lineHeight:1.45,whiteSpace:'pre-wrap'}}>{m.message_text}</div><small style={{display:'block',marginTop:3,color:'#8e8e93',textAlign:m.sender==='admin'?'right':'left'}}>{m.sender}</small></div>)}</div><textarea value={reply} onChange={e=>setReply(e.target.value)} rows={3} maxLength={4000} placeholder="Reply to customer…" style={{width:'100%',resize:'vertical',border:'1px solid rgba(0,0,0,.08)',borderRadius:16,padding:12,font:'inherit'}}/><div style={{display:'flex',gap:8,marginTop:10}}><button type="button" disabled={busy||!reply.trim()} onClick={()=>send('open')} style={{height:38,border:0,borderRadius:16,background:'#0866f5',color:'#fff',padding:'0 16px',fontWeight:700}}>Send reply</button><button type="button" disabled={busy} onClick={()=>send('resolved')} style={{height:38,border:'1px solid rgba(0,0,0,.08)',borderRadius:16,background:'#fff',padding:'0 16px',fontWeight:650}}>Mark resolved</button></div></>:<div style={{minHeight:380,display:'grid',placeItems:'center',textAlign:'center',color:'#6e6e73'}}>Select a Smart Support conversation to view its history.</div>}</div></section></main>
+  const [filter,setFilter]=useState('all');
+  const [rows,setRows]=useState<Conversation[]>([]);
+  const [selected,setSelected]=useState<Conversation|null>(null);
+  const [messages,setMessages]=useState<Message[]>([]);
+  const [reply,setReply]=useState('');
+  const [loadingList,setLoadingList]=useState(false);
+  const [loadingConversation,setLoadingConversation]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [error,setError]=useState('');
+  const [counts,setCounts]=useState({open:0,waiting_human:0,resolved:0});
+  const bottomRef=useRef<HTMLDivElement>(null);
+
+  async function load(status=filter,silent=false){
+    const token=getSessionToken();
+    if(!token){setError('Admin session required.');return}
+    if(!silent)setLoadingList(true);
+    try{
+      const r:any=await supportApi.adminList(token,status);
+      setRows(Array.isArray(r?.conversations)?r.conversations:[]);
+      setCounts({
+        open:Number(r?.open||0),
+        waiting_human:Number(r?.waiting_human||0),
+        resolved:Number(r?.resolved||0),
+      });
+      if(!silent)setError('');
+    }catch(e){
+      if(!silent)setError(e instanceof Error?e.message:'Unable to load support inbox');
+    }finally{
+      if(!silent)setLoadingList(false);
+    }
+  }
+
+  async function openConversation(item:Conversation,silent=false){
+    const token=getSessionToken();
+    if(!token)return;
+    if(!silent){
+      setSelected(item);
+      setLoadingConversation(true);
+      setError('');
+    }
+    try{
+      const r:any=await supportApi.adminConversation(token,item.id);
+      setSelected(r?.conversation||item);
+      setMessages(Array.isArray(r?.messages)?r.messages:[]);
+    }catch(e){
+      if(!silent)setError(e instanceof Error?e.message:'Unable to load conversation');
+    }finally{
+      if(!silent)setLoadingConversation(false);
+    }
+  }
+
+  async function send(status:'open'|'resolved'='open'){
+    const token=getSessionToken();
+    if(!token||!selected)return;
+    if(status==='open'&&!reply.trim())return;
+    setSending(true);
+    setError('');
+    try{
+      await supportApi.adminReply(token,{
+        conversation_id:selected.id,
+        message:reply.trim(),
+        status,
+      });
+      setReply('');
+      await Promise.all([
+        openConversation({...selected,status}),
+        load(filter,true),
+      ]);
+    }catch(e){
+      setError(e instanceof Error?e.message:'Unable to update conversation');
+    }finally{
+      setSending(false);
+    }
+  }
+
+  useEffect(()=>{
+    void load(filter);
+    const timer=window.setInterval(()=>void load(filter,true),8000);
+    return()=>window.clearInterval(timer);
+  },[filter]);
+
+  useEffect(()=>{
+    if(!selected)return;
+    const item=selected;
+    const timer=window.setInterval(()=>void openConversation(item,true),5000);
+    return()=>window.clearInterval(timer);
+  },[selected?.id]);
+
+  useEffect(()=>{
+    bottomRef.current?.scrollIntoView({block:'end'});
+  },[messages.length]);
+
+  const closeConversation=()=>{
+    setSelected(null);
+    setMessages([]);
+    setReply('');
+    setError('');
+  };
+
+  return <main className={`${styles.page} ${support.supportPage}`} data-node-id="support">
+    <Link href="/admin" className={styles.backButton} aria-label="Back to admin dashboard">←</Link>
+
+    <header className={styles.screenHeader}>
+      <h1>Smart Support</h1>
+      <p>View customer messages and reply directly from your admin.</p>
+    </header>
+
+    <section className={styles.summary}>
+      <article className={styles.summaryCard}><strong>{counts.waiting_human}</strong><span>Waiting for human</span></article>
+      <article className={styles.summaryCard}><strong>{counts.open}</strong><span>Open</span></article>
+      <article className={styles.summaryCard}><strong>{counts.resolved}</strong><span>Resolved</span></article>
+    </section>
+
+    <div className={support.supportToolbar}>
+      <div className={`${styles.filters} ${support.supportFilters}`}>
+        {([['all','All'],['waiting_human','Waiting'],['open','Open'],['resolved','Resolved']] as const).map(([value,label])=><button
+          key={value}
+          type="button"
+          className={filter===value?styles.filterActive:styles.filter}
+          onClick={()=>setFilter(value)}
+        >{label}</button>)}
+      </div>
+      <button type="button" className={support.supportRefresh} onClick={()=>void load(filter)} disabled={loadingList}>Refresh</button>
+    </div>
+
+    {error&&<div className={support.supportError} role="alert">{error}</div>}
+
+    <section className={support.supportWorkspace} data-has-selection={selected?'true':'false'}>
+      <div className={`${styles.glass} ${styles.dataList} ${support.supportInbox}`}>
+        {loadingList&&!rows.length?<div className={support.supportEmpty}>Loading support…</div>:rows.length?rows.map(item=><button
+          key={item.id}
+          type="button"
+          onClick={()=>void openConversation(item)}
+          className={`${support.supportConversationButton} ${selected?.id===item.id?support.supportConversationActive:''}`}
+        >
+          <article className={`${styles.dataRow} ${support.supportRow}`}>
+            <div className={styles.rowCopy}>
+              <strong>{item.customer||item.email||'Customer'}</strong>
+              <span className={styles.accentLine}>{item.module||'WickSpend'}{item.reference?` · ${item.reference}`:''}</span>
+              <small>{item.latest_message||'No message yet'}</small>
+            </div>
+            <span className={item.status==='waiting_human'?styles.statusAccent:styles.status}>{item.status==='waiting_human'?'Waiting':item.status}</span>
+          </article>
+        </button>):<div className={support.supportEmpty}>No support conversations in this view yet.</div>}
+      </div>
+
+      <div className={`${styles.glass} ${support.supportChatPane}`}>
+        {selected?<>
+          <div className={support.supportChatHeader}>
+            <button type="button" className={support.supportMobileBack} onClick={closeConversation}>← Conversations</button>
+            <div className={support.supportCustomerIdentity}>
+              <strong>{selected.customer||selected.email||'Customer'}</strong>
+              <small>{selected.email||''}{selected.reference?` · ${selected.reference}`:''}</small>
+            </div>
+            <span className={selected.status==='waiting_human'?styles.statusAccent:styles.status}>{selected.status==='waiting_human'?'Waiting':selected.status}</span>
+          </div>
+
+          <div className={support.supportMessages} aria-live="polite">
+            {loadingConversation&&!messages.length?<div className={support.supportEmpty}>Loading conversation…</div>:messages.map(m=><div
+              key={m.id}
+              className={`${support.supportMessage} ${m.sender==='admin'?support.supportMessageAdmin:support.supportMessageCustomer}`}
+            >
+              <div>{m.message_text}</div>
+              <small>{m.sender==='admin'?'You':m.sender}</small>
+            </div>)}
+            {!loadingConversation&&!messages.length&&<div className={support.supportEmpty}>No messages in this conversation yet.</div>}
+            <div ref={bottomRef}/>
+          </div>
+
+          <div className={support.supportComposer}>
+            <textarea
+              value={reply}
+              onChange={e=>setReply(e.target.value)}
+              onKeyDown={e=>{
+                if(e.key==='Enter'&&!e.shiftKey&&window.matchMedia('(min-width: 700px)').matches){
+                  e.preventDefault();
+                  void send('open');
+                }
+              }}
+              rows={3}
+              maxLength={4000}
+              placeholder="Reply to customer…"
+              disabled={sending}
+            />
+            <div className={support.supportActions}>
+              <button type="button" disabled={sending||!reply.trim()} onClick={()=>void send('open')}>{sending?'Sending…':'Send reply'}</button>
+              <button type="button" disabled={sending} onClick={()=>void send('resolved')}>Mark resolved</button>
+            </div>
+          </div>
+        </>:<div className={support.supportSelectPrompt}>Select a Smart Support conversation to view its history and reply.</div>}
+      </div>
+    </section>
+  </main>;
 }
