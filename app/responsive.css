@@ -35,7 +35,6 @@
   .walletTransactions,
   .recentCard,
   .profileRows,
-  .activeRental,
   .fundingCard,
   .boostDetails,
   .mailInbox { width: 100%; }
@@ -116,10 +115,8 @@
 
   .purchaseSummary,
   .boostStats,
-  .rentalInfo { max-width: 760px; }
 
   .buyNumberPanel,
-  .rentalForm,
   .boostDetails,
   .fundingCard,
   .mailInbox {
