@@ -1,9 +1,9 @@
 /* Dashboard Quick Actions — compact iOS-style utility grid only. */
-.homeShell .quickActionsSection {
+.homeShell > section:has(> .homeActionGrid) {
   margin-top: 0;
 }
 
-.homeShell .quickActionsSection .homeSectionTitle {
+.homeShell > section:has(> .homeActionGrid) .homeSectionTitle {
   margin: 16px 0 8px;
 }
 
@@ -51,6 +51,7 @@
   width: 23px;
   height: 23px;
   display: block;
+  stroke-width: 1.7;
 }
 
 .homeShell .homeActionGrid > .quickActionCard b {
