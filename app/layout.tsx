@@ -13,6 +13,7 @@ import "@/components/smart-support.css";
 import "@/components/smart-support-icon.css";
 import "./mobile-viewport-fix.css";
 import "./bottom-nav-fix.css";
+import "./dashboard-quick-actions.css";
 
 export const metadata: Metadata = {
   title: "WickSpend",

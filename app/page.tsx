@@ -9,7 +9,18 @@ import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import {readMarketplaceCache,readVerifiedBalance,writeVerifiedBalance} from "@/lib/client-cache";
 
-const quickActions = [["phone","Buy Number","/buy-number"],["mail","Temp Mail","/temp-mail"],["bag","Marketplace","/marketplace"],["orders","Orders","/orders"]] as const;
+const quickActions = [
+  ["phone","Buy Number","/buy-number"],
+  ["rent","Rent Number","/rent-number"],
+  ["bag","Marketplace","/marketplace"],
+  ["boost","Boostly","/boostly"],
+  ["mail","Temp Mail","/temp-mail"],
+  ["orders","Orders","/orders"],
+  ["wallet","Add Funds","/add-funds"],
+  ["reseller","Reseller Center","/reseller"],
+  ["tutorials","Tutorials","/tutorials"],
+  ["more","More","/profile"],
+] as const;
 const services = [["/icons/services/whatsapp.svg","WhatsApp","/buy-number?service=WhatsApp"],["/icons/services/telegram.svg","Telegram","/buy-number?service=Telegram"],["/icons/services/instagram.svg","Instagram","/buy-number?service=Instagram"],["/icons/services/facebook.svg","Facebook","/buy-number?service=Facebook"],["/icons/services/tiktok.svg","TikTok","/buy-number?service=TikTok"],["/icons/services/google.svg","Google","/buy-number?service=Google"]] as const;
 const countries = [["🇺🇸","United States","187"],["🇬🇧","United Kingdom","16"],["🇩🇪","Germany","43"],["🇳🇬","Nigeria","19"],["🇨🇦","Canada","36"],["🇵🇱","Poland","15"]] as const;
 function resolveBalance(payload:any):number|null{const values=[payload?.balance_ngn,payload?.wallet_balance_ngn,payload?.wallet?.balance_ngn,payload?.data?.balance_ngn,payload?.data?.wallet_balance_ngn];for(const v of values){const n=Number(v);if(v!==undefined&&v!==null&&Number.isFinite(n))return n}return null}
@@ -27,7 +38,19 @@ function marketPrice(item:any){const raw=item?.price_ngn??item?.final_price_ngn?
 function marketId(item:any){return String(item?.id??item?.product_id??item?.code??"")}
 function BellIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>}
 function ProfileFallback(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"/></svg>}
-function QuickActionIcon({type}:{type:(typeof quickActions)[number][0]}){const common={width:24,height:24,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true};if(type==="phone")return <svg {...common}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.3 19.3 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg>;if(type==="mail")return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>;if(type==="bag")return <svg {...common}><path d="M6 7h12l1 14H5L6 7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>;return <svg {...common}><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>}
+function QuickActionIcon({type}:{type:(typeof quickActions)[number][0]}){
+  const common={width:28,height:28,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.85,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true};
+  if(type==="phone")return <svg {...common}><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M10.5 18.5h3"/></svg>;
+  if(type==="rent")return <svg {...common}><rect x="3.5" y="2.5" width="9.5" height="19" rx="2.2"/><path d="M6.5 18h3.5"/><circle cx="17.5" cy="15.5" r="4.5"/><path d="M17.5 13v2.8l1.9 1.1"/></svg>;
+  if(type==="bag")return <svg {...common}><path d="M6 7h12l1 14H5L6 7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>;
+  if(type==="boost")return <svg {...common}><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg>;
+  if(type==="mail")return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>;
+  if(type==="orders")return <svg {...common}><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21V3z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>;
+  if(type==="wallet")return <svg {...common}><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><path d="M16 11v6M13 14h6"/></svg>;
+  if(type==="reseller")return <svg {...common}><path d="M4 10h16l-1.4-5H5.4L4 10z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M7 10v2M12 10v2M17 10v2"/></svg>;
+  if(type==="tutorials")return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8z"/></svg>;
+  return <svg {...common}><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><rect x="14" y="14" width="6" height="6" rx="1.2"/></svg>;
+}
 export default function Home(){
   const router=useRouter();
   const[balance,setBalance]=useState<number|null>(null),[balanceState,setBalanceState]=useState<"loading"|"ready"|"signed-out"|"error">("loading"),[hidden,setHidden]=useState(false),[active,setActive]=useState<any>(null),[recent,setRecent]=useState<any[]>([]),[avatarUrl,setAvatarUrl]=useState(""),[name,setName]=useState("Wisdom"),[currency,setCurrency]=useState("NGN"),[marketplace,setMarketplace]=useState<any[]>([]),[marketplaceState,setMarketplaceState]=useState<"loading"|"ready"|"error">("loading");
