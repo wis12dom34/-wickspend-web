@@ -60,6 +60,10 @@ async function proxy(request: Request, context: ProxyContext) {
   }
   if (!responseHeaders.has("Cache-Control")) responseHeaders.set("Cache-Control", "no-store");
   const upstreamBody = await upstream.arrayBuffer();
+  if (safePath === "auth/password/reset" && upstream.ok) {
+    responseHeaders.set("Content-Type", "application/json; charset=utf-8");
+    return Response.json({ ok: true, password_reset: true }, { status: 200, headers: responseHeaders });
+  }
   if (isPasswordResetPath && !upstream.ok && upstreamBody.byteLength === 0) {
     const code = upstream.status === 401
       ? "INVALID_OR_EXPIRED_RESET_CODE"
