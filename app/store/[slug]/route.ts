@@ -49,7 +49,20 @@ export async function GET(_request: Request, context: RouteContext) {
     return brandedPage("Store temporarily unavailable", "We could not load this reseller store right now. Please try again shortly.", 503);
   }
 
-  const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
+  if (!body.includes('id="regConfirmPassword"')) {
+    body = body.replace(
+      /(<input id="regPassword"[^>]*>)/,
+      '$1<input id="regConfirmPassword" class="field" type="password" autocomplete="new-password" placeholder="Confirm password" style="margin-top:8px">',
+    );
+  }
+
+  const authFixScript = `<script>(function(){
+    var originalNote=window.note;
+    if(typeof originalNote==='function'){window.note=function(message,isError){var friendly={INVALID_CREDENTIALS:'Incorrect email or password.',RATE_LIMITED:'Too many sign-in attempts. Please try again in 10 minutes.',ACCOUNT_EXISTS:'An account with this email already exists. Sign in instead.',INVALID_PASSWORD:'Password must be at least 8 characters.'};return originalNote(friendly[message]||message,isError)}}
+    var originalRegister=window.register;
+    if(typeof originalRegister==='function'){window.register=async function(){var password=document.getElementById('regPassword'),confirmPassword=document.getElementById('regConfirmPassword');var p=password&&password.value||'',c=confirmPassword&&confirmPassword.value||'';if(p.length<8){return window.note('Password must be at least 8 characters.',true)}if(p!==c){return window.note('Passwords do not match.',true)}return originalRegister()}}
+  })();</script>`;
+  const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}${authFixScript}<script>history.replaceState(null,'',location.pathname)</script>`;
   const html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
   const headers = new Headers();
   for (const name of ["content-type", "content-security-policy", "x-content-type-options", "referrer-policy"]) {
