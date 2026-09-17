@@ -34,7 +34,8 @@ async function proxy(request: Request, context: ProxyContext) {
   const headers = new Headers();
   const authorization = request.headers.get("authorization");
   const contentType = request.headers.get("content-type");
-  if (authorization) headers.set("Authorization", authorization);
+  const isPasswordResetPath = safePath.startsWith("auth/password/");
+  if (authorization && !isPasswordResetPath) headers.set("Authorization", authorization);
   if (contentType) headers.set("Content-Type", contentType);
   headers.set("X-Forwarded-Host", incoming.host);
   headers.set("X-Forwarded-Proto", "https");
@@ -59,6 +60,17 @@ async function proxy(request: Request, context: ProxyContext) {
   }
   if (!responseHeaders.has("Cache-Control")) responseHeaders.set("Cache-Control", "no-store");
   const upstreamBody = await upstream.arrayBuffer();
+  if (isPasswordResetPath && !upstream.ok && upstreamBody.byteLength === 0) {
+    const code = upstream.status === 401
+      ? "INVALID_OR_EXPIRED_RESET_CODE"
+      : upstream.status === 429
+        ? "RATE_LIMITED"
+        : upstream.status === 404
+          ? "STORE_UNAVAILABLE"
+          : "RESET_REQUEST_FAILED";
+    responseHeaders.set("Content-Type", "application/json; charset=utf-8");
+    return Response.json({ ok: false, code }, { status: upstream.status, headers: responseHeaders });
+  }
   if (safePath === "catalog/numbers" && upstream.ok) {
     try {
       const payload = JSON.parse(new TextDecoder().decode(upstreamBody)) as {
