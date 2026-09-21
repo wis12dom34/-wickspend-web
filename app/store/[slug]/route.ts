@@ -78,6 +78,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   let resolved = false;
+  let rentalsEnabled = true;
   try {
     const check = await fetch(`${STORE_RESOLVE_URL}?slug=${encodeURIComponent(slug)}`, {
       cache: "no-store",
@@ -85,8 +86,9 @@ export async function GET(_request: Request, context: RouteContext) {
       headers: { Accept: "application/json", "X-Forwarded-Host": "wickspend.com" },
     });
     if (check.ok) {
-      const payload = await check.json().catch(() => null) as { ok?: boolean } | null;
+      const payload = await check.json().catch(() => null) as { ok?: boolean; store?: { rent_number_enabled?: boolean } } | null;
       resolved = payload?.ok === true;
+      rentalsEnabled = payload?.store?.rent_number_enabled !== false;
     } else if (check.status === 404) {
       return brandedPage("Store unavailable", "This store is not available right now. Check the link or contact the store owner.", 404);
     } else if (check.status === 403 || check.status === 409) {
@@ -136,32 +138,34 @@ export async function GET(_request: Request, context: RouteContext) {
   // Keep these as normal links so the n8n-served storefront is not duplicated.
   const rentUrl = `/store/${encodeURIComponent(slug)}/rent-number`;
   const rentalsUrl = `/store/${encodeURIComponent(slug)}/rentals`;
-  if (!body.includes('data-wick-rent-number')) {
+  if (rentalsEnabled) {
+    if (!body.includes('data-wick-rent-number')) {
+      body = body.replace(
+        /(<button id="serviceTabMarketplace")/,
+        `<a data-wick-rent-number class="btn serviceTab" href="${rentUrl}" style="text-decoration:none">Rent Number</a>$1`,
+      );
+    }
+    if (!body.includes('data-wick-my-rentals')) {
+      body = body.replace(
+        /(<button id="accountBtn")/,
+        `<a data-wick-my-rentals class="btn light myNumbersTop" href="${rentalsUrl}" style="text-decoration:none">My Rentals</a>$1`,
+      );
+    }
+    if (!body.includes('data-wick-rental-orders')) {
+      body = body.replace(
+        /(<button id="orderTabMarketplace")/,
+        `<a data-wick-rental-orders class="btn light orderTab" href="${rentalsUrl}" style="text-decoration:none">Rentals</a>$1`,
+      );
+    }
     body = body.replace(
-      /(<button id="serviceTabMarketplace")/,
-      `<a data-wick-rent-number class="btn serviceTab" href="${rentUrl}" style="text-decoration:none">Rent Number</a>$1`,
+      'Verification numbers, digital marketplace products and social growth services from one secure wallet.',
+      'Verification numbers, longer-term rentals, digital marketplace products and social growth services from one secure wallet.',
+    );
+    body = body.replace(
+      '<span class="pill">Live numbers</span><span class="pill">Marketplace</span>',
+      '<span class="pill">Live numbers</span><span class="pill">Rentals</span><span class="pill">Marketplace</span>',
     );
   }
-  if (!body.includes('data-wick-my-rentals')) {
-    body = body.replace(
-      /(<button id="accountBtn")/,
-      `<a data-wick-my-rentals class="btn light myNumbersTop" href="${rentalsUrl}" style="text-decoration:none">My Rentals</a>$1`,
-    );
-  }
-  if (!body.includes('data-wick-rental-orders')) {
-    body = body.replace(
-      /(<button id="orderTabMarketplace")/,
-      `<a data-wick-rental-orders class="btn light orderTab" href="${rentalsUrl}" style="text-decoration:none">Rentals</a>$1`,
-    );
-  }
-  body = body.replace(
-    'Verification numbers, digital marketplace products and social growth services from one secure wallet.',
-    'Verification numbers, longer-term rentals, digital marketplace products and social growth services from one secure wallet.',
-  );
-  body = body.replace(
-    '<span class="pill">Live numbers</span><span class="pill">Marketplace</span>',
-    '<span class="pill">Live numbers</span><span class="pill">Rentals</span><span class="pill">Marketplace</span>',
-  );
 
   const authFixScript = `<script>(function(){
     var originalNote=window.note;
