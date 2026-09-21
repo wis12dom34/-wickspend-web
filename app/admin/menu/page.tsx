@@ -6,6 +6,7 @@ const items = [
   ["Users", "View customers and add or remove wallet funds", "/admin/users"],
   ["Marketplace Products", "Create, edit, stock and publish manual products", "/admin/marketplace"],
   ["Marketplace Orders", "Review manual orders and legitimate fulfillment", "/admin/marketplace/orders"],
+  ["Mini Store Rentals", "Inspect customer rentals, GotSMS references and rental revenue", "/admin/rentals"],
   ["Tutorials", "Upload, publish, reorder and manage Learning Center videos", "/admin/tutorials"],
   ["Support", "View and reply to Smart Support conversations", "/admin/support"],
   ["Analytics", "Live revenue and transaction aggregates", "/admin#analytics"],

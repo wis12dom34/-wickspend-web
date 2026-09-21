@@ -131,6 +131,38 @@ export async function GET(_request: Request, context: RouteContext) {
     body = body.replace('</head>', PASSWORD_RESET_STYLES + '</head>');
   }
 
+  // Rental screens live in the existing Next.js Mini Store route tree while
+  // the shared customer session and wallet remain owned by the Store backend.
+  // Keep these as normal links so the n8n-served storefront is not duplicated.
+  const rentUrl = `/store/${encodeURIComponent(slug)}/rent-number`;
+  const rentalsUrl = `/store/${encodeURIComponent(slug)}/rentals`;
+  if (!body.includes('data-wick-rent-number')) {
+    body = body.replace(
+      /(<button id="serviceTabMarketplace")/,
+      `<a data-wick-rent-number class="btn serviceTab" href="${rentUrl}" style="text-decoration:none">Rent Number</a>$1`,
+    );
+  }
+  if (!body.includes('data-wick-my-rentals')) {
+    body = body.replace(
+      /(<button id="accountBtn")/,
+      `<a data-wick-my-rentals class="btn light myNumbersTop" href="${rentalsUrl}" style="text-decoration:none">My Rentals</a>$1`,
+    );
+  }
+  if (!body.includes('data-wick-rental-orders')) {
+    body = body.replace(
+      /(<button id="orderTabMarketplace")/,
+      `<a data-wick-rental-orders class="btn light orderTab" href="${rentalsUrl}" style="text-decoration:none">Rentals</a>$1`,
+    );
+  }
+  body = body.replace(
+    'Verification numbers, digital marketplace products and social growth services from one secure wallet.',
+    'Verification numbers, longer-term rentals, digital marketplace products and social growth services from one secure wallet.',
+  );
+  body = body.replace(
+    '<span class="pill">Live numbers</span><span class="pill">Marketplace</span>',
+    '<span class="pill">Live numbers</span><span class="pill">Rentals</span><span class="pill">Marketplace</span>',
+  );
+
   const authFixScript = `<script>(function(){
     var originalNote=window.note;
     if(typeof originalNote==='function'){window.note=function(message,isError){var friendly={INVALID_CREDENTIALS:'Incorrect email or password.',RATE_LIMITED:'Too many sign-in attempts. Please try again in 10 minutes.',ACCOUNT_EXISTS:'An account with this email already exists. Sign in instead.',INVALID_PASSWORD:'Password must be at least 8 characters.'};return originalNote(friendly[message]||message,isError)}}
