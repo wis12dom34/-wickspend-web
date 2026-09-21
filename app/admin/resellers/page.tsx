@@ -7,26 +7,54 @@ import { getSessionToken } from "@/lib/session";
 import styles from "./resellers.module.css";
 
 type Tab = "overview" | "plans" | "accounts" | "domains";
-type PlanForm = { code:string; name:string; monthly:string; annual:string; api_access:boolean; api_key_limit:string; custom_domain:boolean; is_active:boolean };
-const blankPlan:PlanForm={code:"",name:"",monthly:"",annual:"",api_access:false,api_key_limit:"1",custom_domain:false,is_active:false};
+type PlanForm = {
+  original_code:string; code:string; slug:string; name:string; description:string;
+  monthly:string; annual:string; api_access:boolean; api_key_limit:string;
+  custom_domain:boolean; custom_domain_limit:string; is_public:boolean; is_active:boolean;
+  monthly_enabled:boolean; annual_enabled:boolean; is_featured:boolean;
+};
+const blankPlan:PlanForm={original_code:"",code:"",slug:"",name:"",description:"",monthly:"",annual:"",api_access:false,api_key_limit:"0",custom_domain:false,custom_domain_limit:"0",is_public:false,is_active:false,monthly_enabled:true,annual_enabled:true,is_featured:false};
 const money=(v:unknown)=>`₦${Number(v||0).toLocaleString("en-NG",{maximumFractionDigits:2})}`;
 const date=(v:unknown)=>{if(!v)return "—";const d=new Date(String(v));return Number.isNaN(d.getTime())?"—":d.toLocaleString()};
+const slugify=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);
 
 async function adminApi<T=any>(path:string,init:RequestInit={}){
  const token=getSessionToken();
  if(!token)throw new Error("Please sign in with the WickSpend admin account.");
  return wickspendApi<T>(path,{...init,token,preserveSessionOn401:true});
 }
-function errorText(e:unknown){return e instanceof ApiError?(e.code||e.message):e instanceof Error?e.message:"Request failed."}
+function errorText(e:unknown){
+ const code=e instanceof ApiError?e.code:"";
+ const friendly:Record<string,string>={
+  ACTIVE_PUBLIC_PLAN_NEEDS_PRICE:"An active public plan needs at least one enabled monthly or annual price.",
+  INVALID_MONTHLY_PRICE:"Enter a valid monthly price of ₦0 or more, or leave it blank when monthly billing is disabled.",
+  INVALID_ANNUAL_PRICE:"Enter a valid annual price of ₦0 or more, or leave it blank when annual billing is disabled.",
+  INVALID_PLAN_NAME:"Plan name must contain at least 2 characters.",INVALID_PLAN_SLUG:"Use a plan slug between 2 and 60 characters.",
+  PLAN_SLUG_EXISTS:"That plan slug is already in use.",PLAN_CODE_EXISTS:"A plan with that internal code already exists.",
+  PLAN_IN_USE:"This plan has subscription history or is still assigned to a reseller. Archive it instead of deleting it.",
+  PLAN_NOT_FOUND:"That plan no longer exists. Refresh the plan list and try again.",PLAN_SAVE_CONFLICT:"The plan changed while saving. Refresh and try again.",
+  INVALID_ORDER:"The plan order could not be saved.",UNAUTHORIZED:"Your admin session is no longer authorized. Please sign in again.",
+ };
+ if(code&&friendly[code])return friendly[code];
+ return e instanceof ApiError?(e.code||e.message):e instanceof Error?e.message:"Request failed.";
+}
+function formFromPlan(p:any):PlanForm{return {original_code:String(p.code||""),code:String(p.code||""),slug:String(p.slug||p.code||""),name:String(p.name||""),description:String(p.description||""),monthly:p.monthly_price_ngn==null?"":String(p.monthly_price_ngn),annual:p.annual_price_ngn==null?"":String(p.annual_price_ngn),api_access:Boolean(p.features?.api_access),api_key_limit:String(p.features?.api_key_limit??0),custom_domain:Boolean(p.features?.custom_domain),custom_domain_limit:String(p.features?.custom_domain_limit??(p.features?.custom_domain?1:0)),is_public:Boolean(p.is_public),is_active:Boolean(p.is_active),monthly_enabled:Boolean(p.monthly_enabled),annual_enabled:Boolean(p.annual_enabled),is_featured:Boolean(p.is_featured)};}
+function payloadFromForm(plan:PlanForm,overrides:Record<string,unknown>={}){
+ const code=(plan.original_code||plan.code||plan.slug).trim().toLowerCase();
+ return {action:"save",original_code:plan.original_code||undefined,code,slug:plan.slug.trim(),name:plan.name.trim(),description:plan.description.trim(),monthly_price_ngn:plan.monthly===""?null:Number(plan.monthly),annual_price_ngn:plan.annual===""?null:Number(plan.annual),monthly_enabled:plan.monthly_enabled,annual_enabled:plan.annual_enabled,is_public:plan.is_public,is_active:plan.is_active,is_featured:plan.is_featured,features:{api_access:plan.api_access,api_key_limit:Math.max(0,Math.min(100,Number(plan.api_key_limit||0))),custom_domain:plan.custom_domain,custom_domain_limit:Math.max(0,Math.min(20,Number(plan.custom_domain_limit||0)))},...overrides};
+}
 
 export default function AdminResellersPage(){
  const[tab,setTab]=useState<Tab>("overview");
- const[loading,setLoading]=useState(true),[busy,setBusy]=useState(""),[message,setMessage]=useState("");
+ const[loading,setLoading]=useState(true),[busy,setBusy]=useState(""),[message,setMessage]=useState(""),[messageKind,setMessageKind]=useState<"success"|"error">("error");
  const[overview,setOverview]=useState<any>(null),[plans,setPlans]=useState<any[]>([]),[accounts,setAccounts]=useState<any[]>([]),[domains,setDomains]=useState<any[]>([]),[domainStats,setDomainStats]=useState<any>({});
  const[query,setQuery]=useState(""),[domainFilter,setDomainFilter]=useState("all"),[plan,setPlan]=useState<PlanForm>(blankPlan);
+ const[editorOpen,setEditorOpen]=useState(false),[slugTouched,setSlugTouched]=useState(false),[planDetails,setPlanDetails]=useState<any>(null);
+ const showError=(text:string)=>{setMessageKind("error");setMessage(text)};
+ const showSuccess=(text:string)=>{setMessageKind("success");setMessage(text)};
 
  const load=useCallback(async()=>{
-   setLoading(true);setMessage("");
+   setLoading(true);
    try{
     const [o,p,a,d]=await Promise.all([
       adminApi("wickspend/backend/admin/reseller/overview"),
@@ -35,42 +63,53 @@ export default function AdminResellersPage(){
       adminApi(`wickspend/backend/admin/reseller/domains/readiness?status=${encodeURIComponent(domainFilter)}`),
     ]);
     setOverview(o);setPlans(Array.isArray(p?.items)?p.items:[]);setAccounts(Array.isArray(a?.items)?a.items:[]);setDomains(Array.isArray(d?.items)?d.items:[]);setDomainStats(d?.stats||{});
-   }catch(e){setMessage(errorText(e))}finally{setLoading(false)}
+   }catch(e){showError(errorText(e))}finally{setLoading(false)}
  },[query,domainFilter]);
  useEffect(()=>{void load()},[load]);
 
  const totals=useMemo(()=>({resellers:Number(overview?.resellers?.total_resellers||0),active:Number(overview?.resellers?.active_resellers||0),stores:Number(overview?.resellers?.live_stores||0),customers:Number(overview?.customers?.total_customers||0),orders:Number(overview?.store_sales?.total_store_orders||0),sales:Number(overview?.store_sales?.gross_sales_ngn||0),subscriptions:Number(overview?.subscriptions?.subscription_revenue_ngn||0),profit:Number(overview?.earnings?.available_profit_ngn||0)}),[overview]);
 
- function editPlan(p:any){setTab("plans");setPlan({code:String(p.code||""),name:String(p.name||""),monthly:p.monthly_price_ngn==null?"":String(p.monthly_price_ngn),annual:p.annual_price_ngn==null?"":String(p.annual_price_ngn),api_access:Boolean(p.features?.api_access),api_key_limit:String(p.features?.api_key_limit||1),custom_domain:Boolean(p.features?.custom_domain),is_active:Boolean(p.is_active)});window.scrollTo({top:0,behavior:"smooth"})}
+ function newPlan(){setTab("plans");setPlan({...blankPlan});setSlugTouched(false);setEditorOpen(true);setPlanDetails(null);window.scrollTo({top:0,behavior:"smooth"})}
+ function editPlan(p:any){setTab("plans");setPlan(formFromPlan(p));setSlugTouched(true);setEditorOpen(true);setPlanDetails(null);window.scrollTo({top:0,behavior:"smooth"})}
+ function duplicatePlan(p:any){const next=formFromPlan(p);const name=`${p.name||"Plan"} Copy`;const slug=slugify(name);setPlan({...next,original_code:"",code:slug,slug,name,is_active:false,is_public:false,is_featured:false});setSlugTouched(false);setEditorOpen(true);setPlanDetails(null);window.scrollTo({top:0,behavior:"smooth"})}
  async function savePlan(){
-   const code=plan.code.trim().toLowerCase();const name=plan.name.trim();
-   if(code.length<2||name.length<2){setMessage("Plan code and name are required.");return}
-   if(plan.is_active&&!plan.monthly&&!plan.annual){setMessage("An active plan needs a monthly or annual price.");return}
-   setBusy("plan");setMessage("");
-   try{
-    const features={api_access:plan.api_access,api_key_limit:Math.max(1,Math.min(20,Number(plan.api_key_limit||1))),custom_domain:plan.custom_domain};
-    await adminApi("wickspend/backend/admin/reseller/plans",{method:"POST",body:JSON.stringify({code,name,monthly_price_ngn:plan.monthly===""?null:Number(plan.monthly),annual_price_ngn:plan.annual===""?null:Number(plan.annual),features,is_active:plan.is_active})});
-    setMessage("Plan saved.");setPlan(blankPlan);await load();
-   }catch(e){setMessage(errorText(e))}finally{setBusy("")}
+   const code=(plan.original_code||plan.code||plan.slug).trim().toLowerCase(),name=plan.name.trim(),slug=plan.slug.trim();
+   const monthly=plan.monthly===""?null:Number(plan.monthly),annual=plan.annual===""?null:Number(plan.annual);
+   if(code.length<2||name.length<2||slug.length<2){showError("Plan name and slug are required.");return}
+   if((monthly!=null&&(!Number.isFinite(monthly)||monthly<0))||(annual!=null&&(!Number.isFinite(annual)||annual<0))){showError("Prices must be ₦0 or more.");return}
+   if(plan.is_active&&plan.is_public&&!((plan.monthly_enabled&&monthly!=null)||(plan.annual_enabled&&annual!=null))){showError("An active public plan needs at least one enabled monthly or annual price.");return}
+   setBusy("plan-save");setMessage("");
+   try{await adminApi("wickspend/backend/admin/reseller/plans",{method:"POST",body:JSON.stringify(payloadFromForm(plan))});setEditorOpen(false);setPlan({...blankPlan});await load();showSuccess("Plan saved");}
+   catch(e){showError(errorText(e))}finally{setBusy("")}
  }
+ async function postPlanAction(body:any,busyKey:string,success:string){setBusy(busyKey);setMessage("");try{await adminApi("wickspend/backend/admin/reseller/plans",{method:"POST",body:JSON.stringify(body)});await load();showSuccess(success)}catch(e){showError(errorText(e))}finally{setBusy("")}}
+ async function togglePlan(p:any){const f=formFromPlan(p);await postPlanAction(payloadFromForm(f,{is_active:!p.is_active}),`toggle-${p.code}`,`Plan ${p.is_active?"deactivated":"activated"}`)}
+ async function removePlan(p:any){
+  const used=Number(p.subscriber_count||0)>0||Number(p.active_subscriber_count||0)>0;
+  if(used){if(!confirm(`Archive "${p.name}"?\n\nExisting subscribers will remain on their current subscription, but new customers cannot select this plan.`))return;await postPlanAction({action:"archive",original_code:p.code},`remove-${p.code}`,"Plan archived");return}
+  if(!confirm(`Delete "${p.name}"?\n\nThis plan has no subscribers and can be permanently removed.`))return;
+  await postPlanAction({action:"delete",original_code:p.code},`remove-${p.code}`,"Plan deleted");
+ }
+ async function movePlan(index:number,direction:-1|1){const next=[...plans];const target=index+direction;if(target<0||target>=next.length)return;[next[index],next[target]]=[next[target],next[index]];setPlans(next);await postPlanAction({action:"reorder",codes:next.map(p=>p.code)},"reorder","Plan order saved")}
+ async function viewSubscribers(p:any){setBusy(`subs-${p.code}`);setMessage("");try{const d=await adminApi(`wickspend/backend/admin/reseller/plans?code=${encodeURIComponent(p.code)}`);setPlanDetails(d)}catch(e){showError(errorText(e))}finally{setBusy("")}}
  async function changeResellerStatus(r:any){
    const next=r.status==="suspended"?"active":"suspended";
    if(!confirm(`${next==="suspended"?"Suspend":"Reactivate"} reseller ${r.store_name||r.email}? This changes reseller access but does not alter balances, orders or subscription records.`))return;
    setBusy(`reseller-${r.reseller_id}`);setMessage("");
-   try{await adminApi("wickspend/backend/admin/reseller/status",{method:"POST",body:JSON.stringify({reseller_id:r.reseller_id,status:next})});setMessage(`Reseller ${next}.`);await load()}catch(e){setMessage(errorText(e))}finally{setBusy("")}
+   try{await adminApi("wickspend/backend/admin/reseller/status",{method:"POST",body:JSON.stringify({reseller_id:r.reseller_id,status:next})});await load();showSuccess(`Reseller ${next}`)}catch(e){showError(errorText(e))}finally{setBusy("")}
  }
  async function activateDomain(d:any,action:"activate"|"deactivate"){
    if(!confirm(`${action==="activate"?"Activate":"Take offline"} custom domain ${d.domain}?`))return;
    setBusy(`domain-${d.reseller_id}`);setMessage("");
-   try{await adminApi("wickspend/backend/admin/reseller/domain/activation",{method:"POST",body:JSON.stringify({reseller_id:d.reseller_id,domain:d.domain,action,request_key:`admin-domain-${Date.now()}-${d.reseller_id}`,reason:action==="activate"?"Admin activation after verified routing/TLS":"Admin deactivation"})});setMessage(`Domain ${action} request applied.`);await load()}catch(e){setMessage(errorText(e))}finally{setBusy("")}
+   try{await adminApi("wickspend/backend/admin/reseller/domain/activation",{method:"POST",body:JSON.stringify({reseller_id:d.reseller_id,domain:d.domain,action,request_key:`admin-domain-${Date.now()}-${d.reseller_id}`,reason:action==="activate"?"Admin activation after verified routing/TLS":"Admin deactivation"})});await load();showSuccess(`Domain ${action} request applied`)}catch(e){showError(errorText(e))}finally{setBusy("")}
  }
 
  return <main className={styles.page}><div className={styles.shell}>
    <header className={styles.header}><Link className={styles.back} href="/admin/menu">‹</Link><div><span>WickSpend Admin</span><h1>Reseller Control Center</h1><p>Plans, accounts, revenue and custom-domain readiness.</p></div><button className={styles.refresh} onClick={()=>void load()} disabled={loading}>{loading?"Loading…":"Refresh"}</button></header>
    <nav className={styles.tabs}>{(["overview","plans","accounts","domains"] as Tab[]).map(t=><button key={t} className={tab===t?styles.tabActive:styles.tab} onClick={()=>setTab(t)}>{t}</button>)}</nav>
-   {message&&<div className={message.includes("saved")||message.includes("active")||message.includes("applied")||message.includes("suspended")?styles.success:styles.error}>{message}</div>}
+   {message&&<div className={messageKind==="success"?styles.success:styles.error}>{message}</div>}
    {tab==="overview"&&<Overview totals={totals} overview={overview} loading={loading}/>}
-   {tab==="plans"&&<Plans plans={plans} plan={plan} setPlan={setPlan} savePlan={savePlan} editPlan={editPlan} busy={busy}/>}
+   {tab==="plans"&&<Plans plans={plans} plan={plan} setPlan={setPlan} editorOpen={editorOpen} setEditorOpen={setEditorOpen} slugTouched={slugTouched} setSlugTouched={setSlugTouched} newPlan={newPlan} savePlan={savePlan} editPlan={editPlan} duplicatePlan={duplicatePlan} togglePlan={togglePlan} removePlan={removePlan} movePlan={movePlan} viewSubscribers={viewSubscribers} details={planDetails} closeDetails={()=>setPlanDetails(null)} busy={busy}/>}
    {tab==="accounts"&&<Accounts accounts={accounts} query={query} setQuery={setQuery} load={load} changeStatus={changeResellerStatus} busy={busy}/>}
    {tab==="domains"&&<Domains items={domains} stats={domainStats} filter={domainFilter} setFilter={setDomainFilter} activate={activateDomain} busy={busy}/>}
  </div></main>
@@ -83,8 +122,21 @@ function Overview({totals,overview,loading}:{totals:any;overview:any;loading:boo
 function Metric({label,value}:{label:string;value:any}){return <article className={styles.metric}><span>{label}</span><strong>{value}</strong></article>}
 function Row({label,value}:{label:string;value:any}){return <div className={styles.row}><span>{label}</span><b>{value}</b></div>}
 
-function Plans({plans,plan,setPlan,savePlan,editPlan,busy}:{plans:any[];plan:PlanForm;setPlan:(p:PlanForm)=>void;savePlan:()=>void;editPlan:(p:any)=>void;busy:string}){
- return <><section className={styles.card}><div className={styles.cardHead}><div><span className={styles.eyebrow}>Plan editor</span><h2>{plan.code?`Edit ${plan.code}`:"Create reseller plan"}</h2></div>{plan.code&&<button className={styles.secondary} onClick={()=>setPlan(blankPlan)}>New plan</button>}</div><div className={styles.formGrid}><label>Plan code<input value={plan.code} disabled={Boolean(plans.find(p=>p.code===plan.code))} onChange={e=>setPlan({...plan,code:e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g,"")})} placeholder="pro"/></label><label>Plan name<input value={plan.name} onChange={e=>setPlan({...plan,name:e.target.value})} placeholder="Pro"/></label><label>Monthly price (NGN)<input type="number" min="0" value={plan.monthly} onChange={e=>setPlan({...plan,monthly:e.target.value})} placeholder="Leave blank until decided"/></label><label>Annual price (NGN)<input type="number" min="0" value={plan.annual} onChange={e=>setPlan({...plan,annual:e.target.value})} placeholder="Leave blank until decided"/></label><label>API key limit<input type="number" min="1" max="20" value={plan.api_key_limit} onChange={e=>setPlan({...plan,api_key_limit:e.target.value})}/></label><div className={styles.checks}><label><input type="checkbox" checked={plan.api_access} onChange={e=>setPlan({...plan,api_access:e.target.checked})}/> API access</label><label><input type="checkbox" checked={plan.custom_domain} onChange={e=>setPlan({...plan,custom_domain:e.target.checked})}/> Custom domains</label><label><input type="checkbox" checked={plan.is_active} onChange={e=>setPlan({...plan,is_active:e.target.checked})}/> Public/active plan</label></div></div><p className={styles.help}>No prices are pre-filled. An active plan must have at least one price. API access and custom domains remain disabled unless explicitly enabled here.</p><button className={styles.primary} disabled={busy==="plan"} onClick={savePlan}>{busy==="plan"?"Saving…":"Save plan"}</button></section><section className={styles.card}><div className={styles.cardHead}><div><span className={styles.eyebrow}>Configured plans</span><h2>{plans.length} plans</h2></div></div>{plans.length?<div className={styles.planGrid}>{plans.map(p=><button key={p.code} className={styles.planCard} onClick={()=>editPlan(p)}><div><b>{p.name}</b><small>{p.code}</small></div><span className={p.is_active?styles.good:styles.muted}>{p.is_active?"Active":"Inactive"}</span><strong>{p.monthly_price_ngn==null?"No monthly":`${money(p.monthly_price_ngn)}/mo`}</strong><small>{p.annual_price_ngn==null?"No annual":`${money(p.annual_price_ngn)}/yr`}</small><div className={styles.featureLine}><span>API {p.features?.api_access?"✓":"—"}</span><span>Keys {p.features?.api_key_limit||1}</span><span>Domain {p.features?.custom_domain?"✓":"—"}</span></div></button>)}</div>:<div className={styles.empty}>No reseller plans configured yet. Create one above when you have decided the prices.</div>}</section></>
+function Plans({plans,plan,setPlan,editorOpen,setEditorOpen,slugTouched,setSlugTouched,newPlan,savePlan,editPlan,duplicatePlan,togglePlan,removePlan,movePlan,viewSubscribers,details,closeDetails,busy}:{plans:any[];plan:PlanForm;setPlan:(p:PlanForm)=>void;editorOpen:boolean;setEditorOpen:(v:boolean)=>void;slugTouched:boolean;setSlugTouched:(v:boolean)=>void;newPlan:()=>void;savePlan:()=>void;editPlan:(p:any)=>void;duplicatePlan:(p:any)=>void;togglePlan:(p:any)=>void;removePlan:(p:any)=>void;movePlan:(i:number,d:-1|1)=>void;viewSubscribers:(p:any)=>void;details:any;closeDetails:()=>void;busy:string}){
+ const onName=(name:string)=>{if(!plan.original_code&&!slugTouched){const slug=slugify(name);setPlan({...plan,name,slug,code:slug})}else setPlan({...plan,name})};
+ const onSlug=(slugRaw:string)=>{const slug=slugify(slugRaw);setSlugTouched(true);setPlan({...plan,slug,code:plan.original_code?plan.code:slug})};
+ return <>
+  <section className={styles.card}><div className={styles.plansToolbar}><div><span className={styles.eyebrow}>Configured plans</span><h2>{plans.length} plans</h2><p className={styles.help}>Customer pricing is generated from these plans. Archived plans remain here for history but cannot accept new subscriptions.</p></div><button className={styles.primary} onClick={newPlan}>+ New Plan</button></div></section>
+  {editorOpen&&<section className={styles.card}><div className={styles.cardHead}><div><span className={styles.eyebrow}>Plan editor</span><h2>{plan.original_code?`Edit ${plan.name||plan.original_code}`:"Create subscription plan"}</h2>{plan.original_code&&<small className={styles.internalCode}>Internal code: {plan.original_code}</small>}</div><button className={styles.secondary} onClick={()=>setEditorOpen(false)}>Close</button></div>
+   <div className={styles.formGrid}><label>Plan name<input value={plan.name} onChange={e=>onName(e.target.value)} placeholder="Starter" maxLength={80}/></label><label>Plan slug<input value={plan.slug} onChange={e=>onSlug(e.target.value)} placeholder="starter" maxLength={60}/><small>Used as the editable public slug. Existing subscription history keeps the stable internal code.</small></label><label className={styles.wide}>Description<textarea value={plan.description} onChange={e=>setPlan({...plan,description:e.target.value})} placeholder="Everything you need to launch your Mini Store." maxLength={300}/></label>
+    <label>Monthly price (NGN)<input type="number" min="0" step="0.01" value={plan.monthly} onChange={e=>setPlan({...plan,monthly:e.target.value})} placeholder="0 or leave blank"/></label><label>Annual price (NGN)<input type="number" min="0" step="0.01" value={plan.annual} onChange={e=>setPlan({...plan,annual:e.target.value})} placeholder="0 or leave blank"/></label><div className={styles.checks}><label><input type="checkbox" checked={plan.monthly_enabled} onChange={e=>setPlan({...plan,monthly_enabled:e.target.checked})}/> Allow monthly billing</label><label><input type="checkbox" checked={plan.annual_enabled} onChange={e=>setPlan({...plan,annual_enabled:e.target.checked})}/> Allow annual billing</label></div>
+    <label>API key limit<input type="number" min="0" max="100" value={plan.api_key_limit} onChange={e=>setPlan({...plan,api_key_limit:e.target.value})}/></label><label>Custom domain limit<input type="number" min="0" max="20" value={plan.custom_domain_limit} onChange={e=>setPlan({...plan,custom_domain_limit:e.target.value})}/></label><div className={styles.checks}><label><input type="checkbox" checked={plan.api_access} onChange={e=>setPlan({...plan,api_access:e.target.checked})}/> API access</label><label><input type="checkbox" checked={plan.custom_domain} onChange={e=>setPlan({...plan,custom_domain:e.target.checked})}/> Custom domains</label></div>
+    <div className={`${styles.checks} ${styles.wide}`}><label><input type="checkbox" checked={plan.is_public} onChange={e=>setPlan({...plan,is_public:e.target.checked})}/> Public plan</label><label><input type="checkbox" checked={plan.is_active} onChange={e=>setPlan({...plan,is_active:e.target.checked})}/> Active plan</label><label><input type="checkbox" checked={plan.is_featured} onChange={e=>setPlan({...plan,is_featured:e.target.checked})}/> Featured / Recommended</label></div>
+   </div><p className={styles.help}>₦0 is valid. Monthly and annual billing are independent. An active public plan needs at least one enabled price.</p><button className={styles.primary} disabled={busy==="plan-save"} onClick={savePlan}>{busy==="plan-save"?"Saving…":"Save Plan"}</button>
+  </section>}
+  <section className={styles.card}>{plans.length?<div className={styles.planGrid}>{plans.map((p,i)=><article key={p.code} className={`${styles.planCard} ${p.archived_at?styles.archivedCard:""}`}><div className={styles.planCardHead}><div><b>{p.name}</b><small>{p.slug||p.code}</small></div><div className={styles.planBadges}>{p.is_featured&&<span className={styles.ready}>Recommended</span>}<span className={p.archived_at?styles.muted:p.is_active?styles.good:styles.warn}>{p.archived_at?"Archived":p.is_active?"Active":"Inactive"}</span><span className={p.is_public&&!p.archived_at?styles.good:styles.muted}>{p.is_public&&!p.archived_at?"Public":"Private"}</span></div></div>{p.description&&<p className={styles.planDescription}>{p.description}</p>}<div className={styles.planPriceLine}><strong>{p.monthly_enabled&&p.monthly_price_ngn!=null?`${money(p.monthly_price_ngn)}/mo`:"No monthly"}</strong><small>{p.annual_enabled&&p.annual_price_ngn!=null?`${money(p.annual_price_ngn)}/yr`:"No annual"}</small></div><div className={styles.featureLine}><span>API {p.features?.api_access?"✓":"—"}</span><span>Keys {p.features?.api_key_limit??0}</span><span>Domain {p.features?.custom_domain?"✓":"—"}</span><span>Domains {p.features?.custom_domain_limit??0}</span></div><button className={styles.subscriberButton} disabled={busy===`subs-${p.code}`} onClick={()=>void viewSubscribers(p)}>Subscribers: {p.subscriber_count||0}{Number(p.active_subscriber_count||0)>0?` · ${p.active_subscriber_count} active`:""}</button><div className={styles.planFooter}><div className={styles.orderButtons}><button disabled={i===0||busy==="reorder"} onClick={()=>void movePlan(i,-1)}>↑</button><button disabled={i===plans.length-1||busy==="reorder"} onClick={()=>void movePlan(i,1)}>↓</button></div><details className={styles.planMenu}><summary aria-label={`Manage ${p.name}`}>•••</summary><div><button onClick={()=>editPlan(p)}>Edit</button><button onClick={()=>duplicatePlan(p)}>Duplicate</button>{!p.archived_at&&<button disabled={busy===`toggle-${p.code}`} onClick={()=>void togglePlan(p)}>{p.is_active?"Deactivate":"Activate"}</button>}<button className={styles.menuDanger} disabled={busy===`remove-${p.code}`} onClick={()=>void removePlan(p)}>{Number(p.subscriber_count||0)>0?"Archive":"Delete"}</button></div></details></div></article>)}</div>:<div className={styles.empty}>No reseller plans configured yet. Select + New Plan to create the first one.</div>}</section>
+  {details&&<section className={styles.card}><div className={styles.cardHead}><div><span className={styles.eyebrow}>Subscribers</span><h2>{details.plan?.name||details.plan?.code}</h2><p className={styles.help}>{details.plan?.subscriber_count||0} historical subscriber{Number(details.plan?.subscriber_count||0)===1?"":"s"}</p></div><button className={styles.secondary} onClick={closeDetails}>Close</button></div>{Array.isArray(details.subscribers)&&details.subscribers.length?<div className={styles.tableWrap}><table><thead><tr><th>Customer / Reseller</th><th>Email</th><th>Plan</th><th>Billing period</th><th>Started</th><th>Expires</th><th>Status</th></tr></thead><tbody>{details.subscribers.map((s:any)=><tr key={s.subscription_id}><td>{s.customer_reseller}</td><td>{s.email}</td><td>{s.plan_code}</td><td>{s.billing_cycle}</td><td>{date(s.starts_at||s.created_at)}</td><td>{date(s.expires_at)}</td><td><span className={s.status==="active"?styles.good:s.status==="pending"?styles.warn:styles.muted}>{s.status}</span></td></tr>)}</tbody></table></div>:<div className={styles.empty}>No subscriptions have used this plan yet.</div>}</section>}
+ </>;
 }
 
 function Accounts({accounts,query,setQuery,load,changeStatus,busy}:{accounts:any[];query:string;setQuery:(s:string)=>void;load:()=>Promise<void>;changeStatus:(r:any)=>void;busy:string}){
