@@ -36,6 +36,9 @@ const pageChecks = [
   ["/reseller/customers", ["Customers"]],
   ["/reseller/finance", ["Money movement", "Settlement Account", "Withdraw Mini Store funds"]],
   ["/reseller/notifications", ["Notifications"]],
+  ["/store/johnsms/rent-number", ["Rent Number"]],
+  ["/store/johnsms/rentals", ["My Rentals"]],
+  ["/admin/rentals", []],
   ["/api/v1/docs", []],
 ];
 for (const [path, snippets] of pageChecks) {
@@ -46,9 +49,7 @@ for (const [path, snippets] of pageChecks) {
   }
 }
 
-// The Mini Store intentionally supports Numbers, Marketplace and Boostly only.
-// These public, purchase-free checks guard its fail-closed routing and ensure
-// Rentals or Temp Mail are not silently exposed by later frontend changes.
+// Public, purchase-free Mini Store checks guard fail-closed routing.
 const invalidStore = await expectStatus("/store/a", 404);
 if (!/no-store/i.test(invalidStore.response.headers.get("cache-control") || "")) fail("/store/a: missing no-store cache policy");
 else pass("/store/a: fail-closed cache policy");
@@ -73,14 +74,33 @@ for (const supported of ["wickspend/store/numbers/buy", "wickspend/store/marketp
   if (!storeScript.text.includes(supported)) fail(`Mini Store app: missing supported route ${supported}`);
   else pass(`Mini Store app: exposes ${supported}`);
 }
-for (const skipped of ["wickspend/store/rentals/", "wickspend/store/temp-mail/"]) {
-  if (storeScript.text.includes(skipped)) fail(`Mini Store app: unexpectedly exposes skipped route ${skipped}`);
-  else pass(`Mini Store app: does not expose ${skipped}`);
+const storefrontRouteSource = await import("node:fs/promises").then(({ readFile }) => readFile("app/store/[slug]/route.ts", "utf8"));
+for (const rentalLink of ["rent-number", "rentals"]) {
+  if (!storefrontRouteSource.includes(rentalLink)) fail(`Mini Store route: missing ${rentalLink} navigation`);
+  else pass(`Mini Store route: exposes ${rentalLink} navigation`);
 }
+if (storeScript.text.includes("wickspend/store/temp-mail/")) fail("Mini Store app: unexpectedly exposes Temp Mail");
+else pass("Mini Store app: does not expose Temp Mail");
 
 const storeSession = await expectStatus("/webhook/wickspend/store/auth/session", 401);
 if (storeSession.json?.code !== "UNAUTHORIZED") fail("Mini Store session: expected UNAUTHORIZED");
 else pass("Mini Store session boundary rejects missing customer token");
+
+const rentalCatalog = await expectStatus("/webhook/wickspend/store/catalog/rentals?store_slug=johnsms", 200);
+if (!Array.isArray(rentalCatalog.json?.services) && !Array.isArray(rentalCatalog.json?.items)) fail("Mini Store rentals: catalog has no dynamic services");
+else pass("Mini Store rentals: dynamic catalog is available");
+
+for (const protectedRentalPath of ["rentals/orders", "rentals/status?reference=SMOKE-NOT-REAL"]) {
+  const result = await expectStatus(`/webhook/wickspend/store/${protectedRentalPath}`, 401);
+  if (result.json?.code !== "UNAUTHORIZED") fail(`Mini Store ${protectedRentalPath}: expected UNAUTHORIZED`);
+}
+
+const unauthenticatedRentalBuy = await expectStatus("/webhook/wickspend/store/rentals/buy", 401, {
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({store_slug:"johnsms",country_code:"US",service_code:"wa",duration_minutes:1440,request_key:"smoke-store-rental-no-session"}),
+});
+if (unauthenticatedRentalBuy.json?.code !== "UNAUTHORIZED") fail("Mini Store rental buy: expected auth rejection before provider or wallet mutation");
 
 for (const catalogPath of [
   `/webhook/wickspend/store/catalog/numbers?store_slug=${missingSlug}`,

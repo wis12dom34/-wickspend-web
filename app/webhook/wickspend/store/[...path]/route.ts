@@ -13,6 +13,13 @@ const DYNAMIC_NUMBER_FILTERS = `
 async function loadNumberFilters(){var country=document.getElementById('country'),service=document.getElementById('service'),x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)),countries=x.j.countries||[];if(x.j.ok&&countries.length){country.innerHTML=countries.map(function(v){return '<option value="'+esc(v.country_code)+'">'+esc((v.flag||'🌐')+' '+(v.country_name||v.iso_code||v.country_code))+'</option>'}).join('');var preferred=countries.find(function(v){return v.country_name==='United States'})||countries[0];country.value=String(preferred.country_code)}country.onchange=async function(){await loadNumberServices();await loadNumberCatalog()};service.onchange=loadNumberCatalog;var initialService=service.value;await Promise.all([loadNumberCatalog(),loadNumberServices()]);if(service.value!==initialService)await loadNumberCatalog()}
 async function loadNumberServices(){var country=document.getElementById('country'),service=document.getElementById('service'),previous=service.value;service.disabled=true;service.innerHTML='<option>Loading services…</option>';var x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)+'&country_code='+encodeURIComponent(country.value)),names={};(x.j.items||[]).forEach(function(v){var code=String(v.service_code||'').trim();if(code&&Number(v.available||v.count||0)>0&&!names[code])names[code]=v.service_name||code.toUpperCase()});var codes=Object.keys(names).sort(function(a,b){return String(names[a]).localeCompare(String(names[b]))});service.innerHTML=codes.length?codes.map(function(code){return '<option value="'+esc(code)+'">'+esc(names[code])+'</option>'}).join(''):'<option value="">No services available</option>';var preferred=codes.indexOf(previous)>=0?previous:(codes.indexOf('telegram')>=0?'telegram':(codes.indexOf('wa')>=0?'wa':codes[0]));if(preferred)service.value=preferred;service.disabled=!codes.length}
 `;
+const RENTAL_SAFE_CODES = new Set([
+  "UNAUTHORIZED", "INVALID_OR_EXPIRED_SESSION", "INSUFFICIENT_BALANCE",
+  "RENTALS_DISABLED", "SERVICE_DISABLED", "SERVICE_NOT_FOUND",
+  "RENTAL_UNAVAILABLE", "NUMBER_UNAVAILABLE", "RENTAL_NOT_FOUND",
+  "RENTAL_EXPIRED", "SMS_NOT_RECEIVED", "PROVIDER_TIMEOUT",
+  "DUPLICATE_REQUEST", "STORE_NOT_FOUND", "STORE_UNAVAILABLE",
+]);
 
 type ProxyContext = { params: Promise<{ path: string[] }> };
 
@@ -60,6 +67,23 @@ async function proxy(request: Request, context: ProxyContext) {
   }
   if (!responseHeaders.has("Cache-Control")) responseHeaders.set("Cache-Control", "no-store");
   const upstreamBody = await upstream.arrayBuffer();
+  const isRentalPath = safePath === "catalog/rentals" || safePath.startsWith("rentals/");
+  if (isRentalPath && !upstream.ok) {
+    let upstreamCode = "";
+    try {
+      const parsed = JSON.parse(new TextDecoder().decode(upstreamBody));
+      upstreamCode = String(parsed?.code || parsed?.error || "").toUpperCase();
+    } catch {}
+    const code = RENTAL_SAFE_CODES.has(upstreamCode)
+      ? upstreamCode
+      : upstream.status === 401 ? "UNAUTHORIZED"
+        : upstream.status === 402 ? "INSUFFICIENT_BALANCE"
+          : upstream.status === 404 ? "RENTAL_NOT_FOUND"
+            : upstream.status === 504 ? "PROVIDER_TIMEOUT"
+              : "RENTAL_FAILED";
+    responseHeaders.set("Content-Type", "application/json; charset=utf-8");
+    return Response.json({ ok:false, code }, { status: upstream.status, headers: responseHeaders });
+  }
   if (safePath === "auth/password/reset" && upstream.ok) {
     responseHeaders.set("Content-Type", "application/json; charset=utf-8");
     return Response.json({ ok: true, password_reset: true }, { status: 200, headers: responseHeaders });
