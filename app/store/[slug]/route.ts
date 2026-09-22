@@ -1,3 +1,5 @@
+import { MINI_STORE_LANDING_STYLES, renderMiniStoreLanding, type MiniStoreLandingStore } from "./customer-landing";
+
 const STORE_APP_URL = "https://n8n.wickspend.com/webhook/wickspend/store/app";
 const STORE_RESOLVE_URL = "https://n8n.wickspend.com/webhook/wickspend/store/resolve";
 const APP_SCRIPT = '<script src="/webhook/wickspend/store/app.js"></script>';
@@ -79,6 +81,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   let resolved = false;
   let rentalsEnabled = true;
+  let storeMeta: MiniStoreLandingStore = { slug, rent_number_enabled: true };
   try {
     const check = await fetch(`${STORE_RESOLVE_URL}?slug=${encodeURIComponent(slug)}`, {
       cache: "no-store",
@@ -86,9 +89,17 @@ export async function GET(_request: Request, context: RouteContext) {
       headers: { Accept: "application/json", "X-Forwarded-Host": "wickspend.com" },
     });
     if (check.ok) {
-      const payload = await check.json().catch(() => null) as { ok?: boolean; store?: { rent_number_enabled?: boolean } } | null;
+      const payload = await check.json().catch(() => null) as {
+        ok?: boolean;
+        store?: Omit<MiniStoreLandingStore, "slug"> & { slug?: string };
+      } | null;
       resolved = payload?.ok === true;
       rentalsEnabled = payload?.store?.rent_number_enabled !== false;
+      storeMeta = {
+        ...payload?.store,
+        slug,
+        rent_number_enabled: rentalsEnabled,
+      };
     } else if (check.status === 404) {
       return brandedPage("Store unavailable", "This store is not available right now. Check the link or contact the store owner.", 404);
     } else if (check.status === 403 || check.status === 409) {
@@ -132,6 +143,12 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!body.includes('data-wick-reset-style')) {
     body = body.replace('</head>', PASSWORD_RESET_STYLES + '</head>');
   }
+  if (!body.includes('data-wick-store-landing-v1')) {
+    body = body.replace('</head>', MINI_STORE_LANDING_STYLES + '</head>');
+  }
+  if (!body.includes('rel="icon"') && !body.includes("rel='icon'")) {
+    body = body.replace('</head>', '<link rel="icon" href="data:,"></head>');
+  }
 
   // Rental screens live in the existing Next.js Mini Store route tree while
   // the shared customer session and wallet remain owned by the Store backend.
@@ -173,8 +190,16 @@ export async function GET(_request: Request, context: RouteContext) {
     var originalRegister=window.register;
     if(typeof originalRegister==='function'){window.register=async function(){var password=document.getElementById('regPassword'),confirmPassword=document.getElementById('regConfirmPassword');var p=password&&password.value||'',c=confirmPassword&&confirmPassword.value||'';if(p.length<8){return window.note('Password must be at least 8 characters.',true)}if(p!==c){return window.note('Passwords do not match.',true)}return originalRegister()}}
   })();</script>`;
+  const landing = renderMiniStoreLanding(storeMeta);
+  if (!body.includes('id="wickStorefront"')) {
+    body = body.replace('<body>', `<body class="wick-landing-active">${landing.html}`);
+  }
+
   const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}${authFixScript}${PASSWORD_RESET_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
-  const html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
+  let html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
+  if (!html.includes('data-wick-store-landing-script')) {
+    html = html.replace('</body>', landing.script + '</body>');
+  }
   const headers = new Headers();
   for (const name of ["content-type", "content-security-policy", "x-content-type-options", "referrer-policy"]) {
     const value = upstream.headers.get(name);
