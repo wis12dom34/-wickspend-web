@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
+import {FormEvent,useEffect,useMemo,useRef,useState,type ReactNode} from "react";
 import {useRouter} from "next/navigation";
 import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
@@ -24,11 +24,11 @@ const supportedCodes=new Set<CurrencyCode>(currencies.map(c=>c.code));
 const asCurrency=(value:unknown):CurrencyCode|null=>{const code=String(value||"").toUpperCase() as CurrencyCode;return supportedCodes.has(code)?code:null};
 const balanceOf=(v:any)=>v?.balance_ngn??v?.wallet_balance_ngn??v?.balance??v?.wallet?.balance_ngn??v?.data?.balance_ngn??v?.data?.balance;
 const preferenceOf=(v:any)=>asCurrency(v?.preferred_currency??v?.display_currency??v?.currency_code??v?.wallet?.preferred_currency??v?.data?.preferred_currency);
-const moneyNgn=(v:unknown)=>{const n=Number(v);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"};
+const moneyNgn=(v:unknown)=>{if(v===null||v===undefined||v==="")return"—";const n=Number(v);return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—"};
 function paymentUrl(payload:any){const raw=payload?.checkout_url||payload?.payment_url||payload?.authorization_url||payload?.data?.checkout_url||payload?.data?.payment_url||payload?.data?.authorization_url;if(!raw)return"";try{const url=new URL(String(raw),window.location.origin);return url.protocol==="https:"||url.protocol==="http:"?url.toString():""}catch{return""}}
 
 function CurrencyIcon({code}:{code:CurrencyCode}){
-  const flag=(children:React.ReactNode)=><svg viewBox="0 0 18 14" aria-hidden="true" focusable="false">{children}</svg>;
+  const flag=(children:ReactNode)=><svg viewBox="0 0 18 14" aria-hidden="true" focusable="false">{children}</svg>;
   if(code==="NGN")return flag(<><rect width="18" height="14" rx="1.5" fill="#fff"/><rect width="6" height="14" rx="1.5" fill="#008751"/><rect x="12" width="6" height="14" rx="1.5" fill="#008751"/></>);
   if(code==="GHS")return flag(<><rect width="18" height="4.67" rx="1.5" fill="#CE1126"/><rect y="4.67" width="18" height="4.67" fill="#FCD116"/><rect y="9.34" width="18" height="4.66" rx="1.5" fill="#006B3F"/><path d="m9 5.6.54 1.08 1.2.18-.87.84.2 1.2L9 8.34 7.93 8.9l.2-1.2-.87-.84 1.2-.18L9 5.6Z" fill="#111"/></>);
   if(code==="KES")return flag(<><rect width="18" height="4.1" rx="1.4" fill="#111"/><rect y="4.1" width="18" height="1" fill="#fff"/><rect y="5.1" width="18" height="3.8" fill="#BB0000"/><rect y="8.9" width="18" height="1" fill="#fff"/><rect y="9.9" width="18" height="4.1" rx="1.4" fill="#006600"/><ellipse cx="9" cy="7" rx="1.7" ry="4.1" fill="#BB0000" stroke="#fff" strokeWidth=".6"/><path d="M7.9 4.1 10.1 9.9M10.1 4.1 7.9 9.9" stroke="#111" strokeWidth=".65"/></>);
@@ -57,7 +57,8 @@ export default function AddFunds(){
   const value=Number(amount);
   const validAmount=selected.code==="NGN"&&Number.isFinite(value)&&Number.isInteger(value)&&value>=500;
   const canContinue=hydrated&&selected.fundingSupported&&validAmount&&!busy;
-  const methodText=!hydrated?"Loading funding methods…":selected.fundingSupported?"KoraPay secure checkout":"Funding method not available yet";
+  const methodValue=!hydrated?"loading":selected.fundingSupported?"korapay":"unavailable";
+  const methodText=methodValue==="loading"?"Loading funding methods…":methodValue==="korapay"?"KoraPay secure checkout":"Funding method not available yet";
   const walletValue=walletState==="loading"?"Loading…":hidden?"••••••":moneyNgn(balance);
 
   function selectCurrency(code:CurrencyCode){requestSeq.current++;setSelectedCode(code);setMessage("")}
@@ -86,7 +87,7 @@ export default function AddFunds(){
       <div className={`${styles.amountBox} ${selected.fundingSupported?"":styles.unavailableField}`}><span className={styles.amountSymbol}>{selected.symbol}</span><input id="fundingAmount" type="number" inputMode="decimal" step="1" min={selected.code==="NGN"?500:undefined} value={amount} disabled={busy} aria-describedby="fundingMinimum" onChange={e=>{requestSeq.current++;setAmount(e.target.value);setMessage("")}}/></div>
 
       <label className={styles.fieldLabel} htmlFor="fundingMethod">Funding Method</label>
-      <div className={`${styles.methodBox} ${selected.fundingSupported?"":styles.unavailableField}`}><select id="fundingMethod" value={selected.fundingSupported?"korapay":"unavailable"} disabled={!selected.fundingSupported||busy} aria-label={`Funding method for ${selected.code}`} onChange={()=>{}}><option value="korapay">KoraPay secure checkout</option><option value="unavailable">Funding method not available yet</option></select><span aria-hidden="true">⌄</span></div>
+      <div className={`${styles.methodBox} ${selected.fundingSupported?"":styles.unavailableField}`}><select id="fundingMethod" value={methodValue} disabled={methodValue!=="korapay"||busy} aria-label={`Funding method for ${selected.code}`} onChange={()=>{}}>{methodValue==="loading"?<option value="loading">Loading funding methods…</option>:methodValue==="korapay"?<option value="korapay">KoraPay secure checkout</option>:<option value="unavailable">Funding method not available yet</option>}</select><span aria-hidden="true">⌄</span></div>
 
       <p className={styles.minimum} id="fundingMinimum">{selected.code==="NGN"?"Minimum for NGN: ₦500":methodText}</p>
       {selected.code!=="NGN"&&<p className={styles.availabilityNote}>Direct {selected.code} funding is not enabled by the current wallet backend. No conversion or deposit address will be created.</p>}
