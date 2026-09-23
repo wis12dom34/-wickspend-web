@@ -34,5 +34,16 @@ export function formatTutorialDate(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-GB", { month: "short", day: "numeric", year: "numeric", timeZone: "Africa/Lagos" }).format(date);
+}
+
+export function tutorialSlug(tutorial: Tutorial): string {
+  const base = String(tutorial.title || "tutorial")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72) || "tutorial";
+  return `${base}-${tutorial.id}`;
 }
