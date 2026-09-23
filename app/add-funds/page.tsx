@@ -64,7 +64,7 @@ export default function AddFunds(){
   function selectCurrency(code:CurrencyCode){requestSeq.current++;setSelectedCode(code);setMessage("")}
   async function submit(e:FormEvent){e.preventDefault();if(!canContinue)return;const token=getSessionToken();if(!token){setMessage("Secure sign in is required before funding your wallet. Redirecting to login…");window.setTimeout(()=>router.push("/login?next=%2Fadd-funds&secure=1"),350);return}const seq=++requestSeq.current;setBusy(true);setMessage("Creating secure payment…");try{const r:any=await api.wallet.initializeFunding(token,value);if(seq!==requestSeq.current)return;const url=paymentUrl(r);if(!url)throw new Error("A valid payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(url)}catch(err){if(seq===requestSeq.current)setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{if(seq===requestSeq.current)setBusy(false)}}
 
-  return <main className="shell appShell"><div className={styles.screen}>
+  return <main className={styles.page}><div className={styles.screen}>
     <header className={styles.header}><h1>Add Funds</h1><p>Fund your WickSpend wallet securely.</p></header>
 
     <section className={styles.balanceCard} aria-busy={walletState==="loading"}>
