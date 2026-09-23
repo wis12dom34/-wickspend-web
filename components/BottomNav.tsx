@@ -22,7 +22,7 @@ function NavIcon({name,active}:{name:IconName;active:boolean}) {
   return <svg {...common}><path d="M3.5 7.2h15.2a1.8 1.8 0 0 1 1.8 1.8v9.3a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M3.8 7.3 16.6 4a1.5 1.5 0 0 1 1.9 1.5v1.7M15.7 12.1h4.8v4.1h-4.8a2 2 0 0 1 0-4.1Z"/></svg>;
 }
 
-export function BottomNav() {
+export function BottomNav({activeHref}:{activeHref?:string}={}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -38,5 +38,5 @@ export function BottomNav() {
     return()=>button.removeEventListener("click",openReferral);
   },[pathname,router]);
 
-  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`);return <Link href={href} prefetch className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
+  return <nav className="bottomNav" aria-label="Primary navigation">{items.map(([icon,label,href])=>{const active=activeHref?href===activeHref:(href==="/"?pathname==="/":pathname===href||pathname.startsWith(`${href}/`));return <Link href={href} prefetch className={`navItem${active?" active":""}`} aria-current={active?"page":undefined} key={href}><span className="navIcon"><NavIcon name={icon} active={active}/></span><span className="navLabel">{label}</span></Link>})}</nav>;
 }
