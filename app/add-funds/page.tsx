@@ -9,16 +9,16 @@ import {getSessionToken} from "@/lib/session";
 import styles from "./add-funds.module.css";
 
 type CurrencyCode="NGN"|"GHS"|"KES"|"ZAR"|"XAF"|"XOF"|"USDT"|"USDC";
-type Currency={code:CurrencyCode;symbol:string;name:string;fundingSupported:boolean};
+type Currency={code:CurrencyCode;name:string};
 const currencies:Currency[]=[
-  {code:"NGN",symbol:"₦",name:"Nigerian Naira",fundingSupported:true},
-  {code:"GHS",symbol:"GH₵",name:"Ghanaian Cedi",fundingSupported:false},
-  {code:"KES",symbol:"KSh",name:"Kenyan Shilling",fundingSupported:false},
-  {code:"ZAR",symbol:"R",name:"South African Rand",fundingSupported:false},
-  {code:"XAF",symbol:"FCFA",name:"Central African CFA",fundingSupported:false},
-  {code:"XOF",symbol:"CFA",name:"West African CFA",fundingSupported:false},
-  {code:"USDT",symbol:"USDT",name:"Tether",fundingSupported:false},
-  {code:"USDC",symbol:"USDC",name:"USD Coin",fundingSupported:false},
+  {code:"NGN",name:"Nigerian Naira"},
+  {code:"GHS",name:"Ghanaian Cedi"},
+  {code:"KES",name:"Kenyan Shilling"},
+  {code:"ZAR",name:"South African Rand"},
+  {code:"XAF",name:"Central African CFA"},
+  {code:"XOF",name:"West African CFA"},
+  {code:"USDT",name:"Tether"},
+  {code:"USDC",name:"USD Coin"},
 ];
 const supportedCodes=new Set<CurrencyCode>(currencies.map(c=>c.code));
 const asCurrency=(value:unknown):CurrencyCode|null=>{const code=String(value||"").toUpperCase() as CurrencyCode;return supportedCodes.has(code)?code:null};
@@ -55,15 +55,14 @@ export default function AddFunds(){
 
   const selected=useMemo(()=>currencies.find(c=>c.code===selectedCode)||currencies[0],[selectedCode]);
   const value=Number(amount);
-  const validAmount=selected.code==="NGN"&&amount.trim()!==""&&Number.isFinite(value)&&Number.isInteger(value)&&value>=500;
-  const amountIssue=selected.code!=="NGN"||amount.trim()===""?"":!Number.isFinite(value)?"Enter a valid NGN amount.":!Number.isInteger(value)?"Enter a whole NGN amount.":value<500?"Minimum for NGN: ₦500":"";
-  const canContinue=hydrated&&selected.fundingSupported&&validAmount&&!busy;
-  const methodValue=!hydrated?"loading":selected.fundingSupported?"korapay":"unavailable";
-  const methodText=methodValue==="loading"?"Loading funding methods…":methodValue==="korapay"?"KoraPay secure checkout":"Funding method not available yet";
+  const validAmount=amount.trim()!==""&&Number.isFinite(value)&&Number.isInteger(value)&&value>=500;
+  const amountIssue=amount.trim()===""?"":!Number.isFinite(value)?"Enter a valid NGN amount.":!Number.isInteger(value)?"Enter a whole NGN amount.":value<500?"Minimum wallet top-up: ₦500":"";
+  const canContinue=hydrated&&validAmount&&!busy;
+  const methodValue=!hydrated?"loading":"korapay";
   const walletValue=walletState==="loading"?"Loading…":hidden?"••••••":moneyNgn(balance);
 
-  function selectCurrency(code:CurrencyCode){requestSeq.current++;const next=currencies.find(c=>c.code===code);if(!next?.fundingSupported){setMessage(`${code} funding is coming soon. Use NGN to continue to KoraPay.`);return}setSelectedCode(code);setMessage("")}
-  async function submit(e:FormEvent){e.preventDefault();if(!canContinue)return;const token=getSessionToken();if(!token){setMessage("Secure sign in is required before funding your wallet. Redirecting to login…");window.setTimeout(()=>router.push("/login?next=%2Fadd-funds&secure=1"),350);return}const seq=++requestSeq.current;setBusy(true);setMessage("Creating secure payment…");try{const r:any=await api.wallet.initializeFunding(token,value);if(seq!==requestSeq.current)return;const url=paymentUrl(r);if(!url)throw new Error("A valid payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(url)}catch(err){if(seq===requestSeq.current)setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{if(seq===requestSeq.current)setBusy(false)}}
+  function selectCurrency(code:CurrencyCode){requestSeq.current++;setSelectedCode(code);setMessage("")}
+  async function submit(e:FormEvent){e.preventDefault();if(!canContinue)return;const token=getSessionToken();if(!token){setMessage("Secure sign in is required before funding your wallet. Redirecting to login…");window.setTimeout(()=>router.push("/login?next=%2Fadd-funds&secure=1"),350);return}const seq=++requestSeq.current;setBusy(true);setMessage("Creating secure payment…");try{const r:any=await api.wallet.initializeFunding(token,value,selected.code);if(seq!==requestSeq.current)return;const url=paymentUrl(r);if(!url)throw new Error("A valid payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(url)}catch(err){if(seq===requestSeq.current)setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{if(seq===requestSeq.current)setBusy(false)}}
 
   return <main className={styles.page}><div className={styles.screen}>
     <header className={styles.header}><h1>Add Funds</h1><p>Fund your WickSpend wallet securely.</p></header>
@@ -76,22 +75,22 @@ export default function AddFunds(){
     </section>
 
     <section className={styles.fundingSection}>
-      <h2>Fund your wallet</h2><p className={styles.helper}>Fund with NGN now. More currencies are coming soon.</p>
-      <div className={styles.currencyHeading}><span>Funding Currency</span><b>NGN available</b></div>
-      <div className={styles.currencyGrid} role="group" aria-label="Funding currency">
-        {currencies.map(currency=><button key={currency.code} type="button" className={`${styles.currencyChip} ${selected.code===currency.code?styles.selected:""}`} aria-pressed={selected.code===currency.code} aria-label={`${currency.name}, ${currency.code}${currency.fundingSupported?"":", coming soon"}`} title={currency.fundingSupported?`${currency.code} funding`:`${currency.code} funding coming soon`} onClick={()=>selectCurrency(currency.code)} disabled={busy||!currency.fundingSupported}><span className={styles.currencyIcon}><CurrencyIcon code={currency.code}/></span><span>{currency.code}</span></button>)}
+      <h2>Fund your wallet</h2><p className={styles.helper}>Choose how you want to pay. Your WickSpend wallet is credited securely in NGN.</p>
+      <div className={styles.currencyHeading}><span>Payment Currency</span><b>8 currencies</b></div>
+      <div className={styles.currencyGrid} role="group" aria-label="Payment currency">
+        {currencies.map(currency=><button key={currency.code} type="button" className={`${styles.currencyChip} ${selected.code===currency.code?styles.selected:""}`} aria-pressed={selected.code===currency.code} aria-label={`${currency.name}, ${currency.code}`} title={`Pay with ${currency.code}`} onClick={()=>selectCurrency(currency.code)} disabled={busy}><span className={styles.currencyIcon}><CurrencyIcon code={currency.code}/></span><span>{currency.code}</span></button>)}
       </div>
     </section>
 
     <form onSubmit={submit} aria-busy={busy} className={styles.form}>
-      <label className={styles.fieldLabel} htmlFor="fundingAmount">Amount</label>
-      <div className={`${styles.amountBox} ${selected.fundingSupported?"":styles.unavailableField}`}><span className={styles.amountSymbol}>{selected.symbol}</span><input id="fundingAmount" type="number" inputMode="decimal" step="1" min={selected.code==="NGN"?500:undefined} value={amount} disabled={busy} aria-invalid={Boolean(amountIssue)} aria-describedby="fundingMinimum" onChange={e=>{requestSeq.current++;setAmount(e.target.value);setMessage("")}}/></div>
+      <label className={styles.fieldLabel} htmlFor="fundingAmount">Amount to add (NGN)</label>
+      <div className={styles.amountBox}><span className={styles.amountSymbol}>₦</span><input id="fundingAmount" type="number" inputMode="decimal" step="1" min={500} value={amount} disabled={busy} aria-invalid={Boolean(amountIssue)} aria-describedby="fundingMinimum" onChange={e=>{requestSeq.current++;setAmount(e.target.value);setMessage("")}}/></div>
 
       <label className={styles.fieldLabel} htmlFor="fundingMethod">Funding Method</label>
-      <div className={`${styles.methodBox} ${selected.fundingSupported?"":styles.unavailableField}`}><select id="fundingMethod" value={methodValue} disabled={methodValue!=="korapay"||busy} aria-label={`Funding method for ${selected.code}`} onChange={()=>{}}>{methodValue==="loading"?<option value="loading">Loading funding methods…</option>:methodValue==="korapay"?<option value="korapay">KoraPay secure checkout</option>:<option value="unavailable">Funding method not available yet</option>}</select><span aria-hidden="true">⌄</span></div>
+      <div className={styles.methodBox}><select id="fundingMethod" value={methodValue} disabled={methodValue!=="korapay"||busy} aria-label={`Funding method for ${selected.code}`} onChange={()=>{}}>{methodValue==="loading"?<option value="loading">Loading funding methods…</option>:<option value="korapay">KoraPay secure checkout</option>}</select><span aria-hidden="true">⌄</span></div>
 
-      <p className={`${styles.minimum} ${amountIssue?styles.minimumError:""}`} id="fundingMinimum">{selected.code==="NGN"?(amountIssue||"Minimum for NGN: ₦500"):methodText}</p>
-      {selected.code!=="NGN"&&<p className={styles.availabilityNote}>Direct {selected.code} funding is not enabled by the current wallet backend. No conversion or deposit address will be created.</p>}
+      <p className={`${styles.minimum} ${amountIssue?styles.minimumError:""}`} id="fundingMinimum">{amountIssue||"Minimum wallet top-up: ₦500"}</p>
+      {selected.code!=="NGN"&&<p className={styles.availabilityNote}>At checkout, KoraPay handles the {selected.code} payment. WickSpend credits only the exact NGN top-up after verified settlement.</p>}
       {selected.code==="NGN"&&walletState==="error"&&<p className={styles.availabilityNote}>Wallet balance is temporarily unavailable, but you can still start a secure NGN funding payment.</p>}
       <button className={styles.cta} type="submit" disabled={!canContinue}>{busy?"Preparing payment…":"Continue"}</button>
       {message&&<p className={styles.message} role="status">{message}</p>}
