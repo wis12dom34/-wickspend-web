@@ -3,7 +3,7 @@ name: Reconcile Production Snapshot
 on:
   push:
     branches:
-      - reconcile/production-vps-20260924-final
+      - fix/reconcile-production-vps-20260924
     paths:
       - .github/workflows/reconcile-production.yml
 
@@ -23,9 +23,9 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSL --retry 3 --retry-delay 2 \
-            https://wickspend.com/reconcile-source-20260924-29329a17.tar.gz \
+            http://84.247.160.76/reconcile-source-20260924-98b4002d.tar.gz \
             -o /tmp/reconcile.tar.gz
-          echo '29329a173f4e09d504a3f42da3b5f98c650dd7add4eca487f8f986157b18a52f  /tmp/reconcile.tar.gz' | sha256sum -c -
+          echo '98b4002d9fe43d9d224af5d0fa617a9de0412267f5a45db75f58b79fcb59b33e  /tmp/reconcile.tar.gz' | sha256sum -c -
 
       - name: Materialize exact tested source
         run: |
@@ -42,5 +42,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          git commit -m 'chore(production): reconcile verified VPS state'
-          git push origin HEAD:reconcile/production-vps-20260924-final
+          git commit -m 'chore(production): materialize verified VPS state'
+          git push origin HEAD:fix/reconcile-production-vps-20260924
