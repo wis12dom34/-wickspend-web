@@ -6,6 +6,15 @@ cd "$ROOT"
 
 run_next_build() {
   "$ROOT/node_modules/.bin/next" build
+  # Root-run VPS builds must remain writable by the runtime for ISR/fetch caches.
+  if [[ "$ROOT" == "/opt/wickspend-v2" && "$EUID" -eq 0 ]]; then
+    local runtime_user runtime_group
+    runtime_user="$(systemctl show wickspend-v2.service -p User --value)"
+    runtime_group="$(systemctl show wickspend-v2.service -p Group --value)"
+    if [[ -n "$runtime_user" ]]; then
+      chown -R "$runtime_user${runtime_group:+:$runtime_group}" "$ROOT/.next"
+    fi
+  fi
 }
 
 # Outside the production VPS checkout, keep normal Next.js build behavior.

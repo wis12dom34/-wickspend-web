@@ -1,0 +1,305 @@
+"use client";
+
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BottomNav } from "@/components/BottomNav";
+import { ApiError, api, newRequestKey } from "@/lib/api";
+import { getSessionToken } from "@/lib/session";
+import s from "./boostly.module.css";
+
+const platforms = [
+  {
+    name: "Instagram",
+    icon: "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cdefs%3E%3CradialGradient id=%22a%22 cx=%2230%25%22 cy=%22107%25%22 r=%22120%25%22%3E%3Cstop offset=%220%22 stop-color=%22%23ffd600%22/%3E%3Cstop offset=%22.3%22 stop-color=%22%23ff7a00%22/%3E%3Cstop offset=%22.55%22 stop-color=%22%23ff0169%22/%3E%3Cstop offset=%22.8%22 stop-color=%22%23d300c5%22/%3E%3Cstop offset=%221%22 stop-color=%22%237633fa%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%226%22 fill=%22url(%23a)%22/%3E%3Crect x=%226.4%22 y=%226.4%22 width=%2211.2%22 height=%2211.2%22 rx=%223.6%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.9%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22/%3E%3Ccircle cx=%2216.35%22 cy=%227.65%22 r=%221.05%22 fill=%22white%22/%3E%3C/svg%3E",
+  },
+  { name: "TikTok", icon: "https://cdn.simpleicons.org/tiktok/000000" },
+  { name: "Facebook", icon: "https://cdn.simpleicons.org/facebook/0866FF" },
+  { name: "YouTube", icon: "https://cdn.simpleicons.org/youtube/FF0000" },
+  { name: "X (Twitter)", icon: "https://cdn.simpleicons.org/x/000000" },
+  { name: "Telegram", icon: "https://cdn.simpleicons.org/telegram/26A5E4" },
+  { name: "Pinterest", icon: "https://cdn.simpleicons.org/pinterest/BD081C" },
+  { name: "Other", icon: null },
+] as const;
+
+const serviceId = (x: any) => String(x?.service_id || x?.id || x?.code || "");
+const nameOf = (x: any) => String(x?.name || x?.title || x?.service_name || "Boostly service");
+const customerRateOverrides: Record<string, number> = { "4911": 12431 };
+const price = (x: any) => {
+  const override = customerRateOverrides[serviceId(x)];
+  if (override != null) return override;
+  const raw = x?.price_per_1000_ngn ?? x?.price_ngn ?? x?.final_price_ngn ?? x?.rate_ngn ?? x?.price ?? x?.rate ?? null;
+  const n = Number(raw);
+  return raw != null && Number.isFinite(n) ? n : null;
+};
+const orderFee = (x: any) => {
+  const n = Number(x?.order_fee_ngn ?? 0);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+const ngn = (n: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
+const money = (x: any) => (price(x) == null ? "Price unavailable" : `${ngn(price(x)!)} / 1K`);
+const refill = (x: any) => x?.refill_days ? `Refill ${x.refill_days} days` : x?.refill === true ? "Refill available" : x?.refill === false ? "No refill" : String(x?.refill || "Service details");
+const estimate = (x: any) => {
+  const raw = x?.estimated_time ?? x?.estimate_time ?? x?.estimated_delivery_time ?? x?.estimated_delivery ?? x?.completion_time ?? x?.delivery_time ?? x?.avg_time ?? x?.average_time ?? x?.start_time ?? null;
+  const text = raw == null ? "" : String(raw).trim();
+  return text || "Estimate unavailable";
+};
+const orderRef = (x: any) => String(x?.reference || x?.pending_reference || x?.order_reference || x?.provider_order_id || x?.order_id || x?.id || "");
+const orderStatus = (x: any) => String(x?.status || x?.state || "Processing");
+const orderFailed = (x: any) => /fail|failed|reject|rejected|cancel|cancelled|error|refunded/i.test(orderStatus(x));
+const isInsufficientCode = (code: string) => code === "INSUFFICIENT_BALANCE" || code === "INSUFFICIENT_USER_BALANCE";
+
+type View = "home" | "list" | "detail" | "order" | "confirm" | "processing" | "pending" | "success" | "failed";
+
+export default function Boostly() {
+  const router = useRouter();
+  const [view, setView] = useState<View>("home");
+  const [services, setServices] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any>(null);
+  const [platform, setPlatform] = useState("Instagram");
+  const [search, setSearch] = useState("");
+  const [link, setLink] = useState("");
+  const [quantity, setQuantity] = useState(1000);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [order, setOrder] = useState<any>(null);
+  const [failure, setFailure] = useState("");
+  const [failureCode, setFailureCode] = useState("");
+  const [failureBalance, setFailureBalance] = useState<number | null>(null);
+  const mounted = useRef(true);
+  const requestKey = useRef("");
+
+  useEffect(() => () => { mounted.current = false; }, []);
+
+  async function load(q = "", p = platform) {
+    setBusy(true);
+    setMessage("Loading services…");
+    try {
+      const query = [p === "Other" ? "" : p, q].filter(Boolean).join(" ");
+      const d: any = await api.boostly.services(query ? { search: query } : { page: 1, limit: 50 });
+      if (!mounted.current) return;
+      const list = Array.isArray(d) ? d : (d?.services || d?.items || d?.data || []);
+      const safe = Array.isArray(list) ? list.filter((x: any) => serviceId(x)) : [];
+      setServices(safe);
+      setMessage(safe.length ? "" : "No services found.");
+    } catch (e) {
+      if (mounted.current) {
+        setServices([]);
+        setMessage(e instanceof Error ? e.message : "Unable to load services");
+      }
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  async function openPlatform(p: string) {
+    setPlatform(p);
+    setSearch("");
+    setView("list");
+    await load("", p);
+  }
+
+  async function choose(item: any) {
+    if (busy) return;
+    setBusy(true);
+    setMessage("Loading service…");
+    try {
+      const d: any = await api.boostly.service(serviceId(item));
+      if (!mounted.current) return;
+      const x = d?.service || d?.data || d || item;
+      setSelected(x);
+      const min = Number(x?.min);
+      setQuantity(Number.isFinite(min) && min > 1000 ? min : 1000);
+      requestKey.current = "";
+      setView("detail");
+      setMessage("");
+    } catch (e) {
+      if (mounted.current) setMessage(e instanceof Error ? e.message : "Unable to load service");
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  function serviceSubtotal() {
+    const r = price(selected);
+    return r == null ? null : r * (quantity / 1000);
+  }
+
+  function total() {
+    const subtotal = serviceSubtotal();
+    return subtotal == null ? null : subtotal + orderFee(selected);
+  }
+
+  function resetResultState() {
+    setOrder(null);
+    setFailure("");
+    setFailureCode("");
+    setFailureBalance(null);
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const t = getSessionToken();
+    if (!t) return setMessage("Please sign in first.");
+    if (!selected) return;
+    const min = Number(selected.min || 1);
+    const max = Number(selected.max || 100000000);
+    if (!link.trim()) return setMessage("Enter the target link or username.");
+    if (quantity < min || quantity > max) return setMessage(`Quantity must be between ${min.toLocaleString()} and ${max.toLocaleString()}.`);
+
+    if (!requestKey.current) requestKey.current = newRequestKey("boostly");
+    setBusy(true);
+    setMessage("");
+    resetResultState();
+    setView("processing");
+
+    try {
+      const d: any = await api.boostly.order(t, {
+        service_id: serviceId(selected),
+        link: link.trim(),
+        quantity,
+        request_key: requestKey.current,
+      });
+      if (!mounted.current) return;
+      const created = d?.order || d?.data || d;
+      setOrder(created && typeof created === "object" ? created : null);
+
+      if (created && typeof created === "object" && (created.provider_pending === true || orderStatus(created).toLowerCase().includes("provider_pending"))) {
+        setView("pending");
+      } else if (created && typeof created === "object" && orderRef(created) && !orderFailed(created)) {
+        setView("success");
+      } else if (created && typeof created === "object" && orderFailed(created)) {
+        setFailure("The provider rejected the order. No duplicate order will be created from this request.");
+        setFailureCode("PROVIDER_ORDER_REJECTED");
+        requestKey.current = "";
+        setView("failed");
+      } else {
+        setFailure("We could not confirm the final provider state. Check Orders before trying again.");
+        setFailureCode("PROVIDER_ORDER_PENDING_VERIFICATION");
+        setView("pending");
+      }
+    } catch (e) {
+      if (!mounted.current) return;
+      if (e instanceof ApiError) {
+        const code = String(e.code || "").toUpperCase();
+        const payload = e.payload && typeof e.payload === "object" ? e.payload as Record<string, unknown> : null;
+        const balance = payload ? Number(payload.balance_ngn) : NaN;
+        setFailureCode(code);
+        setFailureBalance(Number.isFinite(balance) ? balance : null);
+        if (payload) setOrder(payload);
+
+        if (isInsufficientCode(code)) {
+          setFailure("Your wallet balance is too low for this purchase.");
+          requestKey.current = "";
+          setView("failed");
+        } else if (code === "SERVICE_UNAVAILABLE" || code === "PROVIDER_BALANCE_LOW" || code === "PROVIDER_UNAVAILABLE" || code === "PROVIDER_ORDER_REJECTED") {
+          setFailure("Service is temporarily unavailable. Please try again shortly.");
+          requestKey.current = "";
+          setView("failed");
+        } else if (code === "PROVIDER_STATUS_UNKNOWN" || code === "PROVIDER_ORDER_PENDING_VERIFICATION") {
+          setFailure("We’re confirming the provider order status. Do not submit another order yet.");
+          setView("pending");
+        } else {
+          setFailure(e.message);
+          setView("failed");
+        }
+      } else {
+        setFailure("We could not confirm the final order state. Check Orders before trying again.");
+        setFailureCode("PROVIDER_ORDER_PENDING_VERIFICATION");
+        setView("pending");
+      }
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  const back = () => {
+    if (view === "home") router.back();
+    else if (view === "list") setView("home");
+    else if (view === "detail") setView("list");
+    else if (view === "order") setView("detail");
+    else if (view === "confirm") setView("order");
+    else if (view === "failed") setView("confirm");
+  };
+
+  const header = (title: string, sub: string, orders = false) => (
+    <div className={`${s.header} ${view === "list" ? s.listHeader : ""}`}>
+      <button className={s.back} onClick={back}>‹</button>
+      <div className={s.headCopy}><h1 className={s.title}>{title}</h1><div className={s.subtitle}>{sub}</div></div>
+      {orders && <button className={s.orders} onClick={() => router.push("/orders")}>Orders</button>}
+    </div>
+  );
+
+  const subtotalText = serviceSubtotal() == null ? "—" : ngn(serviceSubtotal()!);
+  const totalText = total() == null ? "—" : ngn(total()!);
+  const fee = orderFee(selected);
+  const ref = orderRef(order);
+  const start = estimate(selected);
+  const insufficient = isInsufficientCode(failureCode);
+
+  return <main className={s.page}>
+    {view === "home" && <>
+      {header("Boostly", "Social growth services", true)}
+      <form className={s.search} onSubmit={e => { e.preventDefault(); setPlatform("Other"); setView("list"); load(search, "Other"); }}><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search followers, likes, views…" /></form>
+      <section className={s.hero}><small>FAST • TRACKED • AFFORDABLE</small><h2>Grow your audience</h2><p>Choose a platform and find the right service.</p></section>
+      <h2 className={s.sectionTitle}>Choose a platform</h2>
+      <div className={s.platforms}>{platforms.map(({ name, icon }) => <button className={s.platform} key={name} onClick={() => openPlatform(name)}><span className={s.mark}>{icon ? <img src={icon} alt="" width={20} height={20} style={{ display: "block" }} /> : <span aria-hidden="true">＋</span>}</span>{name}</button>)}</div>
+      <div className={s.popularHead}><h2>Popular services</h2><button onClick={() => openPlatform("Other")}>View all ›</button></div>
+      <div className={s.popular}><button onClick={() => openPlatform("Instagram")}><span>Instagram followers</span><span>Live price</span></button><button onClick={() => openPlatform("TikTok")}><span>TikTok views</span><span>Live price</span></button></div>
+      <section className="seoContent" aria-label="About Boostly">
+        <h2>What Boostly does</h2><p>Boostly lets you browse the social-media services currently returned by WickSpend’s existing SMM provider integration. Available services, quantity limits, rates and provider estimates are loaded live.</p>
+        <h2>Supported platforms</h2><p>The Boostly interface currently organizes services for Instagram, TikTok, Facebook, YouTube, X, Telegram, Pinterest and other provider-listed services. Individual service availability can change.</p>
+        <h2>How an order works</h2><p>Choose a live service, review its minimum and maximum quantity, enter the target link or username requested by that service, review the current total, and submit the order from your WickSpend wallet.</p>
+        <h2>Order status and limitations</h2><p>Provider estimates are informational rather than guarantees. Keep the target account or content accessible while an order runs, and use Orders to check the recorded provider status before submitting a duplicate request.</p>
+        <h2>Boostly FAQ</h2><details><summary>Are results guaranteed?</summary><p>No. Results and timing can vary by platform activity and the selected provider service.</p></details><details><summary>Where can I track an order?</summary><p>Use <a href="/orders">Orders</a> to view the latest recorded status.</p></details>
+        <nav className="seoRelatedLinks"><a href="/tutorials">View tutorials</a><a href="/marketplace">Marketplace</a><a href="/">WickSpend home</a></nav>
+      </section>
+    </>}
+
+    {view === "list" && <>
+      {header(`${platform} Services`, "Live services, prices and delivery estimates")}
+      <form className={`${s.search} ${s.listSearch}`} onSubmit={e => { e.preventDefault(); load(search); }}><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${platform} services`} /></form>
+      <div className={s.filters}>{["Followers", "Likes", "Views", "Reels"].map((f, i) => <button key={f} className={`${s.filter}${i === 0 ? ` ${s.active}` : ""}`} onClick={() => { setSearch(f); load(f); }}>{f}</button>)}</div>
+      <div className={s.countRow}><span>{services.length} services</span><span>Recommended⌄</span></div>
+      <div className={s.serviceList}>{services.map(x => <button className={s.serviceCard} key={serviceId(x)} onClick={() => choose(x)}><span className={s.serviceTop}><b>{nameOf(x)}</b><strong>{money(x)}</strong></span><span className={s.serviceMeta}>Min {Number(x.min || 0).toLocaleString()} • Max {Number(x.max || 0).toLocaleString()}</span><span className={s.serviceMeta}>Estimated time: {estimate(x)}</span><span className={s.badge}>{refill(x)}</span><span className={s.arrow}>›</span></button>)}{!busy && !services.length && <div className={s.empty}>{message || "No services found."}</div>}</div>
+    </>}
+
+    {view === "detail" && selected && <>
+      {header("Service Details", "Review before ordering")}
+      <section className={s.detailHero}><div className={s.detailIdentity}><span className={s.mark}>{platform.slice(0, 2).toUpperCase()}</span><div><b>{nameOf(selected)}</b><small>#{serviceId(selected)}</small></div></div><div className={s.rateRow}><div><small>Rate per 1,000</small><strong>{price(selected) == null ? "—" : ngn(price(selected)!)}</strong></div><span className={s.recommend}>Recommended</span></div></section>
+      <section className={s.stats}><div><small>Minimum</small><b>{Number(selected.min || 0).toLocaleString()}</b></div><div><small>Maximum</small><b>{Number(selected.max || 0).toLocaleString()}</b></div><div><small>Estimated time</small><b>{estimate(selected)}</b></div><div><small>Refill</small><b>{refill(selected).replace("Refill ", "")}</b></div></section>
+      <section className={s.about}><h2>About this service</h2><div className={s.description}>{selected.description || "Social growth service with provider-tracked delivery. Keep your target account active while the order runs."}<small>Results and timing may vary by platform activity.</small></div></section>
+      <div className={s.note}><span>◇</span> Refunds follow the provider service policy.</div>
+      <button className={s.cta} onClick={() => setView("order")}>Order this service</button>
+    </>}
+
+    {view === "order" && selected && <>
+      {header("Create Order", nameOf(selected))}
+      <section className={s.orderHero}><span className={s.mark}>{platform.slice(0, 2).toUpperCase()}</span><div><b>{nameOf(selected)}</b><small>{money(selected)}</small></div><em>{refill(selected)}</em></section>
+      <label className={s.field}><span className={s.fieldHead}><span>{platform} profile link</span><small>{link.trim() ? "✓ Link entered" : ""}</small></span><input className={s.input} value={link} onChange={e => { setLink(e.target.value); requestKey.current = ""; }} placeholder="Enter target link or username" /></label>
+      <div className={s.field}><span className={s.fieldHead}><span>Quantity</span><small>Min {Number(selected.min || 0).toLocaleString()} • Max {Number(selected.max || 0).toLocaleString()}</small></span><div className={s.quantity}><button onClick={() => { requestKey.current = ""; setQuantity(q => Math.max(Number(selected.min || 1), q - 100)); }}>−</button><b>{quantity.toLocaleString()}</b><button onClick={() => { requestKey.current = ""; setQuantity(q => Math.min(Number(selected.max || 100000000), q + 100)); }}>＋</button></div><div className={s.presets}>{[100, 500, 1000, 5000, 10000].map(q => <button key={q} className={quantity === q ? s.active : ""} onClick={() => { requestKey.current = ""; setQuantity(q); }}>{q >= 1000 ? `${q / 1000}K` : q}</button>)}</div></div>
+      <section className={s.summary}><h2>Order summary</h2><div className={s.summaryRow}><span>Quantity</span><b>{quantity.toLocaleString()}</b></div><div className={s.summaryRow}><span>Rate</span><b>{money(selected)}</b></div><div className={s.summaryRow}><span>Service subtotal</span><b>{subtotalText}</b></div>{fee > 0 && <div className={s.summaryRow}><span>Order fee</span><b>{ngn(fee)}</b></div>}<div className={`${s.summaryRow} ${s.total}`}><span>Total</span><b>{total() == null ? "Price unavailable" : ngn(total()!)}</b></div></section>
+      <div className={`${s.note} ${s.status}`}>◷ <span>Estimated time: {estimate(selected)}</span></div>
+      <button className={s.cta} onClick={() => { if (!link.trim()) setMessage("Enter the target link or username."); else setView("confirm"); }}>Review order {total() != null ? ` • ${ngn(total()!)}` : ""}</button>
+    </>}
+
+    {view === "confirm" && selected && <form onSubmit={submit}>
+      {header("Confirm Order", "Review everything before paying")}
+      <section className={s.confirmHero}><small>{platform.toUpperCase()}</small><h2>{nameOf(selected)}</h2><p>{link}</p><div className={s.confirmBottom}><b>{quantity.toLocaleString()} units</b><strong>{total() == null ? "—" : ngn(total()!)}</strong></div></section>
+      <section className={s.detailsBox}><div className={s.summaryRow}><span>Service ID</span><b>#{serviceId(selected)}</b></div><div className={s.summaryRow}><span>Quantity</span><b>{quantity.toLocaleString()}</b></div><div className={s.summaryRow}><span>Rate</span><b>{money(selected)}</b></div><div className={s.summaryRow}><span>Service subtotal</span><b>{subtotalText}</b></div>{fee > 0 && <div className={s.summaryRow}><span>Order fee</span><b>{ngn(fee)}</b></div>}<div className={s.summaryRow}><span>Estimated time</span><b>{estimate(selected)}</b></div><div className={s.summaryRow}><span>Refill</span><b>{refill(selected)}</b></div></section>
+      <section className={s.walletBox}><h3>WickSpend Wallet</h3><div className={s.summaryRow}><span>Payment source</span><b>Wallet balance</b></div><div className={s.summaryRow}><span>Total</span><b>{total() == null ? "Price unavailable" : ngn(total()!)}</b></div></section>
+      <div className={`${s.note} ${s.warning}`}>◇ <span>Do not change your username while delivery runs.<br /><small>Orders cannot be edited after submission.</small></span></div>
+      <button className={s.cta} disabled={busy}>{busy ? "Processing…" : `Confirm & Pay${total() != null ? ` • ${ngn(total()!)}` : ""}`}</button>
+    </form>}
+
+    {view === "processing" && <section className={s.processing}><h1>Placing your order</h1><p>We’re sending it securely to Boostly</p><div className={s.processingRing}><span>{platform.slice(0, 2).toUpperCase()}</span></div><h2>Processing payment</h2><p>Your wallet and order are being confirmed.</p><div className={s.processingSteps}><div><b>✓</b><span>Order validated</span></div><div><b>✓</b><span>Wallet charge requested</span></div><div><i>•</i><span>Waiting for provider confirmation</span></div></div><div className={s.safetyNote}>Don’t close the app until confirmation appears.</div></section>}
+
+    {view === "pending" && <section className={s.failed}><div className={s.resultMark}>…</div><h1>Order verification in progress</h1><p>We’re confirming the provider order status.</p><section className={s.failureDetails}><h2>What happens next</h2><p>{failure || "The provider state is not final yet."}<br />Do not place another order while verification is pending.</p><div><small>Provider status</small><b>Verification pending</b></div>{ref && <div><small>Reference</small><b>{ref}</b></div>}</section><div className={s.retryWarning}><span>◇</span><div><b>Do not submit another order</b><small>Use Orders to check the same request. This prevents duplicate delivery.</small></div></div><button className={s.resultPrimary} onClick={() => router.push(ref ? `/orders?reference=${encodeURIComponent(ref)}` : "/orders")}>Check order status</button><button className={s.resultSecondary} onClick={() => router.push("/help-support")}>Contact Human Support</button></section>}
+
+    {view === "success" && selected && <section className={s.placed}><div className={s.resultMark}>✓</div><h1>Order placed</h1><p>Provider reference received.</p><section className={s.receipt}><div className={s.receiptHead}><h2>Order summary</h2><span>{orderStatus(order).toUpperCase()}</span></div><div><small>Order ID</small><b>{ref ? `#${ref}` : "Confirmed"}</b></div><div><small>Service</small><b>{nameOf(selected)}</b></div><div><small>Quantity</small><b>{quantity.toLocaleString()}</b></div><div><small>Total</small><b>{totalText}</b></div><div><small>Estimated time</small><b>{start}</b></div></section><div className={s.trackNote}><span>◷</span><div><b>Track progress in Orders</b><small>We’ll show the latest order status there.</small></div></div><button className={s.resultPrimary} onClick={() => router.push(ref ? `/orders?reference=${encodeURIComponent(ref)}` : "/orders")}>View order</button><button className={s.resultSecondary} onClick={() => { resetResultState(); setSelected(null); requestKey.current = ""; setView("home"); }}>Order another service</button></section>}
+
+    {view === "failed" && <section className={s.failed}><div className={s.resultMark}>!</div><h1>{insufficient ? "Insufficient wallet balance" : "Order not completed"}</h1><p>{insufficient ? "Your wallet does not have enough funds for this order." : "We couldn’t complete this order."}</p><section className={s.failureDetails}><h2>What happened</h2><p>{failure || "The order could not be completed."}</p>{insufficient ? <><div><small>Required</small><b>{totalText}</b></div>{failureBalance != null && <div><small>Current balance</small><b>{ngn(failureBalance)}</b></div>}</> : <>{order && <div><small>Provider status</small><b>{orderFailed(order) ? orderStatus(order) : "Unavailable"}</b></div>}{ref && <div><small>Reference</small><b>{ref}</b></div>}</>}</section>{insufficient ? <><button className={s.resultPrimary} onClick={() => router.push("/add-funds")}>Add funds</button><button className={s.resultSecondary} onClick={() => setView("confirm")}>Back to order</button></> : <><div className={s.retryWarning}><span>◇</span><div><b>Check Orders before retrying</b><small>If an order reference exists, use that order instead of submitting again.</small></div></div><button className={s.resultPrimary} onClick={() => router.push(ref ? `/orders?reference=${encodeURIComponent(ref)}` : "/orders")}>Check order status</button><button className={s.resultSecondary} onClick={() => router.push("/help-support")}>Contact Human Support</button></>}</section>}
+
+    {message && view !== "list" && view !== "processing" && view !== "pending" && view !== "success" && view !== "failed" && <p className={s.screenMessage} role="status">{message}</p>}
+    <BottomNav />
+  </main>;
+}

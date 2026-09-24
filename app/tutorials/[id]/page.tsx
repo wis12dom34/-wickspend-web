@@ -1,25 +1,18 @@
-"use client";
-
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { BottomNav } from "@/components/BottomNav";
-import { tutorialsApi } from "@/lib/tutorial-api";
-import { formatTutorialDate, Tutorial, tutorialDate, tutorialsFrom } from "@/lib/tutorials";
-import styles from "../tutorials.module.css";
+import { notFound } from "next/navigation";
+import { getPublishedTutorials } from "@/lib/tutorials-server";
+import { Tutorial, tutorialDate, tutorialSlug } from "@/lib/tutorials";
+import TutorialDetailClient from "./TutorialDetailClient";
 
-function ProfileIcon(){return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"/></svg>}
+async function resolveTutorial(segment:string):Promise<{tutorial:Tutorial;all:Tutorial[]}|null>{const all=await getPublishedTutorials();const tutorial=all.find(t=>String(t.id)===segment||tutorialSlug(t)===segment);return tutorial?{tutorial,all}:null}
+const absolute=(value?:string|null)=>!value?undefined:value.startsWith("http")?value:`https://wickspend.com${value.startsWith("/")?"":"/"}${value}`;
+function productLink(t:Tutorial){const x=`${t.title} ${t.description||""}`.toLowerCase();if(x.includes("rent"))return["Rent a virtual number","/rent-number"] as const;if(x.includes("number")||x.includes("otp"))return["Buy a virtual number","/buy-number"] as const;if(x.includes("wallet")||x.includes("fund"))return["Fund your WickSpend wallet","/add-funds"] as const;return["Explore WickSpend","/"] as const}
 
-export default function TutorialDetailPage(){
-  const params=useParams<{id:string}>();
-  const [tutorial,setTutorial]=useState<Tutorial|null>(null);
-  const [state,setState]=useState<"loading"|"ready"|"missing"|"error">("loading");
-  const [playback,setPlayback]=useState<"idle"|"loading"|"ready"|"error">("idle");
-  const [toast,setToast]=useState("");
-  useEffect(()=>{let active=true;(async()=>{try{const result=await tutorialsApi.detail(String(params.id));if(!active)return;const item=tutorialsFrom(result)[0]||null;setTutorial(item);setState(item?"ready":"missing")}catch{if(active)setState("error")}})();return()=>{active=false}},[params.id]);
-  useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(""),1800);return()=>window.clearTimeout(id)},[toast]);
-  async function copy(){try{await navigator.clipboard.writeText(window.location.href);setToast("Tutorial link copied")}catch{setToast("Couldn’t copy the link")}}
-  async function share(){try{if(navigator.share&&tutorial)await navigator.share({title:tutorial.title,text:tutorial.description||undefined,url:window.location.href});else await copy()}catch{}}
+export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{const {id}=await params;const result=await resolveTutorial(id);if(!result)return{title:"Tutorial unavailable",robots:{index:false,follow:true}};const {tutorial}=result;return{title:tutorial.title,description:tutorial.description||`Watch ${tutorial.title} on WickSpend.`,alternates:{canonical:`/tutorials/${tutorialSlug(tutorial)}`},openGraph:{title:`${tutorial.title} | WickSpend`,description:tutorial.description||`Watch this WickSpend tutorial.`,url:`/tutorials/${tutorialSlug(tutorial)}`,type:"video.other",images:tutorial.thumbnail_url?[{url:tutorial.thumbnail_url}]:undefined}}}
 
-  return <main className={styles.screen}><header className={styles.detailHeader}><Link className={styles.back} href="/tutorials" aria-label="Back to tutorials">‹</Link><span className={styles.detailTitle}>Tutorials</span><Link className={styles.profile} href="/profile" aria-label="Profile"><ProfileIcon/></Link></header>{state==="loading"?<div className={styles.message}>Loading tutorial…</div>:state==="missing"?<div className={styles.message}><div><b>Tutorial unavailable</b><p>This tutorial may have been unpublished or removed.</p><Link href="/tutorials">Back to Tutorials</Link></div></div>:state==="error"?<div className={styles.message}>We couldn’t load this tutorial right now.</div>:tutorial&&<><div className={styles.player}><video controls playsInline preload="metadata" poster={tutorial.thumbnail_url||undefined} onLoadStart={()=>setPlayback("loading")} onLoadedMetadata={()=>setPlayback("ready")} onCanPlay={()=>setPlayback("ready")} onWaiting={()=>setPlayback("loading")} onPlaying={()=>setPlayback("ready")} onError={()=>setPlayback("error")}><source src={tutorial.video_url}/></video>{playback==="loading"&&<div className={styles.playerStatus}>Loading video…</div>}{playback==="error"&&<div className={styles.playerStatus}>Video unavailable. Please try again.</div>}</div><section className={styles.detailCopy}><h1>{tutorial.title}</h1><div className={styles.detailDate}>{formatTutorialDate(tutorialDate(tutorial))}</div>{tutorial.description&&<p>{tutorial.description}</p>}<div className={styles.detailActions}><button type="button" onClick={()=>void share()}>Share</button><button type="button" onClick={()=>void copy()}>Copy link</button></div></section></>}<div className={styles.bottomSpace}/>{toast&&<div className={styles.toast} role="status">{toast}</div>}<BottomNav/></main>;
-}
+export default async function TutorialPage({params}:{params:Promise<{id:string}>}){const {id}=await params;const result=await resolveTutorial(id);if(!result)notFound();const {tutorial,all}=result;const slug=tutorialSlug(tutorial);const related=all.filter(t=>String(t.id)!==String(tutorial.id)).slice(0,3);const [cta,href]=productLink(tutorial);const video={"@context":"https://schema.org","@type":"VideoObject",name:tutorial.title,description:tutorial.description||tutorial.title,thumbnailUrl:absolute(tutorial.thumbnail_url),uploadDate:tutorialDate(tutorial)||undefined,contentUrl:absolute(tutorial.video_url),url:`https://wickspend.com/tutorials/${slug}`};return <>
+  <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(video)}}/>
+  <TutorialDetailClient tutorial={tutorial}/>
+  <section className="seoContent" aria-label="Tutorial guide"><h2>About this tutorial</h2><p>{tutorial.description||"Follow the video above for the published WickSpend walkthrough."}</p><h2>Troubleshooting</h2><p>If the video does not load, refresh the page and try again. For service availability, price or stock, use the relevant live WickSpend service page because tutorial media does not represent live inventory.</p><h2>Related WickSpend action</h2><p><Link href={href}>{cta}</Link></p>{related.length>0&&<><h2>Related tutorials</h2><nav className="seoRelatedLinks">{related.map(item=><Link key={String(item.id)} href={`/tutorials/${tutorialSlug(item)}`}>{item.title}</Link>)}</nav></>}<h2>Tutorial FAQ</h2><details><summary>Does this tutorial show live prices or stock?</summary><p>No. Live service pages remain the source of truth for changing prices, stock and availability.</p></details><details><summary>Where can I find more WickSpend guides?</summary><p><Link href="/tutorials">Browse all published tutorials</Link>.</p></details></section>
+</>}
