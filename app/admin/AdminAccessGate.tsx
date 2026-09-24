@@ -15,16 +15,25 @@ export default function AdminAccessGate({ children }: { children: ReactNode }) {
     const verify = async () => {
       const token = getSessionToken();
       if (!token) {
-        window.location.replace("/login");
+        window.location.replace("/login?next=/admin");
         return;
       }
       try {
         await api.auth.session(token);
+        try {
+          const staff:any = await api.staff.marketplaceAccess(token);
+          if (staff?.role === "marketplace_assistant") {
+            window.location.replace("/staff/marketplace");
+            return;
+          }
+        } catch (error) {
+          if (error instanceof ApiError && error.status !== 403) throw error;
+        }
         const result = await api.admin.dashboard(token) as { ok?: boolean; authorized?: boolean };
         if (alive) setState(result?.authorized === true || result?.ok === true ? "allowed" : "denied");
       } catch (error) {
         if (!alive) return;
-        if (error instanceof ApiError && error.status === 401) setState("denied");
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) setState("denied");
         else setState("error");
       }
     };
@@ -34,6 +43,6 @@ export default function AdminAccessGate({ children }: { children: ReactNode }) {
 
   if (state === "allowed") return <>{children}</>;
   if (state === "checking") return <main className="ws-admin-gate"><div className="ws-admin-gate-card"><span className="ws-admin-spinner"/><strong>Checking admin access…</strong><p>Using your existing WickSpend session.</p></div></main>;
-  if (state === "denied") return <main className="ws-admin-gate"><div className="ws-admin-gate-card"><strong>Access Denied</strong><p>This signed-in WickSpend account is not authorized to view admin data.</p><Link href="/">Back to WickSpend</Link></div></main>;
+  if (state === "denied") return <main className="ws-admin-gate"><div className="ws-admin-gate-card"><strong>403 · Access Forbidden</strong><p>This signed-in WickSpend account is not authorized to view main admin data.</p><Link href="/">Back to WickSpend</Link></div></main>;
   return <main className="ws-admin-gate"><div className="ws-admin-gate-card"><strong>Admin unavailable</strong><p>We could not verify admin access right now. No admin data was loaded.</p><button type="button" onClick={() => window.location.reload()}>Try again</button></div></main>;
 }

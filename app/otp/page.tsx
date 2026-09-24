@@ -38,10 +38,14 @@ const otpOf = (input: any): string => {
   return visit(input);
 };
 const phoneOf = (v: any) => String(v?.phone_number || v?.number || v?.phone || "");
-const serviceOf = (v: any) => String(v?.service_name || v?.service || v?.product || "WhatsApp");
-const countryOf = (v: any) => String(v?.country_name || v?.country || v?.country_code || "United States");
+const serviceOf = (v: any) => String(v?.service_name || v?.service || v?.product || v?.service_code || "WhatsApp");
+const countryOf = (v: any) => {
+  const raw = String(v?.country_name || v?.country || v?.country_code || "");
+  const known: Record<string,string> = { "187":"United States", US:"United States", "19":"Nigeria", NG:"Nigeria", "16":"United Kingdom", GB:"United Kingdom", "43":"Germany", DE:"Germany", "36":"Canada", CA:"Canada", "15":"Poland", PL:"Poland" };
+  return known[raw.toUpperCase()] || raw || "United States";
+};
 const amountOf = (v: any) => {
-  const ngn = v?.amount_ngn ?? v?.final_amount_ngn ?? v?.price_ngn;
+  const ngn = v?.customer_price_ngn ?? v?.amount_ngn ?? v?.final_amount_ngn ?? v?.price_ngn;
   if (ngn != null && Number.isFinite(Number(ngn))) return `₦${Number(ngn).toLocaleString()}`;
   const usd = v?.amount_usd ?? v?.price_usd ?? v?.amount ?? v?.price;
   if (usd != null && Number.isFinite(Number(usd))) return `$${Number(usd).toFixed(2)}`;
@@ -235,7 +239,9 @@ export default function OtpPage() {
   const country = countryOf(data);
   const expired = /expired/i.test(status);
   const cancelled = cancelledStatus(data);
+  const waitingNumber = /waiting_number|retrying_number|processing|provider_unknown/i.test(status) || (data?.provider_pending === true && !phoneOf(data));
   const terminal = expired || cancelled || refunded || /failed|complete/i.test(status);
+  const displayStatus = waitingNumber ? "Waiting for number" : (terminal ? status : "Active");
   const created = data?.created_at || data?.createdAt || data?.purchased_at || data?.purchase_date;
   const expires = data?.expires_at || data?.expiry_at || data?.expiresAt;
   const refundReference = refundRefOf(data);
@@ -279,8 +285,8 @@ export default function OtpPage() {
       {data && !cancelled && <>
         <section className={styles.card}>
           <div className={styles.service}>{service}</div><div className={styles.country}>{country}</div><div className={styles.number}>{phone}</div>
-          <div className={styles.status}><span>{terminal ? status : "Active"}</span><span className={styles.statusDot}/></div>
-          <button className={styles.copyNumber} type="button" onClick={() => copy(phone, "Number Copied")}>Copy Number</button>
+          <div className={styles.status}><span>{displayStatus}</span><span className={styles.statusDot}/></div>
+          <button className={styles.copyNumber} type="button" disabled={!phoneOf(data)} onClick={() => copy(phoneOf(data), "Number Copied")}>{phoneOf(data) ? "Copy Number" : "Awaiting Number"}</button>
         </section>
         <section className={styles.info}>
           <div><small>Time Remaining</small><strong>{remaining}</strong></div><div><small>Purchased At</small><strong>{clock(created)}</strong></div>
@@ -310,7 +316,7 @@ export default function OtpPage() {
         </section>
         <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a><button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button></div>
       </> : <>
-        <section className={styles.state}>{otp ? <><div className={styles.listen}>OTP received</div><div className={styles.digits}>{otp.replace(/\s/g, "").slice(0, 6).padEnd(6, "•").split("").map((d, i) => <div className={styles.digit} style={{ animationDelay: `${i * 45}ms` }} key={`${d}-${i}`}>{d}</div>)}</div><button className={styles.copyOtp} type="button" onClick={() => copy(otp, "OTP Copied")}>Copy OTP</button><p className={styles.receivedAgo}>Received just now</p></> : <><h2>Waiting for code…</h2><p>We’ll automatically detect your SMS/OTP.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Listening securely</div></>}</section>
+        <section className={styles.state}>{waitingNumber ? <><h2>Confirming your number…</h2><p>The provider has not assigned a phone number yet.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Checking automatically</div></> : otp ? <><div className={styles.listen}>OTP received</div><div className={styles.digits}>{otp.replace(/\s/g, "").slice(0, 6).padEnd(6, "•").split("").map((d, i) => <div className={styles.digit} style={{ animationDelay: `${i * 45}ms` }} key={`${d}-${i}`}>{d}</div>)}</div><button className={styles.copyOtp} type="button" onClick={() => copy(otp, "OTP Copied")}>Copy OTP</button><p className={styles.receivedAgo}>Received just now</p></> : <><h2>Waiting for code…</h2><p>We’ll automatically detect your SMS/OTP.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Listening securely</div></>}</section>
         <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a><button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button></div>
       </>)}
 

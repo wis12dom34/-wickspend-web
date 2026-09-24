@@ -37,6 +37,8 @@ export default function ResellerFinance() {
   const [settlements, setSettlements] = useState<any>({ items: [] });
   const [settlementAccount, setSettlementAccount] = useState<any>(null);
   const [banks, setBanks] = useState<any[]>([]);
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
   const [accountForm, setAccountForm] = useState({ bank_code: "", account_number: "" });
   const [verifiedAccount, setVerifiedAccount] = useState<any>(null);
   const [editingAccount, setEditingAccount] = useState(false);
@@ -89,18 +91,25 @@ export default function ResellerFinance() {
     finally { setBusy(""); }
   }
 
-  async function openSettlementForm() {
-    setEditingAccount(true);
-    setVerifiedAccount(null);
-    setAccountForm({ bank_code: "", account_number: "" });
-    if (banks.length) return;
+  async function loadSettlementBanks() {
     const token = getSessionToken(); if (!token) return;
     setBusy("banks");
     try {
       const result: any = await wickspendApi("wickspend/backend/reseller/settlement-banks", { token });
-      setBanks(Array.isArray(result?.items) ? result.items : []);
+      const items = Array.isArray(result?.items) ? result.items : [];
+      setBanks(items);
+      if (!items.length) setMessage("Bank list is temporarily unavailable. Tap Retry to load it again.");
     } catch (error) { setMessage(errorText(error)); }
     finally { setBusy(""); }
+  }
+
+  async function openSettlementForm() {
+    setEditingAccount(true);
+    setVerifiedAccount(null);
+    setBankPickerOpen(false);
+    setBankSearch("");
+    setAccountForm({ bank_code: "", account_number: "" });
+    if (!banks.length) await loadSettlementBanks();
   }
 
   async function verifySettlementAccount(save = false) {
@@ -152,6 +161,11 @@ export default function ResellerFinance() {
   }
 
   const payoutItems = Array.isArray(settlements?.items) ? settlements.items : [];
+  const selectedBank = banks.find(bank => String(bank.code) === accountForm.bank_code);
+  const bankQuery = bankSearch.trim().toLowerCase();
+  const filteredBanks = bankQuery
+    ? banks.filter(bank => String(bank.name || "").toLowerCase().includes(bankQuery))
+    : banks;
   const success = /completed|saved|removed|requested|approved|rejected|already|active/i.test(message);
 
   return <main className="resellerShell">
@@ -168,7 +182,8 @@ export default function ResellerFinance() {
       {settlementAccount && !editingAccount && <div className="settlementAccountSummary"><div><span>Bank Name</span><b>{settlementAccount.bank_name}</b></div><div><span>Account Number</span><b>{settlementAccount.account_number_masked}</b></div><div><span>Account Name</span><b>{settlementAccount.account_name}</b></div><div className="accountActions"><button className="secondaryButton" onClick={openSettlementForm}>Change Account</button><button className="dangerButton" disabled={busy === "remove-account"} onClick={removeSettlementAccount}>{busy === "remove-account" ? "Removing…" : "Remove Account"}</button></div></div>}
       {!settlementAccount && !editingAccount && <button className="primaryButton accountCta" onClick={openSettlementForm}>Add Settlement Account</button>}
       {editingAccount && <div className="settlementAccountForm">
-        <div className="formSplit"><label>Bank<select value={accountForm.bank_code} onChange={event => { setAccountForm({ ...accountForm, bank_code: event.target.value }); setVerifiedAccount(null); }}><option value="">{busy === "banks" ? "Loading banks…" : "Select bank"}</option>{banks.map(bank => <option key={bank.code} value={bank.code}>{bank.name}</option>)}</select></label><label>Account Number<input inputMode="numeric" maxLength={10} value={accountForm.account_number} onChange={event => { setAccountForm({ ...accountForm, account_number: event.target.value.replace(/\D/g, "").slice(0, 10) }); setVerifiedAccount(null); }} placeholder="0123456789" /></label></div>
+        <div className="formSplit"><label className="bankField">Bank<button type="button" className={`bankSelectButton ${selectedBank ? "selected" : ""}`} aria-haspopup="dialog" aria-expanded={bankPickerOpen} disabled={busy === "banks"} onClick={() => { setBankPickerOpen(true); setBankSearch(""); if (!banks.length) void loadSettlementBanks(); }}><span>{busy === "banks" ? "Loading banks…" : selectedBank?.name || "Select bank"}</span><span className="bankSelectChevron" aria-hidden="true">⌄</span></button></label><label>Account Number<input inputMode="numeric" maxLength={10} value={accountForm.account_number} onChange={event => { setAccountForm({ ...accountForm, account_number: event.target.value.replace(/\D/g, "").slice(0, 10) }); setVerifiedAccount(null); }} placeholder="0123456789" /></label></div>
+        {bankPickerOpen && <div className="bankPickerBackdrop" role="presentation" onClick={() => setBankPickerOpen(false)}><div className="bankPickerSheet" role="dialog" aria-modal="true" aria-label="Select bank" onClick={event => event.stopPropagation()}><div className="bankPickerHead"><div><span className="eyebrow">Settlement bank</span><h3>Select your bank</h3></div><button type="button" className="bankPickerClose" aria-label="Close bank list" onClick={() => setBankPickerOpen(false)}>×</button></div><div className="bankPickerSearchWrap"><span aria-hidden="true">⌕</span><input autoFocus value={bankSearch} onChange={event => setBankSearch(event.target.value)} placeholder="Search banks" aria-label="Search banks" /></div><div className="bankList">{busy === "banks" ? <div className="bankPickerEmpty">Loading Nigerian banks…</div> : filteredBanks.length ? filteredBanks.map(bank => <button type="button" key={bank.code} className={`bankOption ${String(bank.code) === accountForm.bank_code ? "active" : ""}`} onClick={() => { setAccountForm({ ...accountForm, bank_code: String(bank.code) }); setVerifiedAccount(null); setBankPickerOpen(false); setBankSearch(""); }}><span>{bank.name}</span>{String(bank.code) === accountForm.bank_code && <b aria-hidden="true">✓</b>}</button>) : <div className="bankPickerEmpty"><span>{banks.length ? "No banks match your search." : "Could not load banks."}</span>{!banks.length && <button type="button" className="secondaryButton" onClick={() => void loadSettlementBanks()}>Retry</button>}</div>}</div></div></div>}
         {verifiedAccount && <div className="verifiedAccount"><span>Account Name</span><strong>{verifiedAccount.account_name}</strong><small>{verifiedAccount.bank_name} · {verifiedAccount.account_number_masked}</small></div>}
         <div className="accountActions"><button className="secondaryButton" disabled={Boolean(busy) || !accountForm.bank_code || accountForm.account_number.length !== 10} onClick={() => verifySettlementAccount(false)}>{busy === "verify-account" ? "Verifying…" : "Verify Account"}</button>{verifiedAccount && <button className="primaryButton" disabled={Boolean(busy)} onClick={() => verifySettlementAccount(true)}>{busy === "save-account" ? "Saving…" : "Save Settlement Account"}</button>}<button className="secondaryButton" onClick={() => setEditingAccount(false)}>Cancel</button></div>
       </div>}

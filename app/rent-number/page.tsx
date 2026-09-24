@@ -1,57 +1,49 @@
-"use client";
-import {FormEvent,useEffect,useRef,useState} from "react";
-import {useRouter} from "next/navigation";
-import {BottomNav} from "@/components/BottomNav";
-import {api} from "@/lib/api";
-import {getSessionToken} from "@/lib/session";
-import styles from "./rent-number.module.css";
+import type { Metadata } from "next";
+import RentNumberClient from "./RentNumberClient";
 
-type Duration=1440|4320|10080|20160|43200;
-type Dialog="extend"|"cancel"|null;
-const durations:[[Duration,string],[Duration,string],[Duration,string],[Duration,string],[Duration,string]]=[[1440,"1 Day"],[4320,"3 Days"],[10080,"7 Days"],[20160,"14 Days"],[43200,"30 Days"]];
-function refOf(v:any){return String(v?.reference||v?.rental?.reference||v?.data?.reference||"")}
-function payloadOf(v:any){return v?.rental||v?.data||v}
-function serviceId(v:any){return String(v?.service_code||v?.code||v?.id||"")}
-function serviceName(v:any){return String(v?.name||v?.service_name||v?.title||v?.service||v?.service_code||"")}
-function serviceIconUrl(v:any){const n=serviceName(v).toLowerCase();const domains:[[RegExp,string],...Array<[RegExp,string]>]=[[/facebook/,"facebook.com"],[/whatsapp/,"whatsapp.com"],[/telegram/,"telegram.org"],[/instagram/,"instagram.com"],[/tiktok/,"tiktok.com"],[/google|gmail/,"google.com"],[/microsoft|outlook|hotmail/,"microsoft.com"],[/twitter|\bx\b/,"x.com"],[/discord/,"discord.com"],[/reddit/,"reddit.com"],[/snapchat/,"snapchat.com"],[/linkedin/,"linkedin.com"],[/amazon/,"amazon.com"],[/apple|icloud/,"apple.com"],[/tinder/,"tinder.com"]];const hit=domains.find(([re])=>re.test(n));return hit?`https://www.google.com/s2/favicons?domain=${hit[1]}&sz=64`:""}
-function priceOf(v:any){const ngn=v?.price_ngn??v?.final_price_ngn??v?.amount_ngn;if(Number.isFinite(Number(ngn)))return `₦${Number(ngn).toLocaleString()}`;const usd=v?.price_usd??v?.final_price_usd??v?.amount_usd??v?.price;return Number.isFinite(Number(usd))?`$${Number(usd).toFixed(2)}`:"Live"}
-function remainingText(r:any){return r?.remaining_time||r?.time_remaining||r?.remaining||r?.expires_in||"Active"}
-function expiryText(r:any){return r?.expires_at||r?.expiry||r?.expires||""}
-function refundValue(r:any){const n=r?.refund_amount_usd??r?.refund_usd??r?.refund_amount??r?.refunded_amount;return Number.isFinite(Number(n))?Number(n):null}
-function refundText(r:any){const n=refundValue(r);return n!==null?`$${n.toFixed(2)}`:"Provider determines eligibility"}
-function walletValue(r:any){const n=r?.wallet_balance_usd??r?.balance_after_refund_usd??r?.wallet_balance??r?.balance_after_refund??r?.updated_wallet_balance;return Number.isFinite(Number(n))?Number(n):null}
-function refundReference(r:any){return String(r?.refund_reference||r?.refund_ref||r?.transaction_reference||r?.transaction_ref||r?.refund?.reference||"")}
-function refundIsConfirmed(r:any){const status=String(r?.status||"").toLowerCase(),refundStatus=String(r?.refund_status||r?.refund?.status||"").toLowerCase();return /refund/.test(status)||/confirmed|complete|completed|refunded|success|successful/.test(refundStatus)||r?.refunded===true||r?.refund_confirmed===true}
-function serviceText(r:any){const service=r?.service_name||r?.service||r?.service_code||"Rental service",country=r?.country_name||r?.country||r?.country_code||"";return country?`${service} • ${country}`:String(service)}
+export const metadata: Metadata = {
+  title: "Rent Virtual Numbers Online",
+  description: "Rent virtual numbers for longer-term SMS access through WickSpend. View currently supported rental services, durations and availability.",
+  alternates: { canonical: "/rent-number" },
+  openGraph: {
+    title: "Rent Virtual Numbers Online | WickSpend",
+    description: "View currently supported virtual-number rental services, periods and live availability on WickSpend.",
+    url: "/rent-number",
+    type: "website",
+  },
+};
 
-export default function RentNumber(){
- const router=useRouter();
- const[catalog,setCatalog]=useState<any[]>([]),[serviceCode,setServiceCode]=useState(""),[duration,setDuration]=useState<Duration>(1440),[rental,setRental]=useState<any>(null),[message,setMessage]=useState("Loading rental options…"),[busy,setBusy]=useState(false),[refreshing,setRefreshing]=useState(false),[dialog,setDialog]=useState<Dialog>(null),mounted=useRef(true),actionSeq=useRef(0);
- useEffect(()=>{mounted.current=true;let cancelled=false;api.rentals.catalog().then((data:any)=>{if(cancelled||!mounted.current)return;const list=Array.isArray(data)?data:(data?.services||data?.items||data?.data||[]),safe=Array.isArray(list)?list.filter((item:any)=>serviceId(item)):[];setCatalog(safe);setServiceCode(safe[0]?serviceId(safe[0]):"");setMessage(safe.length?"":"No rental options are available right now.")}).catch(e=>{if(!cancelled&&mounted.current){setCatalog([]);setServiceCode("");setMessage(e instanceof Error?e.message:"Unable to load rentals")}});const t=getSessionToken();if(t){api.orders(t,{type:"rental",status:"active",limit:1}).then(async(data:any)=>{if(cancelled||!mounted.current)return;const list=Array.isArray(data)?data:(data?.orders||data?.items||data?.data||[]),active=Array.isArray(list)?list[0]:null,activeRef=refOf(active);if(!activeRef)return;try{const live:any=payloadOf(await api.rentals.status(t,activeRef));if(!cancelled&&mounted.current&&live&&typeof live==="object"&&String(live?.status||"").toLowerCase()==="active")setRental(live)}catch{}}).catch(()=>{})}return()=>{cancelled=true;mounted.current=false;actionSeq.current++}},[]);
- async function createRental(e?:FormEvent){e?.preventDefault();if(busy)return;const t=getSessionToken();if(!t)return setMessage("Please sign in first.");if(!serviceCode)return setMessage("Choose a service first.");const seq=++actionSeq.current;setBusy(true);setMessage("Creating rental…");try{const r:any=await api.rentals.create(t,{service_code:serviceCode,duration_minutes:duration,country_code:"US",auto_renew:false}),next=payloadOf(r);if(!mounted.current||seq!==actionSeq.current)return;setRental(next&&typeof next==="object"?next:r);setMessage("")}catch(e){if(mounted.current&&seq===actionSeq.current)setMessage(e instanceof Error?e.message:"Unable to create rental")}finally{if(mounted.current&&seq===actionSeq.current)setBusy(false)}}
- async function action(kind:"refresh"|"extend"|"cancel"){if(busy)return;const ref=refOf(rental),t=getSessionToken();if(!t){setMessage("Please sign in to manage this rental.");return}if(!ref){setMessage("Rental reference is unavailable. Refresh the page and try again.");return}const seq=++actionSeq.current;setBusy(true);setMessage(kind==="refresh"?"Checking for SMS…":kind==="extend"?"Extending rental…":"Cancelling rental…");try{if(kind==="cancel"){const cancelled:any=await api.rentals.cancel(t,ref),next=payloadOf(cancelled);if(!mounted.current||seq!==actionSeq.current)return;if(next&&typeof next==="object")setRental((current:any)=>({...current,...next}));setDialog(null);setMessage("Cancellation submitted. Refund status will appear only when confirmed by the provider.");try{const latest:any=await api.rentals.status(t,ref),live=payloadOf(latest);if(mounted.current&&seq===actionSeq.current&&live&&typeof live==="object")setRental((current:any)=>({...current,...live}))}catch{}return}const r:any=kind==="extend"?await api.rentals.extend(t,ref):await api.rentals.status(t,ref),next=payloadOf(r);if(!mounted.current||seq!==actionSeq.current)return;if(next&&typeof next==="object")setRental(next);if(kind==="extend")setDialog(null);setMessage(kind==="extend"?"Rental extension confirmed by the provider.":"")}catch(e){if(mounted.current&&seq===actionSeq.current)setMessage(e instanceof Error?e.message:`Unable to ${kind} rental`)}finally{if(mounted.current&&seq===actionSeq.current)setBusy(false)}}
- async function refreshCatalog(){if(refreshing)return;setRefreshing(true);try{const data:any=await api.rentals.catalog();const list=Array.isArray(data)?data:(data?.services||data?.items||data?.data||[]),safe=Array.isArray(list)?list.filter((item:any)=>serviceId(item)):[];if(!mounted.current)return;setCatalog(safe);if(safe.length&&!safe.some((x:any)=>serviceId(x)===serviceCode))setServiceCode(serviceId(safe[0]));setMessage(safe.length?"":"No rental options are available right now.")}catch(e){if(mounted.current)setMessage(e instanceof Error?e.message:"Unable to refresh rentals")}finally{if(mounted.current)setRefreshing(false)}}
- const selected=catalog.find(x=>serviceId(x)===serviceCode)||catalog[0],available=Boolean(selected&&serviceCode),selectedIcon=serviceIconUrl(selected);
- const ref=refOf(rental),phone=rental?.phone_number||rental?.number||rental?.phone||"",status=rental?.status||"Active",raw=rental?.messages||rental?.sms||rental?.data?.messages||[],messages=Array.isArray(raw)?raw:raw?[raw]:[],ended=/cancel|expired|complete|refunded/i.test(String(status));
- if(rental&&refundIsConfirmed(rental)){
-  const amount=refundValue(rental),wallet=walletValue(rental),tx=refundReference(rental);
-  return <main className={styles.refundWrap}><section className={styles.refundSuccess} aria-label="Rental refund confirmed"><div className={styles.refundCheck}>✓</div><h1>Rental cancelled</h1><p>The number is no longer active.</p></section><section className={styles.refundReceipt}><div className={styles.refundReceiptHead}><h2>Refund confirmed</h2><span>REFUNDED</span></div><div className={styles.receiptRow}><small>Rental</small><strong>{phone||"Rental number"}</strong></div><div className={styles.receiptRow}><small>Service</small><strong>{serviceText(rental)}</strong></div><div className={styles.receiptRow}><small>Refund amount</small><strong>{amount!==null?`$${amount.toFixed(2)}`:"Confirmed"}</strong></div>{wallet!==null&&<div className={styles.receiptRow}><small>Wallet balance</small><strong>{`$${wallet.toFixed(2)}`}</strong></div>}</section><section className={styles.refundNote}><span aria-hidden="true">▣</span><div><b>Funds returned to your wallet</b><p>{tx?`Transaction reference: ${tx}`:"Refund confirmed by the provider."}</p></div></section><button className={styles.refundPrimary} type="button" onClick={()=>{setRental(null);setMessage("");setDialog(null)}}>Rent another number</button><button className={styles.refundSecondary} type="button" onClick={()=>router.push("/wallet")}>View wallet</button><BottomNav/></main>
- }
- if(rental){const first=messages[0],otp=first?.code||first?.otp||rental?.otp||rental?.code||"";return <main className={styles.activeWrap}><header className={styles.activeHead}><h1>Active Rental</h1><p>Your number is ready to receive SMS</p><button className={styles.menu} onClick={()=>router.push("/orders")}>≡</button></header><section className={styles.hero}><span className={styles.badge}>● {String(status).toUpperCase()}</span><div className={styles.service}>{serviceText(rental)}</div><div className={styles.phoneLine}><h2>{phone||"Rental number"}</h2><button className={styles.copy} onClick={()=>phone&&navigator.clipboard?.writeText(phone)}>▣</button></div><div className={styles.remaining}>Time remaining</div><div className={styles.timer}>{remainingText(rental)}</div>{expiryText(rental)&&<div className={styles.expires}>Expires {expiryText(rental)}</div>}</section><div className={styles.sectionTitle}><h3>Messages</h3><small>{messages.length} received</small></div>{messages.length?<section className={styles.smsCard}><div className={styles.smsTop}><b>{first?.sender||first?.from||"SMS"}</b><small>{first?.time||first?.created_at||"Just now"}</small></div><p>{first?.text||first?.message||first?.body||String(first)}</p><div className={styles.otpLine}>{otp&&<span className={styles.otp}>{otp}</span>}<button className={styles.viewBtn} onClick={()=>action("refresh")}>View SMS</button></div></section>:<section className={styles.smsCard}><div className={styles.emptySms}>No SMS received yet. Tap refresh to check again.</div><button className={styles.viewBtn} style={{width:"100%"}} onClick={()=>action("refresh")}>Refresh SMS</button></section>}{!ended?<><section className={styles.actions}><button className={styles.extend} disabled={busy} onClick={()=>setDialog("extend")}>Extend rental</button><button className={styles.cancel} disabled={busy} onClick={()=>setDialog("cancel")}>Cancel rental</button></section><section className={styles.tip}><b>◇ &nbsp; Keep your rental active</b><p>Extend before expiry to keep receiving messages.</p></section></>:<section className={styles.ended}><b>{status}</b><p>This rental is no longer active.</p><button className={styles.newBtn} onClick={()=>{setRental(null);setMessage("");setDialog(null)}}>Rent a new number</button></section>}{message&&<p className={styles.message} role="status">{message}</p>}{dialog&&<div className={styles.modalLayer} role="presentation" onClick={()=>!busy&&setDialog(null)}><section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="rental-dialog-title" onClick={e=>e.stopPropagation()}><div className={styles.handle}/>{dialog==="extend"?<><h2 id="rental-dialog-title">Extend rental</h2><p>Keep {phone||"this number"} active longer.</p><div className={styles.sheetInfo}><span>Extension</span><strong>Provider-defined period</strong></div><div className={styles.sheetInfo}><span>Price</span><strong>Confirmed by provider at extension</strong></div><p className={styles.sheetNote}>The live rental API does not expose selectable extension durations, so WickSpend will not show unsupported 1/3/7-day prices.</p><button className={styles.sheetPrimary} disabled={busy} onClick={()=>action("extend")}>{busy?"Extending…":"Confirm extension"}</button><button className={styles.sheetSecondary} disabled={busy} onClick={()=>setDialog(null)}>Not now</button></>:<><h2 id="rental-dialog-title">Cancel this rental?</h2><p>The number will stop receiving SMS when the provider confirms cancellation.</p><div className={styles.sheetInfo}><span>Refund</span><strong>{refundText(rental)}</strong></div><p className={styles.sheetNote}>Refund eligibility and amount depend on the provider’s live rental status.</p><button className={styles.sheetPrimary} disabled={busy} onClick={()=>action("cancel")}>{busy?"Cancelling…":"Cancel rental"}</button><button className={styles.sheetSecondary} disabled={busy} onClick={()=>setDialog(null)}>Keep rental</button></>}</section></div>}<BottomNav/></main>}
- return <main className={styles.page}>
-  <header className={styles.header}>
-    <button className={styles.back} onClick={()=>router.back()} aria-label="Back">‹</button>
-    <div><h1>Rent Number</h1><p>Rent a virtual number for longer-term SMS access</p></div>
-    <button className={styles.history} onClick={()=>router.push("/numbers/history")} aria-label="Number history"><span>◷</span><small>History</small></button>
-  </header>
-  <div className={styles.selectors}>
-    <button type="button" className={styles.selector} onClick={()=>router.push("/buy-number?country=187")}><small>1. Country</small><div className={styles.selectorValue}><span className={styles.flag}>🇺🇸</span><strong>United States</strong><span className={styles.chevron}>⌄</span></div></button>
-    <div className={styles.selector}><small>2. Service</small><div className={styles.serviceSelectWrap}>{selectedIcon&&<span className={styles.serviceLogo}><img src={selectedIcon} alt="" width="28" height="28"/></span>}<select aria-label="Rental service" value={serviceCode} disabled={!catalog.length||busy} onChange={e=>setServiceCode(e.target.value)}>{catalog.length?catalog.map((x:any)=>{const c=serviceId(x);return <option value={c} key={c}>{x.name||x.service_name||x.title||c}</option>}):<option value="">No services</option>}</select><span className={styles.chevron}>⌄</span></div></div>
-  </div>
-  <section className={styles.stats} aria-label="Service information"><div className={styles.stat}><span className={styles.statIcon}>◇</span><div><b>99.3%</b><small>Success rate</small></div></div><div className={styles.stat}><span className={styles.statIcon}>ϟ</span><div><b>Instant</b><small>Delivery</small></div></div><div className={styles.stat}><span className={styles.statIcon}>◷</span><div><b>20 Min</b><small>Validity</small></div></div><div className={styles.stat}><span className={styles.statIcon}>↻</span><div><b>Refund</b><small>If failed</small></div></div></section>
-  <section className={styles.tabs} aria-label="Number type"><button className={styles.tab} onClick={()=>router.push("/buy-number")}>One-Time</button><button className={`${styles.tab} ${styles.activeTab}`} aria-current="page">Rental</button><button className={styles.tab} onClick={()=>router.push("/numbers/history")}>Favorites</button></section>
-  <p className={styles.hint}>Rent a number for a longer period. Receive OTPs anytime.</p>
-  <form onSubmit={createRental} className={styles.listCard}><div className={styles.listHead}><h2>Available Rental Numbers</h2><button type="button" className={styles.refresh} disabled={refreshing} onClick={refreshCatalog}>{refreshing?"Refreshing…":"↻ Refresh"}</button></div><div className={styles.cols}><span>Rental Period</span><span>Price</span><span>Status</span><span>Action</span></div><div className={styles.rows}>{durations.map(([v,label])=><div className={`${styles.rentalRow} ${duration===v?styles.selectedRow:""}`} key={v}><button type="button" className={styles.duration} onClick={()=>setDuration(v)}><span className={styles.calendarIcon}>□</span><strong>{label}</strong><span>⌄</span></button><span className={styles.price}>{priceOf(selected)}</span><span className={available?styles.available:styles.unavailable}><i/>{available?"Available":"Unavailable"}</span><button type="submit" className={styles.rentBtn} disabled={busy||!available} onClick={()=>setDuration(v)}>{busy&&duration===v?"Renting…":"Rent"}</button></div>)}</div><button type="button" className={styles.more} onClick={refreshCatalog}>View more numbers <span>⌄</span></button></form>
-  {message&&<p className={styles.message} role="status">{message}</p>}<BottomNav/>
- </main>
+export const dynamic = "force-dynamic";
+
+const API_BASE = (process.env.NEXT_PUBLIC_WICKSPEND_API_BASE || "https://n8n.wickspend.com/webhook").replace(/\/$/, "");
+let periodCache: { expires: number; values: string[] } | null = null;
+async function rentalPeriods(): Promise<string[]> {
+  if (periodCache && periodCache.expires > Date.now()) return periodCache.values;
+  try {
+    const response = await fetch(`${API_BASE}/wickspend/backend/rentals/catalog`, { cache: "no-store" });
+    if (!response.ok) return [];
+    const payload: any = await response.json();
+    const services = Array.isArray(payload?.services) ? payload.services : [];
+    const periods = new Map<number, string>();
+    for (const service of services) for (const country of Array.isArray(service?.countries) ? service.countries : []) for (const period of Array.isArray(country?.periods) ? country.periods : []) {
+      const minutes = Number(period?.duration_minutes);
+      const label = String(period?.duration_label || period?.period || "").trim();
+      if (Number.isFinite(minutes) && minutes > 0 && label) periods.set(minutes, label);
+    }
+    const values = [...periods.entries()].sort((a, b) => a[0] - b[0]).map(([, label]) => label);
+    periodCache = { expires: Date.now() + 300_000, values };
+    return values;
+  } catch { return periodCache?.values || []; }
+}
+
+export default async function RentNumberPage() {
+  const supportedPeriods = await rentalPeriods();
+  const breadcrumb = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+    { "@type": "ListItem", position: 1, name: "WickSpend", item: "https://wickspend.com/" },
+    { "@type": "ListItem", position: 2, name: "Rent Number", item: "https://wickspend.com/rent-number" },
+  ] };
+  return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+    <RentNumberClient supportedPeriods={supportedPeriods} />
+  </>;
 }

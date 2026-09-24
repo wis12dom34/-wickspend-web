@@ -144,7 +144,7 @@ export function renderMiniStoreLanding(store: MiniStoreLandingStore) {
       <div class="wick-header-inner">
         <button type="button" class="wick-brand" onclick="wickBackHome()" aria-label="${escapedName} home" style="border:0;background:transparent;padding:0;text-align:left;cursor:pointer">
           <span class="wick-logo">${logo}</span>
-          <span class="wick-brand-copy"><span class="wick-brand-name">${escapedName}</span><span class="wick-powered">Powered by WickSpend</span></span>
+          <span class="wick-brand-copy"><span class="wick-brand-name">${escapedName}</span></span>
         </button>
         <nav class="wick-nav" aria-label="Store navigation">
           <button type="button" class="active" onclick="wickBackHome()">Home</button>

@@ -9,7 +9,7 @@ type Message={id?:string|number;role:"user"|"assistant"|"admin"|"system";text:st
 type SupportContext={page:string;module:string;reference?:string;product?:string};
 
 const QUICK=["I have a payment issue","My order is not delivered","Buy Number issue","Boostly order problem","Marketplace order problem","Wallet problem","Login problem","Refund request","Talk to human support"];
-const HIDE_ON=["/login","/admin"];
+const HIDE_ON=["/login","/admin","/staff"];
 
 function clean(value:unknown,max=120){return String(value||"").replace(/[\r\n\t]/g," ").trim().slice(0,max)}
 function moduleFor(path:string){if(path.startsWith("/buy-number")||path.startsWith("/numbers")||path.startsWith("/otp"))return "Buy Number";if(path.startsWith("/rent-number"))return "Rent Number";if(path.startsWith("/marketplace")||path.startsWith("/checkout"))return "Marketplace";if(path.startsWith("/boostly"))return "Boostly";if(path.startsWith("/temp-mail"))return "Temp Mail";if(path.startsWith("/wallet")||path.startsWith("/add-funds"))return "Wallet";if(path.startsWith("/orders"))return "Orders";if(path.startsWith("/notifications"))return "Notifications";if(path.startsWith("/profile"))return "Profile";if(path.startsWith("/settings"))return "Settings";return "Home"}

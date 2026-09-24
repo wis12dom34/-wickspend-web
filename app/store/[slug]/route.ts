@@ -5,6 +5,29 @@ const STORE_RESOLVE_URL = "https://n8n.wickspend.com/webhook/wickspend/store/res
 const APP_SCRIPT = '<script src="/webhook/wickspend/store/app.js"></script>';
 
 
+const MINI_STORE_HEADER_STYLES = `<style data-wick-store-header-v2>
+.top{padding-top:env(safe-area-inset-top,0px)}
+@media(max-width:600px){
+  .bar{padding:10px 12px 12px;gap:8px;display:flex;flex-wrap:wrap;align-items:center}
+  .bar>.mark{order:1}
+  .bar>.mark+div{order:2;flex:1 1 0;min-width:0}
+  .bar>.grow{display:none}
+  #storeName{max-width:100%;font-size:15px;line-height:1.15}
+  #support{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  #accountBtn{order:3;flex:0 0 auto;min-height:38px;max-width:96px;padding:0 12px;border-radius:12px;font-size:12px}
+  .bar>button.myNumbersTop{order:4}
+  .bar>a[data-wick-my-rentals]{order:5}
+  .bar>button.myNumbersTop,.bar>a[data-wick-my-rentals]{display:flex;align-items:center;justify-content:center;flex:1 1 calc(50% - 4px);min-width:0;min-height:42px;padding:0 12px;border-radius:13px;font-size:13px;line-height:1.1;text-align:center;box-shadow:none}
+  .bar>button.myNumbersTop{background:var(--p);color:#fff;border:1px solid var(--p)}
+  .bar>a[data-wick-my-rentals]{background:#fff;color:#101114;border:1px solid rgba(15,23,42,.10)}
+}
+@media(max-width:360px){
+  .bar{padding-left:10px;padding-right:10px}
+  #accountBtn{max-width:80px;padding:0 10px}
+  .bar>button.myNumbersTop,.bar>a[data-wick-my-rentals]{font-size:12px;padding:0 9px}
+}
+</style>`;
+
 const PASSWORD_RESET_STYLES = `<style data-wick-reset-style>
 .authTextLink{width:100%;margin-top:10px;border:0;background:transparent;color:var(--p);font-weight:750;cursor:pointer;padding:7px 4px}.authTextLink:hover{text-decoration:underline}.resetTitle{margin:6px 0 6px;font-size:24px;letter-spacing:-.35px}.resetCopy{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:14px}.resetBack{border:0;background:transparent;color:#4b5563;font-weight:700;padding:8px 0;cursor:pointer}.passwordWrap{position:relative;margin-top:8px}.passwordWrap .field{padding-right:66px}.passwordToggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:#eef5ff;color:#0757d9;border-radius:9px;padding:6px 9px;font-size:11px;font-weight:800;cursor:pointer}.otpField{text-align:center;font-size:23px;font-weight:850;letter-spacing:.34em;padding-left:calc(12px + .34em)}.resetActions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px}.resetHint{font-size:12px;color:var(--muted)}.resetSuccessIcon{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#ecfdf3;color:#137a38;font-size:25px;font-weight:900;margin-bottom:12px}.resetButton[disabled]{opacity:.62;cursor:not-allowed}
 </style>`;
@@ -143,6 +166,9 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!body.includes('data-wick-reset-style')) {
     body = body.replace('</head>', PASSWORD_RESET_STYLES + '</head>');
   }
+  if (!body.includes('data-wick-store-header-v2')) {
+    body = body.replace('</head>', MINI_STORE_HEADER_STYLES + '</head>');
+  }
   if (!body.includes('data-wick-store-landing-v1')) {
     body = body.replace('</head>', MINI_STORE_LANDING_STYLES + '</head>');
   }
@@ -162,7 +188,7 @@ export async function GET(_request: Request, context: RouteContext) {
         `<a data-wick-rent-number class="btn serviceTab" href="${rentUrl}" style="text-decoration:none">Rent Number</a>$1`,
       );
     }
-    if (!body.includes('data-wick-my-rentals')) {
+    if (!body.includes('<a data-wick-my-rentals')) {
       body = body.replace(
         /(<button id="accountBtn")/,
         `<a data-wick-my-rentals class="btn light myNumbersTop" href="${rentalsUrl}" style="text-decoration:none">My Rentals</a>$1`,
