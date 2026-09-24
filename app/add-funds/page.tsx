@@ -51,7 +51,7 @@ export default function AddFunds(){
   const[message,setMessage]=useState("");
   const requestSeq=useRef(0);
 
-  useEffect(()=>{let cancelled=false;const saved=asCurrency(localStorage.getItem("wickspend_display_currency"));if(saved){setSelectedCode(saved);setDisplayCurrency(saved)}setHydrated(true);const token=getSessionToken();if(!token){setWalletState("signed-out");return()=>{cancelled=true}}api.wallet.get(token).then((wallet:any)=>{if(cancelled)return;setBalance(balanceOf(wallet));const accountPreference=preferenceOf(wallet);if(accountPreference){setDisplayCurrency(accountPreference);setSelectedCode(accountPreference)}setWalletState("ready")}).catch(()=>{if(!cancelled)setWalletState("error")});return()=>{cancelled=true}},[]);
+  useEffect(()=>{let cancelled=false;const saved=asCurrency(localStorage.getItem("wickspend_display_currency"));if(saved){setDisplayCurrency(saved)}setHydrated(true);const token=getSessionToken();if(!token){setWalletState("signed-out");return()=>{cancelled=true}}api.wallet.get(token).then((wallet:any)=>{if(cancelled)return;setBalance(balanceOf(wallet));const accountPreference=preferenceOf(wallet);if(accountPreference){setDisplayCurrency(accountPreference)}setWalletState("ready")}).catch(()=>{if(!cancelled)setWalletState("error")});return()=>{cancelled=true}},[]);
 
   const selected=useMemo(()=>currencies.find(c=>c.code===selectedCode)||currencies[0],[selectedCode]);
   const value=Number(amount);
@@ -62,7 +62,7 @@ export default function AddFunds(){
   const methodText=methodValue==="loading"?"Loading funding methods…":methodValue==="korapay"?"KoraPay secure checkout":"Funding method not available yet";
   const walletValue=walletState==="loading"?"Loading…":hidden?"••••••":moneyNgn(balance);
 
-  function selectCurrency(code:CurrencyCode){requestSeq.current++;setSelectedCode(code);setMessage("")}
+  function selectCurrency(code:CurrencyCode){requestSeq.current++;const next=currencies.find(c=>c.code===code);if(!next?.fundingSupported){setMessage(`${code} funding is coming soon. Use NGN to continue to KoraPay.`);return}setSelectedCode(code);setMessage("")}
   async function submit(e:FormEvent){e.preventDefault();if(!canContinue)return;const token=getSessionToken();if(!token){setMessage("Secure sign in is required before funding your wallet. Redirecting to login…");window.setTimeout(()=>router.push("/login?next=%2Fadd-funds&secure=1"),350);return}const seq=++requestSeq.current;setBusy(true);setMessage("Creating secure payment…");try{const r:any=await api.wallet.initializeFunding(token,value);if(seq!==requestSeq.current)return;const url=paymentUrl(r);if(!url)throw new Error("A valid payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(url)}catch(err){if(seq===requestSeq.current)setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{if(seq===requestSeq.current)setBusy(false)}}
 
   return <main className={styles.page}><div className={styles.screen}>
@@ -76,10 +76,10 @@ export default function AddFunds(){
     </section>
 
     <section className={styles.fundingSection}>
-      <h2>Fund your wallet</h2><p className={styles.helper}>Choose a currency and amount to add.</p>
-      <div className={styles.currencyHeading}><span>Funding Currency</span><b>8 currencies</b></div>
+      <h2>Fund your wallet</h2><p className={styles.helper}>Fund with NGN now. More currencies are coming soon.</p>
+      <div className={styles.currencyHeading}><span>Funding Currency</span><b>NGN available</b></div>
       <div className={styles.currencyGrid} role="group" aria-label="Funding currency">
-        {currencies.map(currency=><button key={currency.code} type="button" className={`${styles.currencyChip} ${selected.code===currency.code?styles.selected:""}`} aria-pressed={selected.code===currency.code} aria-label={`${currency.name}, ${currency.code}`} onClick={()=>selectCurrency(currency.code)} disabled={busy}><span className={styles.currencyIcon}><CurrencyIcon code={currency.code}/></span><span>{currency.code}</span></button>)}
+        {currencies.map(currency=><button key={currency.code} type="button" className={`${styles.currencyChip} ${selected.code===currency.code?styles.selected:""}`} aria-pressed={selected.code===currency.code} aria-label={`${currency.name}, ${currency.code}${currency.fundingSupported?"":", coming soon"}`} title={currency.fundingSupported?`${currency.code} funding`:`${currency.code} funding coming soon`} onClick={()=>selectCurrency(currency.code)} disabled={busy||!currency.fundingSupported}><span className={styles.currencyIcon}><CurrencyIcon code={currency.code}/></span><span>{currency.code}</span></button>)}
       </div>
     </section>
 
