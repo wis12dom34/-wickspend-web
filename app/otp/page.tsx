@@ -14,10 +14,10 @@ const otpOf = (input: any): string => {
   const nestedKeys = ["data","order","sms","messages","message","provider_response","providerResponse","provider_status","providerStatus","result","results"];
   const fromString = (value: string) => {
     const text = value.trim();
-    const statusMatch = text.match(/(?:STATUS_OK|CODE_RECEIVED|OTP_RECEIVED)\s*[:=-]\s*([0-9]{3,12})/i);
-    if (statusMatch) return statusMatch[1];
-    const labeled = text.match(/(?:otp|code|verification)[^0-9]{0,20}([0-9]{3,12})/i);
-    return labeled ? labeled[1] : "";
+    const statusMatch = text.match(/(?:STATUS_OK|CODE_RECEIVED|OTP_RECEIVED)\s*[:=-]\s*([0-9]{3}[-\s]?[0-9]{3}|[0-9]{3,12})/i);
+    if (statusMatch) return statusMatch[1].replace(/[-\s]/g, "");
+    const labeled = text.match(/(?:otp|code|verification)[^0-9]{0,20}([0-9]{3}[-\s]?[0-9]{3}|[0-9]{3,12})/i);
+    return labeled ? labeled[1].replace(/[-\s]/g, "") : "";
   };
   const visit = (value: any, depth = 0): string => {
     if (value == null || depth > 7) return "";
@@ -29,6 +29,7 @@ const otpOf = (input: any): string => {
       const raw = value?.[key];
       if (raw == null) continue;
       const text = String(raw).trim();
+      if (/^[0-9]{3}[-\s]?[0-9]{3}$/.test(text)) return text.replace(/[-\s]/g, "");
       if (/^[0-9]{3,12}$/.test(text)) return text;
       const hit = fromString(text); if (hit) return hit;
     }
@@ -314,10 +315,10 @@ export default function OtpPage() {
           <div className={styles.errorActions}><button type="button" disabled={busy} onClick={cancel}>Try Again</button><button type="button" onClick={() => { setCancelError(false); setMessage(""); }}>Keep Number</button></div>
           <small>If the status changes later, refresh before taking another action.</small>
         </section>
-        <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a><button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button></div>
+        <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a>{!terminal && <button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button>}</div>
       </> : <>
         <section className={styles.state}>{waitingNumber ? <><h2>Confirming your number…</h2><p>The provider has not assigned a phone number yet.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Checking automatically</div></> : otp ? <><div className={styles.listen}>OTP received</div><div className={styles.digits}>{otp.replace(/\s/g, "").slice(0, 6).padEnd(6, "•").split("").map((d, i) => <div className={styles.digit} style={{ animationDelay: `${i * 45}ms` }} key={`${d}-${i}`}>{d}</div>)}</div><button className={styles.copyOtp} type="button" onClick={() => copy(otp, "OTP Copied")}>Copy OTP</button><p className={styles.receivedAgo}>Received just now</p></> : <><h2>Waiting for code…</h2><p>We’ll automatically detect your SMS/OTP.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Listening securely</div></>}</section>
-        <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a><button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button></div>
+        <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a>{!terminal && <button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button>}</div>
       </>)}
 
       {message && !cancelled && <p className={`${styles.message} ${/unable|failed|missing|sign in|not confirmed/i.test(message) ? styles.error : ""}`} role="status">{message}</p>}
