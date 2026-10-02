@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AppTestimonials } from "@/components/AppTestimonials";
 import { SmartSupportLoader } from "@/components/SmartSupportLoader";
 import { NavigationWarmup } from "@/components/NavigationWarmup";
+import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 import "./home-promo-fix.css";
 import "./responsive.css";
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           { "@type": "WebSite", "@id": "https://wickspend.com/#website", url: "https://wickspend.com/", name: "WickSpend", publisher: { "@id": "https://wickspend.com/#organization" } }
         ] }) }} />
         {children}
+        <BottomNav />
         <NavigationWarmup />
         <AppTestimonials />
         <Suspense fallback={null}>
