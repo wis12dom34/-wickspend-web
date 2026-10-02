@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import {KeyboardEvent,useEffect,useRef,useState} from "react";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 
@@ -43,6 +42,5 @@ export default function Notifications(){
     {items.length?<div className="notificationList" aria-busy={busy!==null}>{items.map((n:any,i)=>{const id=notificationId(n),isRead=isNotificationRead(n),canRead=!isRead&&id!==null,created=relativeTime(n.created_at||n.createdAt||n.timestamp),action=notificationAction(n);return <article className={isRead?"notificationItem read":"notificationItem"} key={id!==null?String(id):`notification-${i}`} onClick={()=>canRead&&busy===null&&read(id)} onKeyDown={e=>keyRead(e,id,isRead)} role={canRead?"button":undefined} tabIndex={canRead?0:undefined} aria-disabled={canRead&&busy!==null?true:undefined} aria-label={canRead?`Mark ${n.title||"notification"} as read`:undefined}>{!isRead&&<span className="notificationDot" aria-hidden="true"/>}<div><div className="notificationTitleRow"><h3>{n.title||"Update"}</h3></div><p>{n.message||n.body||""}</p><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>{created&&<small>{created}</small>}{action&&<Link href={action[1]} onClick={e=>e.stopPropagation()} style={{fontSize:8,fontWeight:600,whiteSpace:"nowrap"}}>{action[0]}</Link>}</div></div></article>})}</div>:!message?<div className="notificationEmpty"><span aria-hidden="true">🔔</span><h3>You’re all caught up</h3><p>New order, wallet and service updates will appear here.</p></div>:null}
     {message&&<p className="screenMessage" role="status">{message}</p>}
     <Link href="/notification-preferences" aria-label="Open notification preferences" style={{marginTop:18,height:42,borderRadius:21,border:"1px solid rgba(0,0,0,.07)",background:"rgba(255,255,255,.95)",boxShadow:"0 6px 18px rgba(0,0,0,.08)",display:"grid",placeItems:"center",fontSize:11,fontWeight:600,color:"#050505",textDecoration:"none"}}>Notification Preferences</Link>
-    <BottomNav/>
   </main>;
 }

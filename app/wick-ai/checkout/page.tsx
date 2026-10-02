@@ -2,7 +2,6 @@
 
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import s from "./checkout.module.css";
@@ -23,6 +22,5 @@ export default function WickAICheckout(){
     {error&&<p className={s.error} role="alert">{error}</p>}
     <Link className={s.primary} href="/buy-number?country=USA&service=Telegram">{price?`Continue to checkout ${money(price).replace(".00","")}`:"Continue to Buy Number"}</Link>
     <Link className={s.secondary} href="/wick-ai">Change order</Link>
-    <BottomNav/>
   </main>
 }

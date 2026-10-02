@@ -2,7 +2,6 @@
 
 import {useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
-import {BottomNav} from "@/components/BottomNav";
 import {wickspendApi,ApiError} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import styles from "./refer-earn.module.css";
@@ -37,6 +36,6 @@ export default function ReferEarnPage(){
    <section className={styles.section}><h2 className={styles.sectionTitle}>Recent Referrals</h2><div className={`${styles.glass} ${styles.activity}`}>{history.length?history.map((r,i)=><div className={styles.activityRow} key={String(r.id??i)}><div><div className={styles.activityName}>{r.name||r.masked_identifier||"WickSpend user"}</div><div className={styles.activityMeta}>{r.date||r.created_at?new Date(r.date||r.created_at||"").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):""}</div></div><div className={styles.activityRight}><div className={styles.status}>{r.status||"Pending"}</div><div className={styles.reward}>{number(r.reward_amount_ngn??r.reward_ngn)>0?`+${money(r.reward_amount_ngn??r.reward_ngn)}`:"—"}</div></div></div>):<div className={styles.empty}><div className={styles.emptyIcon}><Icon name="users"/></div><h3>No referrals yet</h3><p>Share your referral link to start earning rewards.</p><button className={styles.primaryBtn} onClick={share} disabled={!link}>Invite Friends</button></div>}</div></section>
    <section className={styles.section}><div className={`${styles.glass} ${styles.accordion}`}><button className={styles.accordionBtn} onClick={()=>setOpen(v=>!v)} aria-expanded={open}><span>Referral Rules</span><span>{open?"−":"+"}</span></button>{open&&<ul className={styles.rules}>{rules.map(rule=><li key={rule}>{rule}</li>)}</ul>}</div></section>
   </>}
-  <BottomNav/>
+
  </main>
 }

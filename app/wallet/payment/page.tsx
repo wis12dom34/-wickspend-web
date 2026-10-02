@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {useEffect,useMemo,useState} from "react";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import styles from "./payment.module.css";
@@ -106,6 +105,5 @@ export default function WalletPayment(){
 
       {message&&<p className={styles.message} role="status">{message}</p>}
     </div>
-    <BottomNav/>
   </main>;
 }

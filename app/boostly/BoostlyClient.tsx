@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BottomNav } from "@/components/BottomNav";
 import { ApiError, api, newRequestKey } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import s from "./boostly.module.css";
@@ -300,6 +299,5 @@ export default function Boostly() {
     {view === "failed" && <section className={s.failed}><div className={s.resultMark}>!</div><h1>{insufficient ? "Insufficient wallet balance" : "Order not completed"}</h1><p>{insufficient ? "Your wallet does not have enough funds for this order." : "We couldn’t complete this order."}</p><section className={s.failureDetails}><h2>What happened</h2><p>{failure || "The order could not be completed."}</p>{insufficient ? <><div><small>Required</small><b>{totalText}</b></div>{failureBalance != null && <div><small>Current balance</small><b>{ngn(failureBalance)}</b></div>}</> : <>{order && <div><small>Provider status</small><b>{orderFailed(order) ? orderStatus(order) : "Unavailable"}</b></div>}{ref && <div><small>Reference</small><b>{ref}</b></div>}</>}</section>{insufficient ? <><button className={s.resultPrimary} onClick={() => router.push("/add-funds")}>Add funds</button><button className={s.resultSecondary} onClick={() => setView("confirm")}>Back to order</button></> : <><div className={s.retryWarning}><span>◇</span><div><b>Check Orders before retrying</b><small>If an order reference exists, use that order instead of submitting again.</small></div></div><button className={s.resultPrimary} onClick={() => router.push(ref ? `/orders?reference=${encodeURIComponent(ref)}` : "/orders")}>Check order status</button><button className={s.resultSecondary} onClick={() => router.push("/help-support")}>Contact Human Support</button></>}</section>}
 
     {message && view !== "list" && view !== "processing" && view !== "pending" && view !== "success" && view !== "failed" && <p className={s.screenMessage} role="status">{message}</p>}
-    <BottomNav />
   </main>;
 }

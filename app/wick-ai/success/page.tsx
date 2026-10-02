@@ -2,7 +2,6 @@
 
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import s from "./success.module.css";
@@ -18,6 +17,5 @@ export default function WickAISuccess(){
   const reference=refOf(order),paid=paidOf(order),service=order?.service_name||order?.service||order?.title||"WickSpend order",country=order?.country_name||order?.country||order?.country_code||"United States";
   return <main className={s.page}>
     {loading||!order?<section className={s.pending}><div className={s.icon}>!</div><h1>{loading?"Verifying purchase":"Order not confirmed"}</h1><p>{message}</p><Link className={s.primary} href="/orders">Check Orders</Link><Link className={s.secondary} href="/wick-ai">Back to Wick AI</Link></section>:<><div className={s.check}>✓</div><h1>Purchase complete</h1><p className={s.subtitle}>Your order was confirmed by WickSpend.</p><section className={s.card}><small>ORDER</small><h2>{service}</h2><p>{[country,order?.service_name||order?.service].filter(Boolean).join(" • ")}</p><dl><div><dt>Order ID</dt><dd>#{reference}</dd></div><div><dt>Paid</dt><dd>{money(paid)}</dd></div></dl></section><div className={s.note}>Next: open the order progress for the latest provider status.</div><Link className={s.primary} href={reference?`/orders?reference=${encodeURIComponent(reference)}`:"/orders"}>View order progress</Link><Link className={s.secondary} href="/wick-ai">Back to Wick AI</Link></>}
-    <BottomNav/>
   </main>
 }

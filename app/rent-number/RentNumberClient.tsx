@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BottomNav } from "@/components/BottomNav";
 import { ApiError, api, newRequestKey } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import styles from "./rent-number.module.css";
@@ -371,8 +370,7 @@ export default function RentNumberClient({ supportedPeriods = [] }: { supportedP
       </section>
       <section id="rental-number" className={styles.successNumbers}><div className={styles.sectionHeading}><div><h3>{items.length > 1 ? `${items.length} rented numbers` : "Your number"}</h3><p>Tap a number to view its OTP messages.</p></div></div>{items.map((item, i) => <button key={item.reference || i} className={styles.numberCard} onClick={() => { setSuccess(null); setTab("rentals"); if (item.reference) setOtpRef(item.reference); }}><span className={styles.serviceMark}><Icon name="phone" size={19} /></span><span><strong>{item.phone_number || "Number assigned"}</strong><small>{dateText(item.expires_at)}</small></span><Icon name="chevron" size={18} /></button>)}</section>
       <div className={styles.successActions}><button className={styles.primaryButton} onClick={() => document.getElementById("rental-number")?.scrollIntoView({ behavior: "smooth", block: "center" })}>View Number</button><button className={styles.secondaryButton} onClick={() => { setSuccess(null); setTab("rentals"); if (items[0]?.reference) setOtpRef(items[0].reference); }}>View OTP</button><button className={styles.secondaryButton} onClick={() => { setSuccess(null); setTab("rentals"); }}>My Rentals</button><button className={styles.textButton} onClick={() => setSuccess(null)}>Rent another number</button></div>
-      <BottomNav />
-    </main>;
+      </main>;
   }
 
   return <main className={styles.page}>
@@ -444,7 +442,6 @@ export default function RentNumberClient({ supportedPeriods = [] }: { supportedP
 
     {notice && <div className={styles.notice} role="status">{notice}<button onClick={() => setNotice("")}>×</button></div>}
     {otpRef && <div className={styles.modal} role="presentation" onClick={() => setOtpRef("")}><section className={styles.sheet} role="dialog" aria-modal="true" aria-label="Rental messages" onClick={e => e.stopPropagation()}><div className={styles.sheetHandle} /><div className={styles.sheetHeader}><div><h2>Messages</h2><p>{otpStatus?.phone_number || "Rental number"}</p></div><button onClick={() => setOtpRef("")}>×</button></div><div className={styles.otpMeta}><span><small>Status</small><Status value={otpStatus?.status} /></span><span><small>Time remaining</small><strong>{remaining(otpStatus?.expires_at)}</strong></span></div>{otpLoading && !otpStatus ? <div className={styles.messageSkeleton} /> : Array.isArray(otpStatus?.messages) && otpStatus!.messages!.length ? <div className={styles.messageList}>{otpStatus!.messages!.map((m, i) => <article className={styles.messageCard} key={`${m.received_at}-${i}`}><div><strong>{m.sender || "SMS"}</strong><small>{dateText(m.received_at)}</small></div>{m.otp_code && <button className={styles.otpCode} onClick={() => navigator.clipboard?.writeText(m.otp_code || "")}><span>{m.otp_code}</span><Icon name="copy" size={16} /></button>}<p>{m.message}</p></article>)}</div> : <div className={styles.waiting}><Icon name="message" size={28} /><h3>Waiting for SMS</h3><p>WickSpend checks this rental with safe backoff and stops when a message arrives.</p></div>}<button className={styles.secondaryButton} onClick={async () => { const token = getSessionToken(); if (!token) return; setOtpLoading(true); try { const data: any = await api.rentals.status(token, otpRef); setOtpStatus(data); } finally { setOtpLoading(false); } }}><Icon name="refresh" size={17} /> {otpLoading ? "Checking…" : "Check again"}</button></section></div>}
-    <BottomNav />
   </main>;
 }
 

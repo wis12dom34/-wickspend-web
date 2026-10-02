@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BottomNav } from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import {marketplaceDeliveryEntries,marketplaceDeliveryText} from "@/lib/marketplaceDelivery";
@@ -47,6 +46,5 @@ export default function MarketplaceStatusPage() {
     {view === "failed" && <><section className={styles.failureCard}><h2>Purchase failed</h2><p>Your order was not completed.</p><p>No delivery has been issued.</p><div className={styles.failureActions}><Link href="/marketplace" className={styles.primary}>Try Again</Link><Link href="/marketplace">Back to Marketplace</Link></div></section><section className={styles.ruleCard}><strong>Important</strong><p>Only wallet deductions, refunds, or delivery confirmed by the transaction state are shown here.</p></section></>}
     {view === "missing" && <section className={styles.failureCard}><h2>Order not found</h2><p>{message || "We could not find a marketplace order for this reference."}</p><div className={styles.failureActions}><Link href="/orders" className={styles.primary}>View Orders</Link><Link href="/marketplace">Back to Marketplace</Link></div></section>}
     {message && view !== "missing" && <p className={styles.message} role="status">{message}</p>}
-    <BottomNav />
   </main>;
 }

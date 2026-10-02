@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {FormEvent,useEffect,useMemo,useRef,useState,type ReactNode} from "react";
 import {useRouter} from "next/navigation";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import styles from "./add-funds.module.css";
@@ -95,5 +94,5 @@ export default function AddFunds(){
       <button className={styles.cta} type="submit" disabled={!canContinue}>{busy?"Preparing payment…":"Continue"}</button>
       {message&&<p className={styles.message} role="status">{message}</p>}
     </form>
-  </div><BottomNav activeHref="/wallet"/></main>;
+  </div></main>;
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BottomNav } from "@/components/BottomNav";
 import { tutorialsApi } from "@/lib/tutorial-api";
 import { formatTutorialDate, Tutorial, tutorialDate, tutorialSlug, tutorialsFrom } from "@/lib/tutorials";
 import styles from "./tutorials.module.css";
@@ -34,6 +33,5 @@ export default function TutorialsClient({initialTutorials=[]}:{initialTutorials?
     <label className={styles.search}><SearchIcon/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search tutorials" aria-label="Search tutorials"/></label>
     {state==="loading"?<div className={styles.message}>Loading tutorials…</div>:state==="error"?<div className={styles.message}><div><p>We couldn’t load tutorials right now.</p><button className={styles.retry} onClick={()=>void load()}>Try again</button></div></div>:filtered.length===0?<div className={styles.message}><div><span className={styles.emptyIcon}><PlayIcon/></span><b>{query?"No tutorials match your search":"No tutorials published yet"}</b><p>{query?"Try another search term.":"Published WickSpend guides will appear here."}</p></div></div>:<section className={styles.feed} aria-label="Tutorial videos">{filtered.map(t=><article className={styles.item} key={String(t.id)}><Link href={`/tutorials/${tutorialSlug(t)}`} className={styles.thumbLink}><div className={styles.thumb}>{t.thumbnail_url?<img src={t.thumbnail_url} alt="" loading="lazy" decoding="async"/>:<span className={styles.placeholder}><PlayIcon/></span>}{t.duration&&<span className={styles.duration}>{t.duration}</span>}</div></Link><div className={styles.meta}><Link href={`/tutorials/${tutorialSlug(t)}`} className={styles.copy}><h2>{t.title}</h2>{t.description&&<p>{t.description}</p>}<small className={styles.date}>{formatTutorialDate(tutorialDate(t))}</small></Link><div className={styles.menuWrap}><button className={styles.menuButton} type="button" aria-label={`Options for ${t.title}`} aria-expanded={menuId===String(t.id)} onClick={()=>setMenuId(menuId===String(t.id)?null:String(t.id))}>⋮</button>{menuId===String(t.id)&&<div className={styles.menu}><button type="button" onClick={()=>void share(t)}>Share tutorial</button><button type="button" onClick={()=>void copyLink(t)}>Copy link</button></div>}</div></div></article>)}</section>}
     {toast&&<div className={styles.toast} role="status">{toast}</div>}
-    <BottomNav/>
   </main>;
 }

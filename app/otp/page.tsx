@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { BottomNav } from "@/components/BottomNav";
 import { api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
 import styles from "./otp.module.css";
@@ -335,6 +334,5 @@ export default function OtpPage() {
         <small className={styles.cancelNote}>Cancellation may fail depending on the number status.</small>
       </section>
     </div>}
-    <BottomNav />
   </main>;
 }

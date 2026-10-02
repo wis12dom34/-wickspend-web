@@ -63,7 +63,9 @@ export function BottomNav({ activeHref }: { activeHref?: string } = {}) {
   if (!hasSession || hidesCustomerNav(pathname)) return null;
 
   return (
-    <nav className="bottomNav" aria-label="Primary navigation">
+    <>
+      <div className="bottomNavSpacer" aria-hidden="true" />
+      <nav className="bottomNav" aria-label="Primary navigation">
       {items.map(([icon, label, href]) => {
         const active = activeHref ? href === activeHref : href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
         return (
@@ -73,6 +75,7 @@ export function BottomNav({ activeHref }: { activeHref?: string } = {}) {
           </Link>
         );
       })}
-    </nav>
+      </nav>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BottomNav } from "@/components/BottomNav";
 import { formatTutorialDate, Tutorial, tutorialDate } from "@/lib/tutorials";
 import styles from "../tutorials.module.css";
 
@@ -17,6 +16,6 @@ export default function TutorialDetailClient({tutorial}:{tutorial:Tutorial}){
     <header className={styles.detailHeader}><Link className={styles.back} href="/tutorials" aria-label="Back to tutorials">‹</Link><span className={styles.detailTitle}>Tutorials</span><Link className={styles.profile} href="/profile" aria-label="Profile"><ProfileIcon/></Link></header>
     <div className={styles.player}><video controls playsInline preload="metadata" poster={tutorial.thumbnail_url||undefined} onLoadStart={()=>setPlayback("loading")} onLoadedMetadata={()=>setPlayback("ready")} onCanPlay={()=>setPlayback("ready")} onWaiting={()=>setPlayback("loading")} onPlaying={()=>setPlayback("ready")} onError={()=>setPlayback("error")}><source src={tutorial.video_url}/></video>{playback==="loading"&&<div className={styles.playerStatus}>Loading video…</div>}{playback==="error"&&<div className={styles.playerStatus}>Video unavailable. Please try again.</div>}</div>
     <section className={styles.detailCopy}><h1>{tutorial.title}</h1><div className={styles.detailDate}>{formatTutorialDate(tutorialDate(tutorial))}</div>{tutorial.description&&<p>{tutorial.description}</p>}<div className={styles.detailActions}><button type="button" onClick={()=>void share()}>Share</button><button type="button" onClick={()=>void copy()}>Copy link</button></div></section>
-    <div className={styles.bottomSpace}/>{toast&&<div className={styles.toast} role="status">{toast}</div>}<BottomNav/>
+    <div className={styles.bottomSpace}/>{toast&&<div className={styles.toast} role="status">{toast}</div>}
   </main>;
 }

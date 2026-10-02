@@ -184,15 +184,7 @@ select {
   min-width: 0;
 }
 
-/* Keep the floating bottom navigation inside the physical viewport and safe areas. */
-.bottomNav {
-  left: max(12px, env(safe-area-inset-left));
-  right: max(12px, env(safe-area-inset-right));
-  width: auto;
-  max-width: 100%;
-  margin-inline: auto;
-}
-
+/* Shared bottom navigation items must remain shrink-safe on narrow screens. */
 .bottomNav .navItem,
 .bottomNav .navLabel,
 .bottomNav .navIcon {

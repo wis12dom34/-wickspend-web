@@ -1,68 +1,68 @@
-/* Mobile bottom navigation: force one unambiguous positioning model.
-   Keep the existing WickSpend design, but center the bar from the viewport itself. */
+/* Shared WickSpend customer bottom navigation: flat, full-width and mobile-native. */
 .bottomNav {
   position: fixed !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
-  width: calc(100% - 24px) !important;
-  max-width: 366px !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: none !important;
   min-width: 0 !important;
+  height: calc(62px + env(safe-area-inset-bottom)) !important;
   margin: 0 !important;
-  /* In mobile Safari the browser toolbar already occupies the hardware safe area.
-     Keep the nav visually resting just above that toolbar instead of floating high above it. */
-  bottom: 4px !important;
+  padding: 0 max(env(safe-area-inset-right), 0px) env(safe-area-inset-bottom) max(env(safe-area-inset-left), 0px) !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(60, 60, 67, .14) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: grid !important;
   grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  overflow: hidden;
-  box-sizing: border-box;
+  overflow: visible !important;
+  z-index: 100;
 }
-
 .bottomNav .navItem {
   min-width: 0 !important;
   width: 100% !important;
-  max-width: 100% !important;
-  padding-left: 1px;
-  padding-right: 1px;
-  overflow: hidden;
-  box-sizing: border-box;
+  height: 62px;
+  padding: 7px 2px 5px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #8e8e93 !important;
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1;
 }
-
-.bottomNav .navIcon,
+.bottomNav .navItem.active { color: #0866F5 !important; }
+.bottomNav .navIcon {
+  width: 24px;
+  height: 24px;
+  min-width: 24px !important;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+}
 .bottomNav .navLabel {
   min-width: 0 !important;
   max-width: 100% !important;
-}
-
-.bottomNav .navLabel {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
 }
-
-/* Installed/standalone mode has no Safari address bar, so retain hardware safe-area clearance there. */
-@media (display-mode: standalone) {
-  .bottomNav {
-    bottom: calc(6px + env(safe-area-inset-bottom)) !important;
-  }
+.bottomNavSpacer {
+  display: block;
+  width: 100%;
+  height: calc(62px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
 }
-
-@media (max-width: 430px) {
-  .bottomNav {
-    width: calc(100% - 20px) !important;
-    max-width: 366px !important;
-  }
-
-  .bottomNav .navLabel {
-    font-size: 8px;
-  }
+@media (max-width: 350px) {
+  .bottomNav .navItem { font-size: 10px !important; padding-inline: 0 !important; }
 }
-
-@media (max-width: 340px) {
-  .bottomNav {
-    width: calc(100% - 16px) !important;
-  }
-
-  .bottomNav .navLabel {
-    font-size: 7px;
-  }
+@media (min-width: 1024px) {
+  .bottomNav, .bottomNavSpacer { display: none !important; }
 }

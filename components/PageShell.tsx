@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BottomNav } from "./BottomNav";
 
 export function PageShell({ title, subtitle, children, back = "/" }: { title: string; subtitle?: string; children: React.ReactNode; back?: string }) {
   const router = useRouter();
@@ -19,7 +18,6 @@ export function PageShell({ title, subtitle, children, back = "/" }: { title: st
         </div>
       </header>
       {children}
-      <BottomNav />
-    </main>
+      </main>
   );
 }

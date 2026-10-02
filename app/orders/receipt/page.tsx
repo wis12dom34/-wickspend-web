@@ -1,7 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
 import {useRouter} from "next/navigation";
-import {BottomNav} from "@/components/BottomNav";
 import {api} from "@/lib/api";
 import {getSessionToken} from "@/lib/session";
 import s from "./receipt.module.css";
@@ -35,7 +34,7 @@ export default function Receipt(){
     return()=>{live=false};
   },[]);
 
-  if(!order)return <main className={s.page}><button className={s.back} onClick={()=>router.back()}>‹</button><div className={s.empty}><h1>Receipt</h1><p>{message}</p></div><BottomNav/></main>;
+  if(!order)return <main className={s.page}><button className={s.back} onClick={()=>router.back()}>‹</button><div className={s.empty}><h1>Receipt</h1><p>{message}</p></div></main>;
 
   const ref=refOf(order),amount=amountRaw(order),total=amount?money(amount.value,amount.currency):"—";
   const feeCandidate=amount?.currency==="NGN"?(order?.fee_ngn??order?.fees_ngn??order?.fee??order?.fees):(order?.fee_usd??order?.fees_usd??order?.fee??order?.fees);
@@ -76,6 +75,5 @@ export default function Receipt(){
     <button className={s.primary} onClick={download}>Download receipt</button>
     <button className={s.secondary} onClick={share}>Share receipt</button>
     {toast&&<div className={s.toast}>{toast}</div>}
-    <BottomNav/>
   </main>
 }
