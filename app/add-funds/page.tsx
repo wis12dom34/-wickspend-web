@@ -9,6 +9,8 @@ import styles from "./add-funds.module.css";
 
 type CurrencyCode="NGN"|"GHS"|"KES"|"ZAR"|"XAF"|"XOF"|"USDT"|"USDC";
 type Currency={code:CurrencyCode;name:string};
+type VirtualAccount={account_reference:string;account_number:string;account_name:string;bank_name:string;bank_code?:string;currency:string;status:string};
+const dedicatedBanks=[{code:"070",name:"Fidelity Bank"},{code:"035",name:"Wema Bank"},{code:"103",name:"Globus Bank"},{code:"033",name:"UBA"},{code:"090405",name:"Moniepoint"},{code:"107",name:"Optimus Bank"},{code:"104",name:"Parallex Bank"},{code:"214",name:"FCMB"}];
 const currencies:Currency[]=[
   {code:"NGN",name:"Nigerian Naira"},
   {code:"GHS",name:"Ghanaian Cedi"},
@@ -48,9 +50,36 @@ export default function AddFunds(){
   const[hidden,setHidden]=useState(false);
   const[busy,setBusy]=useState(false);
   const[message,setMessage]=useState("");
+  const[virtualAccount,setVirtualAccount]=useState<VirtualAccount|null>(null);
+  const[virtualState,setVirtualState]=useState<"loading"|"ready"|"missing"|"error">("loading");
+  const[accountName,setAccountName]=useState("");
+  const[verificationNumber,setVerificationNumber]=useState("");
+  const[bankCode,setBankCode]=useState("070");
+  const[creatingAccount,setCreatingAccount]=useState(false);
+  const[copied,setCopied]=useState(false);
   const requestSeq=useRef(0);
 
-  useEffect(()=>{let cancelled=false;const saved=asCurrency(localStorage.getItem("wickspend_display_currency"));if(saved){setDisplayCurrency(saved)}setHydrated(true);const token=getSessionToken();if(!token){setWalletState("signed-out");return()=>{cancelled=true}}api.wallet.get(token).then((wallet:any)=>{if(cancelled)return;setBalance(balanceOf(wallet));const accountPreference=preferenceOf(wallet);if(accountPreference){setDisplayCurrency(accountPreference)}setWalletState("ready")}).catch(()=>{if(!cancelled)setWalletState("error")});return()=>{cancelled=true}},[]);
+  useEffect(()=>{
+    let cancelled=false;
+    const saved=asCurrency(localStorage.getItem("wickspend_display_currency"));
+    if(saved)setDisplayCurrency(saved);
+    setHydrated(true);
+    const token=getSessionToken();
+    if(!token){setWalletState("signed-out");setVirtualState("error");return()=>{cancelled=true}}
+    api.wallet.get(token).then((wallet:any)=>{
+      if(cancelled)return;
+      setBalance(balanceOf(wallet));
+      setAccountName(String(wallet?.full_name||wallet?.user?.full_name||"").trim());
+      const accountPreference=preferenceOf(wallet);if(accountPreference)setDisplayCurrency(accountPreference);
+      setWalletState("ready");
+    }).catch(()=>{if(!cancelled)setWalletState("error")});
+    api.wallet.virtualAccount(token).then((result:any)=>{
+      if(cancelled)return;
+      const account=result?.account as VirtualAccount|null|undefined;
+      if(account?.account_number){setVirtualAccount(account);setVirtualState("ready")}else setVirtualState("missing");
+    }).catch(()=>{if(!cancelled)setVirtualState("error")});
+    return()=>{cancelled=true};
+  },[]);
 
   const selected=useMemo(()=>currencies.find(c=>c.code===selectedCode)||currencies[0],[selectedCode]);
   const value=Number(amount);
@@ -61,6 +90,27 @@ export default function AddFunds(){
   const walletValue=walletState==="loading"?"Loading…":hidden?"••••••":moneyNgn(balance);
 
   function selectCurrency(code:CurrencyCode){requestSeq.current++;setSelectedCode(code);setMessage("")}
+  async function createDedicatedAccount(){
+    const token=getSessionToken();
+    if(!token){router.push("/login?next=%2Fadd-funds&secure=1");return}
+    const legalName=accountName.trim();
+    const verification=verificationNumber.replace(/\D/g,"");
+    if(legalName.length<2){setMessage("Enter the legal name linked to your BVN.");return}
+    if(verification.length!==11){setMessage("Enter a valid 11-digit BVN.");return}
+    setCreatingAccount(true);setMessage("Creating your dedicated bank account…");
+    try{
+      const result:any=await api.wallet.createVirtualAccount(token,{kyc_value:verification,account_name:legalName,bank_code:bankCode});
+      const account=result?.account as VirtualAccount|null|undefined;
+      if(!account?.account_number)throw new Error("Dedicated account details were not returned.");
+      setVirtualAccount(account);setVirtualState("ready");setVerificationNumber("");
+      setMessage("Dedicated bank account created successfully.");
+    }catch(err){setMessage(err instanceof Error?err.message:"Unable to create dedicated account");}
+    finally{setCreatingAccount(false)}
+  }
+  async function copyAccountNumber(){
+    if(!virtualAccount?.account_number)return;
+    try{await navigator.clipboard.writeText(virtualAccount.account_number);setCopied(true);window.setTimeout(()=>setCopied(false),1600)}catch{setMessage("Copy failed. Press and hold the account number to copy it.")}
+  }
   async function submit(e:FormEvent){e.preventDefault();if(!canContinue)return;const token=getSessionToken();if(!token){setMessage("Secure sign in is required before funding your wallet. Redirecting to login…");window.setTimeout(()=>router.push("/login?next=%2Fadd-funds&secure=1"),350);return}const seq=++requestSeq.current;setBusy(true);setMessage("Creating secure payment…");try{const r:any=await api.wallet.initializeFunding(token,value,selected.code);if(seq!==requestSeq.current)return;const url=paymentUrl(r);if(!url)throw new Error("A valid payment link was not returned by the funding service.");setMessage("Redirecting to secure payment…");window.location.assign(url)}catch(err){if(seq===requestSeq.current)setMessage(err instanceof Error?err.message:"Unable to initialize funding")}finally{if(seq===requestSeq.current)setBusy(false)}}
 
   return <main className={styles.page}><div className={styles.screen}>
@@ -80,6 +130,28 @@ export default function AddFunds(){
         {currencies.map(currency=><button key={currency.code} type="button" className={`${styles.currencyChip} ${selected.code===currency.code?styles.selected:""}`} aria-pressed={selected.code===currency.code} aria-label={`${currency.name}, ${currency.code}`} title={`Pay with ${currency.code}`} onClick={()=>selectCurrency(currency.code)} disabled={busy}><span className={styles.currencyIcon}><CurrencyIcon code={currency.code}/></span><span>{currency.code}</span></button>)}
       </div>
     </section>
+
+    {selected.code==="NGN"&&<section className={styles.dedicatedSection} aria-busy={virtualState==="loading"||creatingAccount}>
+      <div className={styles.dedicatedHeader}><div><span className={styles.dedicatedEyebrow}>BANK TRANSFER</span><h2>Dedicated account</h2></div><span className={styles.permanentBadge}>Reusable</span></div>
+      {virtualState==="loading"&&<p className={styles.dedicatedStatus}>Checking your dedicated account…</p>}
+      {virtualState==="ready"&&virtualAccount&&<div className={styles.accountCard}>
+        <div className={styles.bankRow}><div><span className={styles.bankLabel}>Bank</span><strong>{virtualAccount.bank_name}</strong></div><span className={styles.ngnBadge}>NGN</span></div>
+        <button type="button" className={styles.accountNumber} onClick={copyAccountNumber} aria-label="Copy dedicated account number">{virtualAccount.account_number}</button>
+        <div className={styles.accountMeta}><span>{virtualAccount.account_name}</span><button type="button" onClick={copyAccountNumber}>{copied?"Copied":"Copy"}</button></div>
+        <p className={styles.accountHint}>Transfer NGN to this account anytime. WickSpend credits your wallet only after Kora verifies the payment.</p>
+      </div>}
+      {(virtualState==="missing"||virtualState==="error")&&<div className={styles.createAccountBox}>
+        <p className={styles.createIntro}>Create one permanent bank account for your WickSpend wallet. You only need to do this once.</p>
+        <label className={styles.fieldLabel} htmlFor="accountName">Legal name</label>
+        <input className={styles.textInput} id="accountName" value={accountName} onChange={e=>setAccountName(e.target.value)} placeholder="Name linked to your BVN" autoComplete="name" disabled={creatingAccount}/>
+        <label className={styles.fieldLabel} htmlFor="dedicatedBank">Preferred bank</label>
+        <select className={styles.textInput} id="dedicatedBank" value={bankCode} onChange={e=>setBankCode(e.target.value)} disabled={creatingAccount}>{dedicatedBanks.map(bank=><option key={bank.code} value={bank.code}>{bank.name}</option>)}</select>
+        <label className={styles.fieldLabel} htmlFor="verificationNumber">BVN</label>
+        <input className={styles.textInput} id="verificationNumber" type="password" inputMode="numeric" pattern="[0-9]*" maxLength={11} value={verificationNumber} onChange={e=>setVerificationNumber(e.target.value.replace(/\D/g,"").slice(0,11))} placeholder="11-digit BVN" autoComplete="off" disabled={creatingAccount}/>
+        <p className={styles.privacyNote}>Your BVN is sent securely to Kora for account verification and is not stored by WickSpend.</p>
+        <button type="button" className={styles.createAccountButton} onClick={createDedicatedAccount} disabled={creatingAccount}>{creatingAccount?"Creating account…":"Create dedicated account"}</button>
+      </div>}
+    </section>}
 
     <form onSubmit={submit} aria-busy={busy} className={styles.form}>
       <label className={styles.fieldLabel} htmlFor="fundingAmount">Amount to add (NGN)</label>
