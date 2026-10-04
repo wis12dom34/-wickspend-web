@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "smoke:reseller-subscription": "node scripts/reseller-subscription-smoke.mjs",
     "deploy:production": "bash scripts/deploy-production.sh"
   },
   "dependencies": {
