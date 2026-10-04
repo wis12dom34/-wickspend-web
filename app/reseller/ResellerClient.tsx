@@ -80,17 +80,10 @@ export default function ResellerDashboard() {
     } finally { setBusy(false); }
   }
 
-  async function subscribe(planCode:string,billingCycle:BillingCycle) {
-    const token=getSessionToken(); if(!token)return router.replace("/login");
-    setBusy(true); setMessage("");
-    try {
-      const request_key = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `resub-${Date.now()}-${Math.random()}`;
-      const result:any = await wickspendApi("wickspend/backend/reseller/subscription/initialize",{method:"POST",token,body:JSON.stringify({plan_code:planCode,billing_cycle:billingCycle,request_key})});
-      if(result?.checkout_url){ window.location.assign(result.checkout_url); return; }
-      if(result?.status === "active"){ setMessage("Subscription activated."); await load(); return; }
-      setMessage("Subscription checkout was created but no payment link was returned.");
-    } catch(error){ setMessage(error instanceof Error ? error.message : "Could not start subscription checkout."); }
-    finally{ setBusy(false); }
+  async function subscribe(_planCode:string,_billingCycle:BillingCycle) {
+    const token=getSessionToken();
+    if(!token)return router.replace("/login");
+    router.push("/reseller/billing");
   }
 
   const metrics = dashboard?.metrics || {};
@@ -164,11 +157,28 @@ export default function ResellerDashboard() {
 
 function Metric({label,value}:{label:string;value:string}) { return <article className="metricCard"><span>{label}</span><strong>{value}</strong></article>; }
 function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;currentPlan?:string;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
-  const [selected,setSelected]=useState<Record<string,BillingCycle>>({});
-  return <section className="plansSection"><div className="sectionTitle"><div><span className="eyebrow">Plans</span><h2>Reseller subscription</h2><p className="subtle">Choose the plan and billing period that fits your Mini Store.</p></div></div>{plans.length ? <div className="planGrid">{plans.map((p:any)=>{
-    const options=billingOptions(p);
-    const selectedCycle=options.some(o=>o.cycle===selected[p.code])?selected[p.code]:options[0]?.cycle;
-    const choice=options.find(o=>o.cycle===selectedCycle);
-    return <article className="planCard" key={p.code}><div className="cardHead"><div><div className="planTitleRow"><h3>{p.name}</h3>{p.is_featured&&<span className="recommendedBadge">Recommended</span>}</div>{p.description&&<p className="planDescription">{p.description}</p>}</div>{currentPlan===p.code&&<span className="status good">Current</span>}</div><div className="featureChips">{p.features?.api_access===true&&<span>API access</span>}{Number(p.features?.api_key_limit||0)>0&&<span>{Number(p.features.api_key_limit)} API key{Number(p.features.api_key_limit)===1?"":"s"}</span>}{p.features?.custom_domain===true&&<span>Custom domain{Number(p.features?.custom_domain_limit||0)>1?`s · ${p.features.custom_domain_limit}`:""}</span>}</div>{options.length?<><div className="billingSelector" role="group" aria-label={`${p.name} billing period`}>{options.map(option=><button type="button" key={option.cycle} className={selectedCycle===option.cycle?"billingOption active":"billingOption"} onClick={()=>setSelected(prev=>({...prev,[p.code]:option.cycle}))}>{option.label}</button>)}</div><div className="selectedPlanPrice"><span>{choice?.label}</span><b>{money(choice?.price)}</b></div><button className="planSubscribeButton" disabled={busy||!choice} onClick={()=>choice&&onSubscribe(p.code,choice.cycle)}>{currentPlan===p.code?`Renew ${choice?.label||"plan"}`:`Choose ${choice?.label||"plan"}`}</button></>:<div className="emptyState compactEmpty">No billing period is enabled for this plan.</div>}</article>;
-  })}</div> : <div className="emptyState">Reseller plans have not been configured yet.</div>}</section>;
+  const p=plans.find((plan:any)=>plan?.is_featured)||plans[0];
+  if(!p) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not configured yet.</div></section>;
+  const monthly=Number(p.monthly_price_ngn||7500);
+  const choices=[
+    {cycle:"monthly" as BillingCycle,title:"1 Month",price:monthly,normal:monthly,monthly,description:"Perfect for new resellers who want to start small."},
+    {cycle:"six_months" as BillingCycle,title:"6 Months",price:Number(p.six_month_price_ngn||30000),normal:monthly*6,monthly:Number(p.six_month_price_ngn||30000)/6,badge:"MOST POPULAR",description:"Best balance between affordability and long-term value."},
+    {cycle:"annual" as BillingCycle,title:"1 Year",price:Number(p.annual_price_ngn||50000),normal:monthly*12,monthly:Number(p.annual_price_ngn||50000)/12,badge:"BEST SAVINGS",description:"Best for serious resellers who want the lowest monthly cost."},
+  ];
+  return <section className="plansSection">
+    <div className="sectionTitle"><div><span className="eyebrow">Simple pricing</span><h2>One subscription. Full reseller access.</h2><p className="subtle">All plans include the same reseller features. You only choose your subscription duration.</p></div></div>
+    <div className="subscriptionPlanGrid">{choices.map(choice=>{
+      const saving=Math.max(0,choice.normal-choice.price);
+      const percent=choice.normal>0?Math.round((saving/choice.normal)*100):0;
+      return <article className={`subscriptionPlanCard ${choice.cycle==="six_months"?"popular":""}`} key={choice.cycle}>
+        {choice.badge&&<span className={`planBadge ${choice.cycle==="six_months"?"popularBadge":""}`}>{choice.badge}</span>}
+        <div className="subscriptionPlanHead"><h3>{choice.title}</h3><p>{choice.description}</p></div>
+        <div className="subscriptionPrice">{saving>0&&<span className="normalPrice">{money(choice.normal)}</span>}<strong>{money(choice.price)}</strong><small>{money(choice.monthly)}/month</small></div>
+        <div className={`savingLine ${saving===0?"neutral":""}`}>{saving>0?`You save ${money(saving)} — ${percent}%`:"Pay month-to-month"}</div>
+        <button className="planSubscribeButton" disabled={busy} onClick={()=>onSubscribe(p.code,choice.cycle)}>{currentPlan===p.code?"Renew Subscription":`Choose ${choice.title}`}</button>
+      </article>;
+    })}</div>
+    <div className="featureChips"><span>API access</span><span>Mini Store</span><span>Personal reseller website</span><span>Admin dashboard</span><span>Website customization</span><span>Branding</span><span>Products & customers</span><span>Orders & tracking</span><span>Wallet integration</span><span>Support</span></div>
+  </section>;
 }
+
