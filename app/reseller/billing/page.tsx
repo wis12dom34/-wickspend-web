@@ -57,8 +57,19 @@ function daysRemaining(value: unknown) {
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === "INSUFFICIENT_BALANCE" || error.code === "insufficient_balance") return "Insufficient balance";
-    return error.code || error.message;
+    const code = String(error.code || "").toUpperCase();
+    const messages: Record<string, string> = {
+      INSUFFICIENT_BALANCE: "Insufficient balance",
+      WALLET_PAYMENT_REQUIRED: "Please use the WickSpend wallet checkout on this page.",
+      WALLET_NOT_FOUND: "Your WickSpend wallet could not be found. Open Wallet and try again.",
+      PLAN_NOT_AVAILABLE: "This reseller subscription is currently unavailable.",
+      INVALID_BILLING_CYCLE: "Choose a valid subscription duration.",
+      NOT_ENROLLED: "Create your reseller workspace before subscribing.",
+      RESELLER_SUSPENDED: "Your reseller account is currently unavailable.",
+      RATE_LIMITED: "Too many attempts. Try again shortly.",
+      UNAUTHORIZED: "Your session has expired. Sign in again.",
+    };
+    return messages[code] || error.message || "Unable to complete subscription checkout.";
   }
   return error instanceof Error ? error.message : "Unable to load billing data.";
 }
