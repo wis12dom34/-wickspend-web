@@ -1,0 +1,17 @@
+{
+  "name": "wickspend-iphone-content-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "appium": "appium --address 127.0.0.1 --port 4723",
+    "setup:appium": "appium driver install xcuitest",
+    "doctor": "node server.mjs --doctor"
+  },
+  "dependencies": {
+    "@fastify/static": "latest",
+    "appium": "latest",
+    "fastify": "latest"
+  }
+}
