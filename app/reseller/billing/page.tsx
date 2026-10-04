@@ -334,7 +334,7 @@ export default function ResellerBilling() {
                   <tr key={x.payment_reference}>
                     <td><b>{x.payment_reference}</b><small>{formatDate(x.created_at)}</small></td>
                     <td>Reseller</td>
-                    <td>{x.billing_cycle === "monthly" ? "1 Month" : x.billing_cycle === "six_months" ? "6 Months" : "1 Year"}</td>
+                    <td>{x.billing_cycle === "monthly" ? "1 Month" : x.billing_cycle === "six_months" || x.billing_cycle === "6_months" ? "6 Months" : x.billing_cycle === "annual" ? "1 Year" : String(x.billing_cycle || "—").replaceAll("_", " ")}</td>
                     <td>{money(x.amount_ngn)}</td>
                     <td><span className={`status ${x.status === "active" ? "good" : x.status === "pending" ? "warn" : "muted"}`}>{x.status}</span></td>
                     <td>{formatDate(x.starts_at)}</td>
