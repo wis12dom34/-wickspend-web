@@ -11,6 +11,7 @@ on:
       - "app/add-funds/**"
       - "components/BottomNav.tsx"
       - "scripts/reseller-smoke.mjs"
+      - "scripts/reseller-subscription-smoke.mjs"
       - "scripts/build-production-aware.sh"
       - "scripts/deploy-production.sh"
       - "scripts/verify-production-runtime.sh"
@@ -27,6 +28,7 @@ on:
       - "app/add-funds/**"
       - "components/BottomNav.tsx"
       - "scripts/reseller-smoke.mjs"
+      - "scripts/reseller-subscription-smoke.mjs"
       - "scripts/build-production-aware.sh"
       - "scripts/deploy-production.sh"
       - "scripts/verify-production-runtime.sh"
@@ -61,6 +63,8 @@ jobs:
           exit 1
       - name: Reseller smoke tests
         run: node scripts/reseller-smoke.mjs
+      - name: Reseller subscription smoke tests
+        run: npm run smoke:reseller-subscription
       - name: Application log
         if: failure()
         run: cat /tmp/wickspend.log || true
