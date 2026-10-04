@@ -1,0 +1,77 @@
+import { readFile } from "node:fs/promises";
+
+const backendBase = (process.env.RESELLER_BACKEND_BASE || "https://n8n.wickspend.com/webhook").replace(/\/$/, "");
+let failures = 0;
+
+function fail(message) {
+  failures += 1;
+  console.error(`FAIL ${message}`);
+}
+
+function pass(message) {
+  console.log(`PASS ${message}`);
+}
+
+const billingSource = await readFile("app/reseller/billing/page.tsx", "utf8");
+const dashboardSource = await readFile("app/reseller/ResellerClient.tsx", "utf8");
+
+for (const required of [
+  'title: "1 Month"',
+  'title: "6 Months"',
+  'title: "1 Year"',
+  'monthly_price_ngn ?? 7500',
+  'six_month_price_ngn ?? 30000',
+  'annual_price_ngn ?? 50000',
+  'badge: "MOST POPULAR"',
+  'badge: "BEST SAVINGS"',
+  'payment_method: "wallet"',
+  'INSUFFICIENT_BALANCE',
+  'WALLET_PAYMENT_REQUIRED',
+  'WALLET_NOT_FOUND',
+]) {
+  if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
+  else pass(`Billing source contains ${required}`);
+}
+
+if (billingSource.includes("window.location.assign(result.checkout_url)")) {
+  fail("Billing source still redirects to hosted checkout_url");
+} else {
+  pass("Billing source has no legacy hosted checkout redirect");
+}
+
+for (const required of [
+  "One subscription. Full reseller access.",
+  "API access",
+  "Mini Store",
+  "Personal reseller website",
+  "Admin dashboard",
+  "Wallet integration",
+]) {
+  if (!dashboardSource.includes(required)) fail(`Dashboard source missing ${required}`);
+  else pass(`Dashboard source contains ${required}`);
+}
+
+const response = await fetch(`${backendBase}/wickspend/backend/reseller/subscription/initialize`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    plan_code: "reseller",
+    billing_cycle: "six_months",
+    request_key: "smoke-reseller-subscription-no-session",
+    payment_method: "wallet",
+  }),
+  redirect: "manual",
+});
+const json = await response.json().catch(() => null);
+if (response.status !== 401 || json?.code !== "UNAUTHORIZED") {
+  fail(`Unauthenticated subscription initialize expected 401 UNAUTHORIZED, got ${response.status} ${JSON.stringify(json)}`);
+} else {
+  pass("Unauthenticated subscription initialize is blocked before wallet mutation");
+}
+
+if (failures) {
+  console.error(`\n${failures} reseller subscription smoke test(s) failed.`);
+  process.exit(1);
+}
+
+console.log("\nAll reseller subscription smoke tests passed.");
