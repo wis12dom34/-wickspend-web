@@ -19,9 +19,9 @@ for (const required of [
   'title: "1 Month"',
   'title: "6 Months"',
   'title: "1 Year"',
-  'monthly_price_ngn ?? 7500',
-  'six_month_price_ngn ?? 30000',
-  'annual_price_ngn ?? 50000',
+  'Number(basePlan.monthly_price_ngn)',
+  'Number(basePlan.six_month_price_ngn)',
+  'Number(basePlan.annual_price_ngn)',
   'badge: "MOST POPULAR"',
   'badge: "BEST SAVINGS"',
   'payment_method: "wallet"',
@@ -36,6 +36,8 @@ for (const required of [
   'wallet?.wallet?.balance_ngn',
   'wallet?.data?.balance_ngn',
   '.sort((a, b) => subscriptionTimestamp(b) - subscriptionTimestamp(a))',
+  'basePlan.monthly_enabled !== true || basePlan.six_month_enabled !== true || basePlan.annual_enabled !== true',
+  'basePlan.monthly_price_ngn == null || basePlan.six_month_price_ngn == null || basePlan.annual_price_ngn == null',
 ]) {
   if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
   else pass(`Billing source contains ${required}`);
@@ -54,6 +56,7 @@ for (const required of [
   "Personal reseller website",
   "Admin dashboard",
   "Wallet integration",
+  "Reseller subscription pricing is not fully configured yet.",
 ]) {
   if (!dashboardSource.includes(required)) fail(`Dashboard source missing ${required}`);
   else pass(`Dashboard source contains ${required}`);
