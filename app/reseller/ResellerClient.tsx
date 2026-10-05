@@ -80,30 +80,30 @@ export default function ResellerDashboard() {
     } finally { setBusy(false); }
   }
 
-  async function subscribe(planCode:string,billingCycle:BillingCycle) {
-    const token=getSessionToken(); if(!token)return router.replace("/login");
-    setBusy(true); setMessage("");
-    try {
-      const request_key = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `resub-${Date.now()}-${Math.random()}`;
-      const result:any = await wickspendApi("wickspend/backend/reseller/subscription/initialize",{method:"POST",token,body:JSON.stringify({plan_code:planCode,billing_cycle:billingCycle,request_key})});
-      if(result?.checkout_url){ window.location.assign(result.checkout_url); return; }
-      if(result?.status === "active"){ setMessage("Subscription activated."); await load(); return; }
-      setMessage("Subscription checkout was created but no payment link was returned.");
-    } catch(error){ setMessage(error instanceof Error ? error.message : "Could not start subscription checkout."); }
-    finally{ setBusy(false); }
+  async function subscribe(_planCode:string,_billingCycle:BillingCycle) {
+    const token=getSessionToken();
+    if(!token)return router.replace("/login");
+    if(String(profile?.subscription?.status||"").toLowerCase()==="pending"){
+      setMessage("Subscription activation is already pending. Do not pay again while confirmation is pending.");
+      return;
+    }
+    router.push("/reseller/billing");
   }
 
   const metrics = dashboard?.metrics || {};
   const store = profile?.store || dashboard?.store || {};
   const domain = profile?.domain || dashboard?.domain || {};
   const subscription = profile?.subscription || dashboard?.subscription || {};
+  const subscriptionStatus = String(subscription?.status || "inactive").toLowerCase();
+  const subscriptionPending = subscriptionStatus === "pending";
+  const hasSubscriptionRecord = Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at);
   const hostedStoreUrl = store?.slug ? `https://wickspend.com/store/${encodeURIComponent(store.slug)}` : null;
   const storeUrl = domain?.activation_ready && store?.custom_domain_url ? store.custom_domain_url : hostedStoreUrl || store?.preview_url || dashboard?.store?.preview_url;
   const recent = Array.isArray(dashboard?.recent_orders) ? dashboard.recent_orders : [];
-  const statusClass = subscription?.active ? "good" : subscription?.status === "pending" ? "warn" : "muted";
+  const statusClass = subscription?.active ? "good" : subscriptionPending ? "warn" : "muted";
   const planCards = useMemo(() => plans.filter(Boolean),[plans]);
 
-  if (mode === "loading") return <main className="resellerShell"><ResellerNav/><section className="resellerHero onboardingHero"><div><span className="eyebrow">WickSpend Reseller</span><h1>Build and manage a WickSpend-powered Mini Store.</h1><p>Sell supported WickSpend services through your own storefront, manage customers and orders, and use reseller API or custom-domain features when your configured plan includes them.</p></div></section><section className="seoContent"><h2>Reseller features</h2><p>WickSpend Reseller uses the existing Mini Store, customer, wallet, order, pricing-rule and subscription systems. Plan availability and pricing are loaded from the current Admin-managed configuration rather than hard-coded here.</p><nav className="seoRelatedLinks"><a href="/tutorials">View tutorials</a><a href="/">WickSpend home</a></nav></section><div className="resellerLoading">Checking reseller workspace…</div></main>;
+  if (mode === "loading") return <main className="resellerShell"><ResellerNav/><section className="resellerHero onboardingHero"><div><span className="eyebrow">WickSpend Reseller</span><h1>Build and manage a WickSpend-powered Mini Store.</h1><p>Sell supported WickSpend services through your own storefront, manage customers and orders, and use reseller API, Mini Store and custom-domain features with any active subscription.</p></div></section><section className="seoContent"><h2>Reseller features</h2><p>WickSpend Reseller uses the existing Mini Store, customer, wallet, order, pricing-rule and subscription systems. Plan availability and pricing are loaded from the current Admin-managed configuration rather than hard-coded here.</p><nav className="seoRelatedLinks"><a href="/tutorials">View tutorials</a><a href="/">WickSpend home</a></nav></section><div className="resellerLoading">Checking reseller workspace…</div></main>;
 
   if (mode === "not-enrolled") return (
     <main className="resellerShell">
@@ -119,7 +119,7 @@ export default function ResellerDashboard() {
         <div className="slugPreview">Preview: https://wickspend.com/store/{storeSlug || "my-store"}</div>
         <button className="primaryButton" disabled={busy || storeName.trim().length<2 || storeSlug.trim().length<3} onClick={enroll}>{busy ? "Creating…" : "Create reseller workspace"}</button>
       </section>
-      <Plans plans={planCards} busy={busy} onSubscribe={subscribe}/>
+      <Plans plans={planCards} busy={busy} canRenew={false} onSubscribe={subscribe}/>
     </main>
   );
 
@@ -133,7 +133,7 @@ export default function ResellerDashboard() {
       <section className="resellerCard launchChecklist">
         <div className="cardHead"><div><span className="eyebrow">Launch checklist</span><h2>Get your store ready</h2></div><span className={`status ${profile?.can_launch_store ? "good" : "warn"}`}>{profile?.can_launch_store ? "Ready" : "Setup needed"}</span></div>
         <div className="checklistRows">
-          <Link href="/reseller/billing" className={`checklistRow ${subscription?.active ? "done" : ""}`}><span className="checkDot">{subscription?.active ? "✓" : "1"}</span><span><b>Active reseller subscription</b><small>{subscription?.active ? `Active until ${date(subscription?.expires_at)}` : "Choose an active plan before launching."}</small></span><i>›</i></Link>
+          <Link href="/reseller/billing" className={`checklistRow ${subscription?.active ? "done" : ""}`}><span className="checkDot">{subscription?.active ? "✓" : "1"}</span><span><b>Active reseller subscription</b><small>{subscription?.active ? `Active until ${date(subscription?.expires_at)}` : subscriptionPending ? "Activation pending. Do not pay again while confirmation is pending." : "Choose an active plan before launching."}</small></span><i>›</i></Link>
           <Link href="/reseller/store" className={`checklistRow ${store?.enabled ? "done" : ""}`}><span className="checkDot">{store?.enabled ? "✓" : "2"}</span><span><b>Enable your storefront</b><small>{store?.enabled ? "Storefront is enabled." : "Finish branding and enable the storefront."}</small></span><i>›</i></Link>
           <Link href="/reseller/store" className={`checklistRow ${store?.slug ? "done" : ""}`}><span className="checkDot">{store?.slug ? "✓" : "3"}</span><span><b>Clean WickSpend store URL</b><small>{store?.slug ? `wickspend.com/store/${store.slug}` : "Choose your store URL name."}</small></span><i>›</i></Link>
           <Link href="/reseller/store" className="checklistRow optional"><span className="checkDot">+</span><span><b>Custom pricing <em>Optional</em></b><small>Add markup or fixed retail rules. Without a rule, WickSpend base pricing remains the floor.</small></span><i>›</i></Link>
@@ -149,7 +149,7 @@ export default function ResellerDashboard() {
       </section>
       <section className="resellerGrid two">
         <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Store</span><h2>{store?.store_name || "Store setup"}</h2></div><span className={`status ${store?.enabled ? "good" : "muted"}`}>{store?.enabled ? "Enabled" : "Disabled"}</span></div><dl className="detailList"><div><dt>Slug</dt><dd>{store?.slug || "—"}</dd></div><div><dt>Custom domain</dt><dd>{store?.custom_domain || "Not connected"}</dd></div><div><dt>Domain</dt><dd>{domain?.domain_status || store?.domain_status || "none"}</dd></div><div><dt>Routing / TLS</dt><dd>{domain?.routing_status || "not configured"} / {domain?.ssl_status || "not configured"}</dd></div></dl>{storeUrl && <a className="textLink" href={storeUrl} target="_blank" rel="noreferrer">Preview storefront →</a>}</article>
-        <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Subscription</span><h2>{profile?.reseller?.plan_code || "No active plan"}</h2></div><span className={`status ${statusClass}`}>{subscription?.status || "inactive"}</span></div><dl className="detailList"><div><dt>Active</dt><dd>{subscription?.active ? "Yes" : "No"}</dd></div><div><dt>Expires</dt><dd>{date(subscription?.expires_at)}</dd></div><div><dt>Store launch</dt><dd>{profile?.can_launch_store ? "Ready" : "Not ready"}</dd></div></dl><Link className="textLink" href="/reseller/billing">Manage subscription & billing →</Link></article>
+        <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Subscription</span><h2>{subscriptionPending ? "Payment pending" : hasSubscriptionRecord && profile?.reseller?.plan_code ? profile.reseller.plan_code : "No active plan"}</h2></div><span className={`status ${statusClass}`}>{subscription?.status || "inactive"}</span></div><dl className="detailList"><div><dt>Active</dt><dd>{subscription?.active ? "Yes" : "No"}</dd></div><div><dt>Expires</dt><dd>{date(subscription?.expires_at)}</dd></div><div><dt>Store launch</dt><dd>{profile?.can_launch_store ? "Ready" : "Not ready"}</dd></div></dl><Link className="textLink" href="/reseller/billing">Manage subscription & billing →</Link></article>
       </section>
       <section className="resellerGrid three">
         <Link className="resellerAction" href="/reseller/orders"><b>Orders</b><span>{metrics.total_orders ?? 0} total</span><small>Numbers, Marketplace and Boostly →</small></Link>
@@ -157,18 +157,39 @@ export default function ResellerDashboard() {
         <div className="resellerAction"><b>Profit</b><span>{money(metrics.earned_profit_ngn)}</span><small>{money(metrics.settled_profit_ngn)} settled</small></div>
       </section>
       <section className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Recent orders</span><h2>Latest activity</h2></div><Link className="textLink" href="/reseller/orders">View all →</Link></div>{recent.length ? <div className="tableWrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Type</th><th>Amount</th><th>Profit</th><th>Status</th></tr></thead><tbody>{recent.map((o:any)=><tr key={o.reference}><td><b>{o.product_name || o.reference}</b><small>{o.reference}</small></td><td>{o.full_name || o.email || "Customer"}</td><td>{o.product_type}</td><td>{money(o.sale_amount_ngn)}</td><td>{money(o.reseller_profit_ngn)}</td><td><span className="status muted">{o.status}</span></td></tr>)}</tbody></table></div> : <div className="emptyState">No reseller orders yet.</div>}</section>
-      <Plans plans={planCards} busy={busy} currentPlan={profile?.reseller?.plan_code} onSubscribe={subscribe}/>
+      <Plans plans={planCards} busy={busy} canRenew={hasSubscriptionRecord} pending={subscriptionPending} onSubscribe={subscribe}/>
     </main>
   );
 }
 
 function Metric({label,value}:{label:string;value:string}) { return <article className="metricCard"><span>{label}</span><strong>{value}</strong></article>; }
-function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;currentPlan?:string;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
-  const [selected,setSelected]=useState<Record<string,BillingCycle>>({});
-  return <section className="plansSection"><div className="sectionTitle"><div><span className="eyebrow">Plans</span><h2>Reseller subscription</h2><p className="subtle">Choose the plan and billing period that fits your Mini Store.</p></div></div>{plans.length ? <div className="planGrid">{plans.map((p:any)=>{
-    const options=billingOptions(p);
-    const selectedCycle=options.some(o=>o.cycle===selected[p.code])?selected[p.code]:options[0]?.cycle;
-    const choice=options.find(o=>o.cycle===selectedCycle);
-    return <article className="planCard" key={p.code}><div className="cardHead"><div><div className="planTitleRow"><h3>{p.name}</h3>{p.is_featured&&<span className="recommendedBadge">Recommended</span>}</div>{p.description&&<p className="planDescription">{p.description}</p>}</div>{currentPlan===p.code&&<span className="status good">Current</span>}</div><div className="featureChips">{p.features?.api_access===true&&<span>API access</span>}{Number(p.features?.api_key_limit||0)>0&&<span>{Number(p.features.api_key_limit)} API key{Number(p.features.api_key_limit)===1?"":"s"}</span>}{p.features?.custom_domain===true&&<span>Custom domain{Number(p.features?.custom_domain_limit||0)>1?`s · ${p.features.custom_domain_limit}`:""}</span>}</div>{options.length?<><div className="billingSelector" role="group" aria-label={`${p.name} billing period`}>{options.map(option=><button type="button" key={option.cycle} className={selectedCycle===option.cycle?"billingOption active":"billingOption"} onClick={()=>setSelected(prev=>({...prev,[p.code]:option.cycle}))}>{option.label}</button>)}</div><div className="selectedPlanPrice"><span>{choice?.label}</span><b>{money(choice?.price)}</b></div><button className="planSubscribeButton" disabled={busy||!choice} onClick={()=>choice&&onSubscribe(p.code,choice.cycle)}>{currentPlan===p.code?`Renew ${choice?.label||"plan"}`:`Choose ${choice?.label||"plan"}`}</button></>:<div className="emptyState compactEmpty">No billing period is enabled for this plan.</div>}</article>;
-  })}</div> : <div className="emptyState">Reseller plans have not been configured yet.</div>}</section>;
+function Plans({plans,busy,canRenew,pending=false,onSubscribe}:{plans:any[];busy:boolean;canRenew:boolean;pending?:boolean;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
+  const p=plans.find((plan:any)=>plan?.is_featured)||plans[0];
+  if(!p) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not configured yet.</div></section>;
+  const pricingReady=p.monthly_enabled===true&&p.six_month_enabled===true&&p.annual_enabled===true&&p.monthly_price_ngn!=null&&p.six_month_price_ngn!=null&&p.annual_price_ngn!=null;
+  if(!pricingReady) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not fully configured yet.</div></section>;
+  const monthly=Number(p.monthly_price_ngn);
+  const sixMonths=Number(p.six_month_price_ngn);
+  const annual=Number(p.annual_price_ngn);
+  if(![monthly,sixMonths,annual].every(value=>Number.isFinite(value)&&value>=0)) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is invalid. Contact support.</div></section>;
+  const choices=[
+    {cycle:"monthly" as BillingCycle,title:"1 Month",price:monthly,normal:monthly,monthly,description:"Perfect for new resellers who want to start small."},
+    {cycle:"six_months" as BillingCycle,title:"6 Months",price:sixMonths,normal:monthly*6,monthly:sixMonths/6,badge:"MOST POPULAR",description:"Best balance between affordability and long-term value."},
+    {cycle:"annual" as BillingCycle,title:"1 Year",price:annual,normal:monthly*12,monthly:annual/12,badge:"BEST SAVINGS",description:"Best for serious resellers who want the lowest monthly cost."},
+  ];
+  return <section className="plansSection">
+    <div className="sectionTitle"><div><span className="eyebrow">Simple pricing</span><h2>One subscription. Full reseller access.</h2><p className="subtle">{pending ? "Your previous subscription activation is still pending. Do not pay again until it is confirmed or resolved." : "All plans include the same reseller features. You only choose your subscription duration."}</p></div></div>
+    <div className="subscriptionPlanGrid">{choices.map(choice=>{
+      const saving=Math.max(0,choice.normal-choice.price);
+      const percent=choice.normal>0?Math.round((saving/choice.normal)*100):0;
+      return <article className={`subscriptionPlanCard ${choice.cycle==="six_months"?"popular":""}`} key={choice.cycle}>
+        {choice.badge&&<span className={`planBadge ${choice.cycle==="six_months"?"popularBadge":""}`}>{choice.badge}</span>}
+        <div className="subscriptionPlanHead"><h3>{choice.title}</h3><p>{choice.description}</p></div>
+        <div className="subscriptionPrice">{saving>0&&<span className="normalPrice">{money(choice.normal)}</span>}<strong>{money(choice.price)}</strong><small>{money(choice.monthly)}/month</small></div>
+        <div className={`savingLine ${saving===0?"neutral":""}`}>{saving>0?`You save ${money(saving)} — ${percent}%`:"Pay month-to-month"}</div>
+        <button className="planSubscribeButton" disabled={busy||pending} onClick={()=>onSubscribe(p.code,choice.cycle)}>{pending?"Activation pending":canRenew?"Renew Subscription":`Choose ${choice.title}`}</button>
+      </article>;
+    })}</div>
+    <div className="featureChips"><span>API access</span><span>Mini Store</span><span>Personal reseller website</span><span>Admin dashboard</span><span>Website customization</span><span>Branding</span><span>Products & customers</span><span>Orders & tracking</span><span>Wallet integration</span><span>Support</span></div>
+  </section>;
 }
