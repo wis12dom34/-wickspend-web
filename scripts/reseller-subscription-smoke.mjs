@@ -42,7 +42,10 @@ for (const required of [
   'basePlan.monthly_price_ngn == null || basePlan.six_month_price_ngn == null || basePlan.annual_price_ngn == null',
   'const hadPaidSubscription = Boolean(latestSubscription) || Boolean(sub?.active);',
   'sub?.active && reseller?.plan_code',
-  'const subscriptionAction = hadPaidSubscription ? "Renew Subscription" : "Subscribe";',
+  'const subscriptionPending = subscriptionStatus === "pending";',
+  'Subscription activation is already pending. Do not pay again while confirmation is pending.',
+  'disabled={busy || subscriptionPending}',
+  'subscriptionPending ? "Activation Pending" : hadPaidSubscription ? "Renew Subscription" : "Subscribe"',
 ]) {
   if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
   else pass(`Billing source contains ${required}`);
@@ -114,7 +117,11 @@ for (const required of [
   'const hasSubscriptionRecord = Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at);',
   'hasSubscriptionRecord && profile?.reseller?.plan_code ? profile.reseller.plan_code : "No active plan"',
   'canRenew={hasSubscriptionRecord}',
-  'canRenew?"Renew Subscription":`Choose ${choice.title}`',
+  'const subscriptionPending = subscriptionStatus === "pending";',
+  'Subscription activation is already pending. Do not pay again while confirmation is pending.',
+  'pending={subscriptionPending}',
+  'disabled={busy||pending}',
+  'pending?"Activation pending":canRenew?"Renew Subscription":`Choose ${choice.title}`',
 ]) {
   if (!dashboardSource.includes(required)) fail(`Dashboard source missing ${required}`);
   else pass(`Dashboard source contains ${required}`);
