@@ -87,6 +87,7 @@ function errorText(error: unknown) {
     const code = String(error.code || "").toUpperCase();
     const messages: Record<string, string> = {
       INSUFFICIENT_BALANCE: "Insufficient balance",
+      SUBSCRIPTION_PENDING: "Subscription activation is already pending. Do not pay again while confirmation is pending.",
       WALLET_PAYMENT_REQUIRED: "Please use the WickSpend wallet checkout on this page.",
       WALLET_NOT_FOUND: "Your WickSpend wallet could not be found. Open Wallet and try again.",
       PLAN_NOT_AVAILABLE: "This reseller subscription is currently unavailable.",
@@ -243,8 +244,11 @@ export default function ResellerBilling() {
     .filter((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()))
     .sort((a, b) => subscriptionTimestamp(b) - subscriptionTimestamp(a))[0];
   const currentCycle = latestSubscription?.billing_cycle;
-  const currentPlanLabel =
-    currentCycle === "monthly"
+  const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
+  const subscriptionPending = subscriptionStatus === "pending";
+  const currentPlanLabel = subscriptionPending
+    ? "Activation pending"
+    : currentCycle === "monthly"
       ? "1 Month Plan"
       : currentCycle === "six_months" || currentCycle === "6_months"
         ? "6 Months Plan"
@@ -253,8 +257,6 @@ export default function ResellerBilling() {
           : sub?.active && reseller?.plan_code
             ? "Reseller Plan"
             : "No plan";
-  const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
-  const subscriptionPending = subscriptionStatus === "pending";
   const hadPaidSubscription = Boolean(latestSubscription) || Boolean(sub?.active);
   const statusLabel = sub?.active
     ? "Active"
