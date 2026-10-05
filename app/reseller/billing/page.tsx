@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ResellerNav from "../ResellerNav";
 import { ApiError, wickspendApi } from "@/lib/api";
@@ -55,6 +55,12 @@ function daysRemaining(value: unknown) {
   return Math.max(0, Math.ceil((expires - Date.now()) / 86_400_000));
 }
 
+function newRequestKey() {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `resub-${Date.now()}-${Math.random()}`;
+}
+
 function errorText(error: unknown) {
   if (error instanceof ApiError) {
     const code = String(error.code || "").toUpperCase();
@@ -85,6 +91,7 @@ export default function ResellerBilling() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const requestKeys = useRef<Partial<Record<BillingCycle, string>>>({});
 
   const load = useCallback(async () => {
     const token = getSessionToken();
@@ -164,11 +171,9 @@ export default function ResellerBilling() {
     if (!token || !basePlan) return router.replace("/login");
     setBusy(true);
     setMessage("");
+    const request_key = requestKeys.current[choice.cycle] || newRequestKey();
+    requestKeys.current[choice.cycle] = request_key;
     try {
-      const request_key =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `resub-${Date.now()}-${Math.random()}`;
       const result: any = await wickspendApi("wickspend/backend/reseller/subscription/initialize", {
         method: "POST",
         token,
@@ -180,6 +185,7 @@ export default function ResellerBilling() {
         }),
       });
       if (result?.status === "active" || result?.activated === true) {
+        delete requestKeys.current[choice.cycle];
         setSelected(null);
         setSuccess({
           ...result,
