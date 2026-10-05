@@ -1,0 +1,7 @@
+WickSpend production committed-state recovery snapshot
+Date: 2026-10-05
+Production commit: 284d2f784596d0e837bab4a7289541e155eaccff
+Base: origin/main (3ffc01418925ab3d1151dc29b459316962ca8f4f)
+Patch SHA256: feaa914b138391a707765372432af4c4fab5e7433f52d0c59fc1252f9cd88d54
+Apply to a clean checkout of base with: git apply --index production-vps-284d2f7-vs-origin-main.patch
+This patch contains only committed changes through production HEAD. It intentionally excludes the separate uncommitted customer-landing.ts patch.
