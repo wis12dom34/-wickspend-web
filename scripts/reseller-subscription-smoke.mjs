@@ -28,6 +28,10 @@ for (const required of [
   'INSUFFICIENT_BALANCE',
   'WALLET_PAYMENT_REQUIRED',
   'WALLET_NOT_FOUND',
+  'useRef<Partial<Record<BillingCycle, string>>>',
+  'requestKeys.current[choice.cycle] || newRequestKey()',
+  'requestKeys.current[choice.cycle] = request_key',
+  'delete requestKeys.current[choice.cycle]',
 ]) {
   if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
   else pass(`Billing source contains ${required}`);
