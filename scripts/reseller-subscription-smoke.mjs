@@ -32,6 +32,10 @@ for (const required of [
   'requestKeys.current[choice.cycle] || newRequestKey()',
   'requestKeys.current[choice.cycle] = request_key',
   'delete requestKeys.current[choice.cycle]',
+  'wallet?.wallet_balance_ngn',
+  'wallet?.wallet?.balance_ngn',
+  'wallet?.data?.balance_ngn',
+  '.sort((a, b) => subscriptionTimestamp(b) - subscriptionTimestamp(a))',
 ]) {
   if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
   else pass(`Billing source contains ${required}`);
