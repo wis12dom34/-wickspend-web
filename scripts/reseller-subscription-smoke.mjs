@@ -15,6 +15,7 @@ function pass(message) {
 const billingSource = await readFile("app/reseller/billing/page.tsx", "utf8");
 const dashboardSource = await readFile("app/reseller/ResellerClient.tsx", "utf8");
 const adminResellerSource = await readFile("app/admin/resellers/page.tsx", "utf8");
+const developerSource = await readFile("app/reseller/developer/page.tsx", "utf8");
 
 for (const required of [
   'title: "1 Month"',
@@ -62,6 +63,24 @@ for (const forbidden of [
 ]) {
   if (dashboardSource.includes(forbidden)) fail(`Dashboard source still uses plan_code as renewal proof ${forbidden}`);
   else pass(`Dashboard source does not use plan_code as renewal proof ${forbidden}`);
+}
+
+for (const required of [
+  'setHadSubscription(Boolean(subscription?.active||subscription?.started_at||subscription?.expires_at))',
+  'hadSubscription?"Subscription expired":"Subscription inactive"',
+  'hadSubscription?"Renew Subscription":"Subscribe"',
+  'hadSubscription?"Your reseller subscription is inactive. Renew to create API keys.":"Your reseller subscription is inactive. Subscribe to create API keys."',
+]) {
+  if (!developerSource.includes(required)) fail(`Developer source missing ${required}`);
+  else pass(`Developer source contains ${required}`);
+}
+
+for (const forbidden of [
+  '<h2>Subscription expired</h2>',
+  '>Renew Subscription</a>',
+]) {
+  if (developerSource.includes(forbidden)) fail(`Developer source still hard-codes first-time renewal copy ${forbidden}`);
+  else pass(`Developer source does not hard-code first-time renewal copy ${forbidden}`);
 }
 
 if (billingSource.includes("window.location.assign(result.checkout_url)")) {
