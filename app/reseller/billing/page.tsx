@@ -55,6 +55,27 @@ function daysRemaining(value: unknown) {
   return Math.max(0, Math.ceil((expires - Date.now()) / 86_400_000));
 }
 
+function walletBalanceOf(wallet: any) {
+  const raw =
+    wallet?.balance_ngn ??
+    wallet?.wallet_balance_ngn ??
+    wallet?.balance ??
+    wallet?.wallet?.balance_ngn ??
+    wallet?.data?.balance_ngn ??
+    wallet?.data?.wallet_balance_ngn ??
+    wallet?.data?.balance;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function subscriptionTimestamp(item: any) {
+  for (const raw of [item?.created_at, item?.starts_at, item?.expires_at]) {
+    const value = new Date(String(raw || "")).getTime();
+    if (Number.isFinite(value)) return value;
+  }
+  return 0;
+}
+
 function newRequestKey() {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -210,7 +231,9 @@ export default function ResellerBilling() {
   const sub = profile?.subscription || {};
   const reseller = profile?.reseller || {};
   const remaining = daysRemaining(sub?.expires_at);
-  const latestSubscription = history.find((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()));
+  const latestSubscription = [...history]
+    .filter((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()))
+    .sort((a, b) => subscriptionTimestamp(b) - subscriptionTimestamp(a))[0];
   const currentCycle = latestSubscription?.billing_cycle;
   const currentPlanLabel =
     currentCycle === "monthly"
@@ -243,7 +266,7 @@ export default function ResellerBilling() {
         ? "Renew to restore access"
         : "Choose a plan to activate reseller access";
   const subscriptionAction = hadPaidSubscription || sub?.active ? "Renew Subscription" : "Subscribe";
-  const walletBalance = Number(wallet?.balance_ngn || 0);
+  const walletBalance = walletBalanceOf(wallet);
 
   return (
     <main className="resellerShell subscriptionPage">
