@@ -112,7 +112,7 @@ export default function ResellerDashboard() {
         <div className="slugPreview">Preview: https://wickspend.com/store/{storeSlug || "my-store"}</div>
         <button className="primaryButton" disabled={busy || storeName.trim().length<2 || storeSlug.trim().length<3} onClick={enroll}>{busy ? "Creating…" : "Create reseller workspace"}</button>
       </section>
-      <Plans plans={planCards} busy={busy} onSubscribe={subscribe}/>
+      <Plans plans={planCards} busy={busy} canRenew={false} onSubscribe={subscribe}/>
     </main>
   );
 
@@ -150,13 +150,13 @@ export default function ResellerDashboard() {
         <div className="resellerAction"><b>Profit</b><span>{money(metrics.earned_profit_ngn)}</span><small>{money(metrics.settled_profit_ngn)} settled</small></div>
       </section>
       <section className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Recent orders</span><h2>Latest activity</h2></div><Link className="textLink" href="/reseller/orders">View all →</Link></div>{recent.length ? <div className="tableWrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Type</th><th>Amount</th><th>Profit</th><th>Status</th></tr></thead><tbody>{recent.map((o:any)=><tr key={o.reference}><td><b>{o.product_name || o.reference}</b><small>{o.reference}</small></td><td>{o.full_name || o.email || "Customer"}</td><td>{o.product_type}</td><td>{money(o.sale_amount_ngn)}</td><td>{money(o.reseller_profit_ngn)}</td><td><span className="status muted">{o.status}</span></td></tr>)}</tbody></table></div> : <div className="emptyState">No reseller orders yet.</div>}</section>
-      <Plans plans={planCards} busy={busy} currentPlan={profile?.reseller?.plan_code} onSubscribe={subscribe}/>
+      <Plans plans={planCards} busy={busy} canRenew={Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at)} onSubscribe={subscribe}/>
     </main>
   );
 }
 
 function Metric({label,value}:{label:string;value:string}) { return <article className="metricCard"><span>{label}</span><strong>{value}</strong></article>; }
-function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;currentPlan?:string;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
+function Plans({plans,busy,canRenew,onSubscribe}:{plans:any[];busy:boolean;canRenew:boolean;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
   const p=plans.find((plan:any)=>plan?.is_featured)||plans[0];
   if(!p) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not configured yet.</div></section>;
   const pricingReady=p.monthly_enabled===true&&p.six_month_enabled===true&&p.annual_enabled===true&&p.monthly_price_ngn!=null&&p.six_month_price_ngn!=null&&p.annual_price_ngn!=null;
@@ -180,7 +180,7 @@ function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;cu
         <div className="subscriptionPlanHead"><h3>{choice.title}</h3><p>{choice.description}</p></div>
         <div className="subscriptionPrice">{saving>0&&<span className="normalPrice">{money(choice.normal)}</span>}<strong>{money(choice.price)}</strong><small>{money(choice.monthly)}/month</small></div>
         <div className={`savingLine ${saving===0?"neutral":""}`}>{saving>0?`You save ${money(saving)} — ${percent}%`:"Pay month-to-month"}</div>
-        <button className="planSubscribeButton" disabled={busy} onClick={()=>onSubscribe(p.code,choice.cycle)}>{currentPlan===p.code?"Renew Subscription":`Choose ${choice.title}`}</button>
+        <button className="planSubscribeButton" disabled={busy} onClick={()=>onSubscribe(p.code,choice.cycle)}>{canRenew?"Renew Subscription":`Choose ${choice.title}`}</button>
       </article>;
     })}</div>
     <div className="featureChips"><span>API access</span><span>Mini Store</span><span>Personal reseller website</span><span>Admin dashboard</span><span>Website customization</span><span>Branding</span><span>Products & customers</span><span>Orders & tracking</span><span>Wallet integration</span><span>Support</span></div>
