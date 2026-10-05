@@ -193,6 +193,11 @@ export default function ResellerBilling() {
   async function payFromWallet(choice: PlanChoice) {
     const token = getSessionToken();
     if (!token || !basePlan) return router.replace("/login");
+    if (String(profile?.subscription?.status || "").toLowerCase() === "pending") {
+      setMessage("Subscription activation is already pending. Do not pay again while confirmation is pending.");
+      setSelected(null);
+      return;
+    }
     setBusy(true);
     setMessage("");
     const request_key = requestKeys.current[choice.cycle] || newRequestKey();
@@ -249,6 +254,7 @@ export default function ResellerBilling() {
             ? "Reseller Plan"
             : "No plan";
   const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
+  const subscriptionPending = subscriptionStatus === "pending";
   const hadPaidSubscription = Boolean(latestSubscription) || Boolean(sub?.active);
   const statusLabel = sub?.active
     ? "Active"
@@ -263,12 +269,12 @@ export default function ResellerBilling() {
             : "Inactive";
   const statusDetail = sub?.active
     ? `${remaining} days remaining`
-    : subscriptionStatus === "pending"
-      ? "Activation pending"
+    : subscriptionPending
+      ? "Activation pending — do not pay again"
       : hadPaidSubscription
         ? "Renew to restore access"
         : "Choose a plan to activate reseller access";
-  const subscriptionAction = hadPaidSubscription ? "Renew Subscription" : "Subscribe";
+  const subscriptionAction = subscriptionPending ? "Activation Pending" : hadPaidSubscription ? "Renew Subscription" : "Subscribe";
   const walletBalance = walletBalanceOf(wallet);
 
   return (
@@ -304,7 +310,11 @@ export default function ResellerBilling() {
             <div><dt>Time remaining</dt><dd>{statusDetail}</dd></div>
             <div><dt>Wallet balance</dt><dd>{money(walletBalance)}</dd></div>
           </dl>
-          <a href="#subscription-plans" className="primaryButton subscriptionRenewButton">{subscriptionAction}</a>
+          {subscriptionPending ? (
+            <span className="primaryButton subscriptionRenewButton" aria-disabled="true">{subscriptionAction}</span>
+          ) : (
+            <a href="#subscription-plans" className="primaryButton subscriptionRenewButton">{subscriptionAction}</a>
+          )}
         </section>
       )}
 
@@ -347,10 +357,10 @@ export default function ResellerBilling() {
 
                   <button
                     className="planSubscribeButton"
-                    disabled={busy}
+                    disabled={busy || subscriptionPending}
                     onClick={() => setSelected(choice)}
                   >
-                    Choose {choice.title}
+                    {subscriptionPending ? "Activation pending" : `Choose ${choice.title}`}
                   </button>
                 </article>
               );
