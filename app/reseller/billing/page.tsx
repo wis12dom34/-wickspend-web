@@ -222,6 +222,27 @@ export default function ResellerBilling() {
           : reseller?.plan_code
             ? "Reseller Plan"
             : "No plan";
+  const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
+  const hadPaidSubscription = Boolean(reseller?.plan_code) || history.some((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()));
+  const statusLabel = sub?.active
+    ? "Active"
+    : subscriptionStatus === "expired"
+      ? "Expired"
+      : subscriptionStatus === "pending"
+        ? "Pending"
+        : subscriptionStatus === "past_due"
+          ? "Past due"
+          : subscriptionStatus === "cancelled"
+            ? "Cancelled"
+            : "Inactive";
+  const statusDetail = sub?.active
+    ? `${remaining} days remaining`
+    : subscriptionStatus === "pending"
+      ? "Activation pending"
+      : hadPaidSubscription
+        ? "Renew to restore access"
+        : "Choose a plan to activate reseller access";
+  const subscriptionAction = hadPaidSubscription || sub?.active ? "Renew Subscription" : "Subscribe";
   const walletBalance = Number(wallet?.balance_ngn || 0);
 
   return (
@@ -249,15 +270,15 @@ export default function ResellerBilling() {
           <div>
             <span className="eyebrow">Current Plan</span>
             <h2>{currentPlanLabel}</h2>
-            <span className={`status ${sub?.active ? "good" : "muted"}`}>{sub?.active ? "Active" : "Expired"}</span>
+            <span className={`status ${sub?.active ? "good" : subscriptionStatus === "pending" ? "warn" : "muted"}`}>{statusLabel}</span>
           </div>
           <dl>
             <div><dt>Started</dt><dd>{formatDate(sub?.starts_at || latestActive?.starts_at)}</dd></div>
             <div><dt>Expires</dt><dd>{formatDate(sub?.expires_at)}</dd></div>
-            <div><dt>Time remaining</dt><dd>{sub?.active ? `${remaining} days remaining` : "Renew to restore access"}</dd></div>
+            <div><dt>Time remaining</dt><dd>{statusDetail}</dd></div>
             <div><dt>Wallet balance</dt><dd>{money(walletBalance)}</dd></div>
           </dl>
-          <a href="#subscription-plans" className="primaryButton subscriptionRenewButton">Renew Subscription</a>
+          <a href="#subscription-plans" className="primaryButton subscriptionRenewButton">{subscriptionAction}</a>
         </section>
       )}
 
