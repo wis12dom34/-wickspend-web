@@ -90,6 +90,7 @@ export default function ResellerDashboard() {
   const store = profile?.store || dashboard?.store || {};
   const domain = profile?.domain || dashboard?.domain || {};
   const subscription = profile?.subscription || dashboard?.subscription || {};
+  const hasSubscriptionRecord = Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at);
   const hostedStoreUrl = store?.slug ? `https://wickspend.com/store/${encodeURIComponent(store.slug)}` : null;
   const storeUrl = domain?.activation_ready && store?.custom_domain_url ? store.custom_domain_url : hostedStoreUrl || store?.preview_url || dashboard?.store?.preview_url;
   const recent = Array.isArray(dashboard?.recent_orders) ? dashboard.recent_orders : [];
@@ -142,7 +143,7 @@ export default function ResellerDashboard() {
       </section>
       <section className="resellerGrid two">
         <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Store</span><h2>{store?.store_name || "Store setup"}</h2></div><span className={`status ${store?.enabled ? "good" : "muted"}`}>{store?.enabled ? "Enabled" : "Disabled"}</span></div><dl className="detailList"><div><dt>Slug</dt><dd>{store?.slug || "—"}</dd></div><div><dt>Custom domain</dt><dd>{store?.custom_domain || "Not connected"}</dd></div><div><dt>Domain</dt><dd>{domain?.domain_status || store?.domain_status || "none"}</dd></div><div><dt>Routing / TLS</dt><dd>{domain?.routing_status || "not configured"} / {domain?.ssl_status || "not configured"}</dd></div></dl>{storeUrl && <a className="textLink" href={storeUrl} target="_blank" rel="noreferrer">Preview storefront →</a>}</article>
-        <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Subscription</span><h2>{profile?.reseller?.plan_code || "No active plan"}</h2></div><span className={`status ${statusClass}`}>{subscription?.status || "inactive"}</span></div><dl className="detailList"><div><dt>Active</dt><dd>{subscription?.active ? "Yes" : "No"}</dd></div><div><dt>Expires</dt><dd>{date(subscription?.expires_at)}</dd></div><div><dt>Store launch</dt><dd>{profile?.can_launch_store ? "Ready" : "Not ready"}</dd></div></dl><Link className="textLink" href="/reseller/billing">Manage subscription & billing →</Link></article>
+        <article className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Subscription</span><h2>{hasSubscriptionRecord && profile?.reseller?.plan_code ? profile.reseller.plan_code : "No active plan"}</h2></div><span className={`status ${statusClass}`}>{subscription?.status || "inactive"}</span></div><dl className="detailList"><div><dt>Active</dt><dd>{subscription?.active ? "Yes" : "No"}</dd></div><div><dt>Expires</dt><dd>{date(subscription?.expires_at)}</dd></div><div><dt>Store launch</dt><dd>{profile?.can_launch_store ? "Ready" : "Not ready"}</dd></div></dl><Link className="textLink" href="/reseller/billing">Manage subscription & billing →</Link></article>
       </section>
       <section className="resellerGrid three">
         <Link className="resellerAction" href="/reseller/orders"><b>Orders</b><span>{metrics.total_orders ?? 0} total</span><small>Numbers, Marketplace and Boostly →</small></Link>
@@ -150,7 +151,7 @@ export default function ResellerDashboard() {
         <div className="resellerAction"><b>Profit</b><span>{money(metrics.earned_profit_ngn)}</span><small>{money(metrics.settled_profit_ngn)} settled</small></div>
       </section>
       <section className="resellerCard"><div className="cardHead"><div><span className="eyebrow">Recent orders</span><h2>Latest activity</h2></div><Link className="textLink" href="/reseller/orders">View all →</Link></div>{recent.length ? <div className="tableWrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Type</th><th>Amount</th><th>Profit</th><th>Status</th></tr></thead><tbody>{recent.map((o:any)=><tr key={o.reference}><td><b>{o.product_name || o.reference}</b><small>{o.reference}</small></td><td>{o.full_name || o.email || "Customer"}</td><td>{o.product_type}</td><td>{money(o.sale_amount_ngn)}</td><td>{money(o.reseller_profit_ngn)}</td><td><span className="status muted">{o.status}</span></td></tr>)}</tbody></table></div> : <div className="emptyState">No reseller orders yet.</div>}</section>
-      <Plans plans={planCards} busy={busy} canRenew={Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at)} onSubscribe={subscribe}/>
+      <Plans plans={planCards} busy={busy} canRenew={hasSubscriptionRecord} onSubscribe={subscribe}/>
     </main>
   );
 }
