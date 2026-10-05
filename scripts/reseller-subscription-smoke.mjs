@@ -55,6 +55,14 @@ for (const forbidden of [
   else pass(`Billing source does not use stale renewal heuristic ${forbidden}`);
 }
 
+for (const forbidden of [
+  'currentPlan={profile?.reseller?.plan_code}',
+  'currentPlan===p.code?"Renew Subscription"',
+]) {
+  if (dashboardSource.includes(forbidden)) fail(`Dashboard source still uses plan_code as renewal proof ${forbidden}`);
+  else pass(`Dashboard source does not use plan_code as renewal proof ${forbidden}`);
+}
+
 if (billingSource.includes("window.location.assign(result.checkout_url)")) {
   fail("Billing source still redirects to hosted checkout_url");
 } else {
@@ -83,6 +91,8 @@ for (const required of [
   "Admin dashboard",
   "Wallet integration",
   "Reseller subscription pricing is not fully configured yet.",
+  'canRenew={Boolean(subscription?.active || subscription?.started_at || subscription?.expires_at)}',
+  'canRenew?"Renew Subscription":`Choose ${choice.title}`',
 ]) {
   if (!dashboardSource.includes(required)) fail(`Dashboard source missing ${required}`);
   else pass(`Dashboard source contains ${required}`);
