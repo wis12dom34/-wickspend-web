@@ -159,11 +159,16 @@ function Metric({label,value}:{label:string;value:string}) { return <article cla
 function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;currentPlan?:string;onSubscribe:(code:string,cycle:BillingCycle)=>void}) {
   const p=plans.find((plan:any)=>plan?.is_featured)||plans[0];
   if(!p) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not configured yet.</div></section>;
-  const monthly=Number(p.monthly_price_ngn||7500);
+  const pricingReady=p.monthly_enabled===true&&p.six_month_enabled===true&&p.annual_enabled===true&&p.monthly_price_ngn!=null&&p.six_month_price_ngn!=null&&p.annual_price_ngn!=null;
+  if(!pricingReady) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is not fully configured yet.</div></section>;
+  const monthly=Number(p.monthly_price_ngn);
+  const sixMonths=Number(p.six_month_price_ngn);
+  const annual=Number(p.annual_price_ngn);
+  if(![monthly,sixMonths,annual].every(value=>Number.isFinite(value)&&value>=0)) return <section className="plansSection"><div className="emptyState">Reseller subscription pricing is invalid. Contact support.</div></section>;
   const choices=[
     {cycle:"monthly" as BillingCycle,title:"1 Month",price:monthly,normal:monthly,monthly,description:"Perfect for new resellers who want to start small."},
-    {cycle:"six_months" as BillingCycle,title:"6 Months",price:Number(p.six_month_price_ngn||30000),normal:monthly*6,monthly:Number(p.six_month_price_ngn||30000)/6,badge:"MOST POPULAR",description:"Best balance between affordability and long-term value."},
-    {cycle:"annual" as BillingCycle,title:"1 Year",price:Number(p.annual_price_ngn||50000),normal:monthly*12,monthly:Number(p.annual_price_ngn||50000)/12,badge:"BEST SAVINGS",description:"Best for serious resellers who want the lowest monthly cost."},
+    {cycle:"six_months" as BillingCycle,title:"6 Months",price:sixMonths,normal:monthly*6,monthly:sixMonths/6,badge:"MOST POPULAR",description:"Best balance between affordability and long-term value."},
+    {cycle:"annual" as BillingCycle,title:"1 Year",price:annual,normal:monthly*12,monthly:annual/12,badge:"BEST SAVINGS",description:"Best for serious resellers who want the lowest monthly cost."},
   ];
   return <section className="plansSection">
     <div className="sectionTitle"><div><span className="eyebrow">Simple pricing</span><h2>One subscription. Full reseller access.</h2><p className="subtle">All plans include the same reseller features. You only choose your subscription duration.</p></div></div>
@@ -181,4 +186,3 @@ function Plans({plans,busy,currentPlan,onSubscribe}:{plans:any[];busy:boolean;cu
     <div className="featureChips"><span>API access</span><span>Mini Store</span><span>Personal reseller website</span><span>Admin dashboard</span><span>Website customization</span><span>Branding</span><span>Products & customers</span><span>Orders & tracking</span><span>Wallet integration</span><span>Support</span></div>
   </section>;
 }
-
