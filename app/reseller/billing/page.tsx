@@ -151,9 +151,12 @@ export default function ResellerBilling() {
 
   const choices = useMemo<PlanChoice[]>(() => {
     if (!basePlan) return [];
-    const monthly = Number(basePlan.monthly_price_ngn ?? 7500);
-    const sixMonths = Number(basePlan.six_month_price_ngn ?? 30000);
-    const annual = Number(basePlan.annual_price_ngn ?? 50000);
+    if (basePlan.monthly_enabled !== true || basePlan.six_month_enabled !== true || basePlan.annual_enabled !== true) return [];
+    if (basePlan.monthly_price_ngn == null || basePlan.six_month_price_ngn == null || basePlan.annual_price_ngn == null) return [];
+    const monthly = Number(basePlan.monthly_price_ngn);
+    const sixMonths = Number(basePlan.six_month_price_ngn);
+    const annual = Number(basePlan.annual_price_ngn);
+    if (![monthly, sixMonths, annual].every((value) => Number.isFinite(value) && value >= 0)) return [];
     return [
       {
         cycle: "monthly",
