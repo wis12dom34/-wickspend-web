@@ -245,11 +245,11 @@ export default function ResellerBilling() {
         ? "6 Months Plan"
         : currentCycle === "annual"
           ? "1 Year Plan"
-          : reseller?.plan_code
+          : sub?.active && reseller?.plan_code
             ? "Reseller Plan"
             : "No plan";
   const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
-  const hadPaidSubscription = Boolean(reseller?.plan_code) || Boolean(latestSubscription);
+  const hadPaidSubscription = Boolean(latestSubscription) || Boolean(sub?.active);
   const statusLabel = sub?.active
     ? "Active"
     : subscriptionStatus === "expired"
@@ -268,7 +268,7 @@ export default function ResellerBilling() {
       : hadPaidSubscription
         ? "Renew to restore access"
         : "Choose a plan to activate reseller access";
-  const subscriptionAction = hadPaidSubscription || sub?.active ? "Renew Subscription" : "Subscribe";
+  const subscriptionAction = hadPaidSubscription ? "Renew Subscription" : "Subscribe";
   const walletBalance = walletBalanceOf(wallet);
 
   return (
