@@ -142,12 +142,18 @@ existing AS (
  SELECT x.* FROM wickspend_reseller_subscriptions x,r,a,lockrow
  WHERE x.reseller_id=r.id AND x.request_key=a.request_key LIMIT 1
 ),
+pending AS (
+ SELECT x.id FROM wickspend_reseller_subscriptions x,r,lockrow
+ WHERE x.reseller_id=r.id AND x.status='pending' LIMIT 1
+),
 valid AS (
  SELECT r.id reseller_id,r.status reseller_status,a.user_id,a.email,a.plan_code,a.billing_cycle,a.request_key,
   p.selected_price amount,p.full_features features,p.slug,p.name,p.description,
   CASE WHEN r.subscription_status='active' AND r.subscription_expires_at>now() THEN r.subscription_expires_at ELSE now() END period_start
  FROM r,a,pall p,lockrow
  WHERE a.rate_ok=TRUE AND r.status='active'
+   AND COALESCE(r.subscription_status,'inactive')<>'pending'
+   AND NOT EXISTS(SELECT 1 FROM pending)
    AND a.billing_cycle IN ('monthly','six_months','annual')
    AND a.request_key<>''
    AND a.payment_method='wallet'
@@ -218,6 +224,7 @@ SELECT FALSE,FALSE,FALSE,CASE
  WHEN EXISTS(SELECT 1 FROM a WHERE NOT rate_ok) THEN 'RATE_LIMITED'
  WHEN NOT EXISTS(SELECT 1 FROM r) THEN 'NOT_ENROLLED'
  WHEN EXISTS(SELECT 1 FROM r WHERE status<>'active') THEN 'RESELLER_SUSPENDED'
+ WHEN EXISTS(SELECT 1 FROM r WHERE subscription_status='pending') OR EXISTS(SELECT 1 FROM pending) THEN 'SUBSCRIPTION_PENDING'
  WHEN (SELECT billing_cycle FROM a LIMIT 1) NOT IN ('monthly','six_months','annual') THEN 'INVALID_BILLING_CYCLE'
  WHEN COALESCE((SELECT request_key FROM a LIMIT 1),'')='' THEN 'INVALID_REQUEST_KEY'
  WHEN COALESCE((SELECT payment_method FROM a LIMIT 1),'')<>'wallet' THEN 'WALLET_PAYMENT_REQUIRED'
@@ -231,6 +238,38 @@ SELECT FALSE,FALSE,FALSE,CASE
  (SELECT user_id FROM a),(SELECT email FROM a),NULL::timestamptz,FALSE
 WHERE NOT EXISTS(SELECT 1 FROM ins) AND NOT EXISTS(SELECT 1 FROM existing)
 LIMIT 1;
+
+SELECT qa_reset(100000,'pending');
+EXECUTE activate_reseller_subscription('qa-token','pro','monthly','qa-pending-flag','wallet');
+DO $$ BEGIN
+ IF (SELECT balance_ngn FROM wickspend_wallets WHERE user_id=101) <> 100000 THEN RAISE EXCEPTION 'pending reseller flag mutated wallet'; END IF;
+ IF (SELECT count(*) FROM wickspend_transactions) <> 0 THEN RAISE EXCEPTION 'pending reseller flag created transaction'; END IF;
+ IF (SELECT count(*) FROM wickspend_reseller_subscriptions) <> 0 THEN RAISE EXCEPTION 'pending reseller flag created subscription'; END IF;
+END $$;
+\echo 'PASS pending reseller flag: no debit, no new subscription'
+
+SELECT qa_reset(100000,'inactive');
+INSERT INTO wickspend_reseller_subscriptions(reseller_id,plan_code,billing_cycle,status,amount_ngn,payment_reference,request_key,currency,starts_at,expires_at)
+VALUES (201,'pro','monthly','pending',7500,'LEGACY-PENDING','legacy-pending','NGN',now(),NULL);
+EXECUTE activate_reseller_subscription('qa-token','pro','monthly','qa-pending-row','wallet');
+DO $$ BEGIN
+ IF (SELECT balance_ngn FROM wickspend_wallets WHERE user_id=101) <> 100000 THEN RAISE EXCEPTION 'pending subscription row mutated wallet'; END IF;
+ IF (SELECT count(*) FROM wickspend_transactions) <> 0 THEN RAISE EXCEPTION 'pending subscription row created transaction'; END IF;
+ IF (SELECT count(*) FROM wickspend_reseller_subscriptions) <> 1 THEN RAISE EXCEPTION 'pending subscription row created another subscription'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM wickspend_reseller_subscriptions WHERE request_key='legacy-pending' AND status='pending') THEN RAISE EXCEPTION 'legacy pending row was changed'; END IF;
+END $$;
+\echo 'PASS pending subscription row: no debit, no duplicate subscription'
+
+SELECT qa_reset(100000,'inactive');
+INSERT INTO wickspend_reseller_subscriptions(reseller_id,plan_code,billing_cycle,status,amount_ngn,payment_reference,request_key,currency,starts_at,expires_at)
+VALUES (201,'pro','monthly','pending',7500,'LEGACY-SAME-REQUEST','qa-same-pending','NGN',now(),NULL);
+EXECUTE activate_reseller_subscription('qa-token','pro','monthly','qa-same-pending','wallet');
+DO $$ BEGIN
+ IF (SELECT balance_ngn FROM wickspend_wallets WHERE user_id=101) <> 100000 THEN RAISE EXCEPTION 'same-request pending retry mutated wallet'; END IF;
+ IF (SELECT count(*) FROM wickspend_transactions) <> 0 THEN RAISE EXCEPTION 'same-request pending retry created transaction'; END IF;
+ IF (SELECT count(*) FROM wickspend_reseller_subscriptions) <> 1 THEN RAISE EXCEPTION 'same-request pending retry duplicated subscription'; END IF;
+END $$;
+\echo 'PASS same-request pending retry: existing row returned without debit'
 
 SELECT qa_reset(100000);
 EXECUTE activate_reseller_subscription('qa-token','pro','monthly','qa-monthly','wallet');
