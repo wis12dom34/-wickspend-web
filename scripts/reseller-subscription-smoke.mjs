@@ -14,6 +14,7 @@ function pass(message) {
 
 const billingSource = await readFile("app/reseller/billing/page.tsx", "utf8");
 const dashboardSource = await readFile("app/reseller/ResellerClient.tsx", "utf8");
+const adminResellerSource = await readFile("app/admin/resellers/page.tsx", "utf8");
 
 for (const required of [
   'title: "1 Month"',
@@ -47,6 +48,20 @@ if (billingSource.includes("window.location.assign(result.checkout_url)")) {
   fail("Billing source still redirects to hosted checkout_url");
 } else {
   pass("Billing source has no legacy hosted checkout redirect");
+}
+
+for (const required of [
+  'monthly:"7500"',
+  'sixMonth:"30000"',
+  'annual:"50000"',
+  'apiKeyLimit:"5"',
+  'customDomainLimit:"1"',
+  'monthly_enabled:true,six_month_enabled:true,annual_enabled:true',
+  'features:{api_access:true,api_key_limit:Number(FIXED_RESELLER_POLICY.apiKeyLimit),custom_domain:true,custom_domain_limit:Number(FIXED_RESELLER_POLICY.customDomainLimit)}',
+  "Fixed production policy: ₦7,500 monthly, ₦30,000 for 6 months and ₦50,000 yearly.",
+]) {
+  if (!adminResellerSource.includes(required)) fail(`Admin reseller source missing ${required}`);
+  else pass(`Admin reseller source contains ${required}`);
 }
 
 for (const required of [
