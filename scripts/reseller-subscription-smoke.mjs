@@ -55,23 +55,28 @@ for (const required of [
   else pass(`Dashboard source contains ${required}`);
 }
 
-const response = await fetch(`${backendBase}/wickspend/backend/reseller/subscription/initialize`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    plan_code: "reseller",
-    billing_cycle: "six_months",
-    request_key: "smoke-reseller-subscription-no-session",
-    payment_method: "wallet",
-  }),
-  redirect: "manual",
-});
-const json = await response.json().catch(() => null);
-if (response.status !== 401 || json?.code !== "UNAUTHORIZED") {
-  fail(`Unauthenticated subscription initialize expected 401 UNAUTHORIZED, got ${response.status} ${JSON.stringify(json)}`);
-} else {
-  pass("Unauthenticated subscription initialize is blocked before wallet mutation");
+async function assertUnauthorized(label, headers = {}) {
+  const response = await fetch(`${backendBase}/wickspend/backend/reseller/subscription/initialize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({
+      plan_code: "reseller",
+      billing_cycle: "six_months",
+      request_key: `smoke-reseller-subscription-${label}`,
+      payment_method: "wallet",
+    }),
+    redirect: "manual",
+  });
+  const json = await response.json().catch(() => null);
+  if (response.status !== 401 || json?.code !== "UNAUTHORIZED") {
+    fail(`${label} subscription initialize expected 401 UNAUTHORIZED, got ${response.status} ${JSON.stringify(json)}`);
+  } else {
+    pass(`${label} subscription initialize is blocked before wallet mutation`);
+  }
 }
+
+await assertUnauthorized("no-session");
+await assertUnauthorized("invalid-session", { Authorization: "Bearer wickspend-smoke-invalid-session" });
 
 if (failures) {
   console.error(`\n${failures} reseller subscription smoke test(s) failed.`);
