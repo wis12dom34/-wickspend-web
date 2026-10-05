@@ -16,6 +16,8 @@ const billingSource = await readFile("app/reseller/billing/page.tsx", "utf8");
 const dashboardSource = await readFile("app/reseller/ResellerClient.tsx", "utf8");
 const adminResellerSource = await readFile("app/admin/resellers/page.tsx", "utf8");
 const developerSource = await readFile("app/reseller/developer/page.tsx", "utf8");
+const storeSource = await readFile("app/reseller/store/page.tsx", "utf8");
+const customersSource = await readFile("app/reseller/customers/page.tsx", "utf8");
 
 for (const required of [
   'title: "1 Month"',
@@ -73,6 +75,9 @@ for (const required of [
   'hadSubscription?"Subscription expired":"Subscription inactive"',
   'hadSubscription?"Renew Subscription":"Subscribe"',
   'hadSubscription?"Your reseller subscription is inactive. Renew to create API keys.":"Your reseller subscription is inactive. Subscribe to create API keys."',
+  '[subscriptionPending,setSubscriptionPending]=useState(false)',
+  'subscriptionPending?"Activation pending"',
+  'subscriptionPending?"View Billing"',
 ]) {
   if (!developerSource.includes(required)) fail(`Developer source missing ${required}`);
   else pass(`Developer source contains ${required}`);
@@ -84,6 +89,17 @@ for (const forbidden of [
 ]) {
   if (developerSource.includes(forbidden)) fail(`Developer source still hard-codes first-time renewal copy ${forbidden}`);
   else pass(`Developer source does not hard-code first-time renewal copy ${forbidden}`);
+}
+
+for (const [label, source] of [["Store", storeSource], ["Customers", customersSource]]) {
+  for (const required of [
+    'subscriptionPending',
+    'Activation pending',
+    'Do not pay again',
+  ]) {
+    if (!source.includes(required)) fail(`${label} source missing ${required}`);
+    else pass(`${label} source contains ${required}`);
+  }
 }
 
 if (billingSource.includes("window.location.assign(result.checkout_url)")) {
