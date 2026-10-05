@@ -210,8 +210,8 @@ export default function ResellerBilling() {
   const sub = profile?.subscription || {};
   const reseller = profile?.reseller || {};
   const remaining = daysRemaining(sub?.expires_at);
-  const latestActive = history.find((x: any) => x.status === "active");
-  const currentCycle = latestActive?.billing_cycle;
+  const latestSubscription = history.find((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()));
+  const currentCycle = latestSubscription?.billing_cycle;
   const currentPlanLabel =
     currentCycle === "monthly"
       ? "1 Month Plan"
@@ -223,7 +223,7 @@ export default function ResellerBilling() {
             ? "Reseller Plan"
             : "No plan";
   const subscriptionStatus = String(sub?.status || "inactive").toLowerCase();
-  const hadPaidSubscription = Boolean(reseller?.plan_code) || history.some((x: any) => ["active", "expired", "cancelled", "past_due"].includes(String(x?.status || "").toLowerCase()));
+  const hadPaidSubscription = Boolean(reseller?.plan_code) || Boolean(latestSubscription);
   const statusLabel = sub?.active
     ? "Active"
     : subscriptionStatus === "expired"
@@ -273,7 +273,7 @@ export default function ResellerBilling() {
             <span className={`status ${sub?.active ? "good" : subscriptionStatus === "pending" ? "warn" : "muted"}`}>{statusLabel}</span>
           </div>
           <dl>
-            <div><dt>Started</dt><dd>{formatDate(sub?.starts_at || latestActive?.starts_at)}</dd></div>
+            <div><dt>Started</dt><dd>{formatDate(sub?.starts_at || latestSubscription?.starts_at)}</dd></div>
             <div><dt>Expires</dt><dd>{formatDate(sub?.expires_at)}</dd></div>
             <div><dt>Time remaining</dt><dd>{statusDetail}</dd></div>
             <div><dt>Wallet balance</dt><dd>{money(walletBalance)}</dd></div>
