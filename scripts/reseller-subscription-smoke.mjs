@@ -39,9 +39,20 @@ for (const required of [
   '.sort((a, b) => subscriptionTimestamp(b) - subscriptionTimestamp(a))',
   'basePlan.monthly_enabled !== true || basePlan.six_month_enabled !== true || basePlan.annual_enabled !== true',
   'basePlan.monthly_price_ngn == null || basePlan.six_month_price_ngn == null || basePlan.annual_price_ngn == null',
+  'const hadPaidSubscription = Boolean(latestSubscription) || Boolean(sub?.active);',
+  'sub?.active && reseller?.plan_code',
+  'const subscriptionAction = hadPaidSubscription ? "Renew Subscription" : "Subscribe";',
 ]) {
   if (!billingSource.includes(required)) fail(`Billing source missing ${required}`);
   else pass(`Billing source contains ${required}`);
+}
+
+for (const forbidden of [
+  'const hadPaidSubscription = Boolean(reseller?.plan_code) || Boolean(latestSubscription);',
+  'const subscriptionAction = hadPaidSubscription || sub?.active ? "Renew Subscription" : "Subscribe";',
+]) {
+  if (billingSource.includes(forbidden)) fail(`Billing source still contains stale renewal heuristic ${forbidden}`);
+  else pass(`Billing source does not use stale renewal heuristic ${forbidden}`);
 }
 
 if (billingSource.includes("window.location.assign(result.checkout_url)")) {
