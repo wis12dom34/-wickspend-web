@@ -1,0 +1,40 @@
+.domainCard{position:relative;overflow:hidden;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%)}
+.domainCard:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#0866f5,#6ea8ff);opacity:.95}
+.domainHero{display:grid;gap:6px;min-width:0}
+.domainHero h2{margin:0;overflow-wrap:anywhere}
+.domainIntro{margin:0;color:#6e6e73;font-size:12px;line-height:1.55;max-width:560px}
+.inputWrap{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:4px}
+.inputWrap label{margin:0}
+.inputWrap input{font-weight:650;letter-spacing:-.01em}
+.connectButton{min-width:142px;white-space:nowrap}
+.progress{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.step{position:relative;display:flex;align-items:center;gap:8px;min-width:0;border:1px solid rgba(0,0,0,.07);background:#f7f8fa;border-radius:16px;padding:10px 11px;font-size:10px;font-weight:700;color:#8a8a8f}
+.step:after{content:"";position:absolute;right:-9px;top:50%;width:10px;height:1px;background:#d8d9dc}
+.step:last-child:after{display:none}
+.dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#c7c8cc;box-shadow:0 0 0 4px rgba(0,0,0,.035)}
+.stepDone{color:#087a36;background:#f3fbf6;border-color:#d9f1e1}
+.stepDone .dot{background:#19a454;box-shadow:0 0 0 4px rgba(25,164,84,.1)}
+.stepActive{color:#0757d9;background:#f4f8ff;border-color:#d9e7ff}
+.stepActive .dot{background:#0866f5;box-shadow:0 0 0 4px rgba(8,102,245,.1)}
+.recordCard{display:grid;gap:10px;border:1px solid #dbe7fb;background:#f7faff;border-radius:20px;padding:14px;margin-top:4px}
+.recordHeader{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.recordHeader strong{font-size:12px}
+.recordHeader span{font-size:9px;color:#6e6e73}
+.recordRow{display:grid;grid-template-columns:92px 1fr auto;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(8,102,245,.09)}
+.recordRow:first-of-type{border-top:0}
+.recordLabel{font-size:9px;color:#6e6e73}
+.recordValue{min-width:0;font-size:11px;font-weight:700;overflow-wrap:anywhere}
+.copyButton{height:32px;border-radius:14px;border:1px solid rgba(8,102,245,.18);background:#fff;padding:0 12px;font-size:9px;font-weight:700;color:#0757d9}
+.checkRow{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(0,0,0,.07);border-radius:18px;padding:12px 13px;background:#fff}
+.checkCopy{display:grid;gap:3px}
+.checkCopy strong{font-size:11px}
+.checkCopy span{font-size:9px;color:#6e6e73;line-height:1.45}
+.livePanel{display:grid;gap:10px;border:1px solid #d8f0e0;background:#f3fbf6;border-radius:20px;padding:14px;margin-top:4px}
+.liveTop{display:flex;align-items:center;gap:10px}
+.liveIcon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#19a454;color:#fff;font-size:16px;font-weight:800}
+.liveTop div{display:grid;gap:3px}
+.liveTop strong{font-size:12px}
+.liveTop span{font-size:9px;color:#587061}
+.liveUrl{font-size:11px;font-weight:750;overflow-wrap:anywhere}
+.hint{margin:2px 0 0;color:#6e6e73;font-size:10px;line-height:1.55}
+@media(max-width:720px){.inputWrap{grid-template-columns:1fr}.connectButton{width:100%}.progress{grid-template-columns:1fr}.step:after{display:none}.recordRow{grid-template-columns:74px 1fr}.copyButton{grid-column:2;justify-self:start}.checkRow{align-items:flex-start;flex-direction:column}.checkRow button{width:100%}}
