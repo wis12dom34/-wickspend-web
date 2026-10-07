@@ -10,6 +10,10 @@ on:
       - "app/webhook/wickspend/store/**"
       - "app/add-funds/**"
       - "components/BottomNav.tsx"
+      - "components/NavigationWarmup.tsx"
+      - "lib/api.ts"
+      - "lib/read-cache.ts"
+      - "scripts/read-load-regression.cjs"
       - "scripts/reseller-smoke.mjs"
       - "scripts/reseller-subscription-smoke.mjs"
       - "scripts/reseller-wallet-db-regression.sql"
@@ -28,6 +32,10 @@ on:
       - "app/webhook/wickspend/store/**"
       - "app/add-funds/**"
       - "components/BottomNav.tsx"
+      - "components/NavigationWarmup.tsx"
+      - "lib/api.ts"
+      - "lib/read-cache.ts"
+      - "scripts/read-load-regression.cjs"
       - "scripts/reseller-smoke.mjs"
       - "scripts/reseller-subscription-smoke.mjs"
       - "scripts/reseller-wallet-db-regression.sql"
@@ -72,6 +80,8 @@ jobs:
             sudo apt-get install -y postgresql-client
           fi
           psql -h 127.0.0.1 -U postgres -d wickspend_test -v ON_ERROR_STOP=1 -f scripts/reseller-wallet-db-regression.sql
+      - name: Read load and wallet cache regression
+        run: node --test scripts/read-load-regression.cjs
       - name: TypeScript
         run: npx tsc --noEmit
       - name: Production build

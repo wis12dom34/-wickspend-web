@@ -1,11 +1,8 @@
 "use client";
 
-import {useEffect} from "react";
+import {useEffect,useRef} from "react";
 import {usePathname,useRouter} from "next/navigation";
-import {api} from "@/lib/api";
-import {getSessionToken} from "@/lib/session";
 
-const MAIN_ROUTES=["/buy-number","/marketplace","/boostly","/wallet","/orders","/temp-mail"] as const;
 const NEXT_ROUTES:Record<string,readonly string[]>={
   "/buy-number":["/buy-number/premium-usa","/otp","/orders"],
   "/marketplace":["/orders"],
@@ -16,14 +13,16 @@ const NEXT_ROUTES:Record<string,readonly string[]>={
 export function NavigationWarmup(){
   const router=useRouter();
   const pathname=usePathname();
+  const warmed=useRef(new Set<string>());
   useEffect(()=>{
     let cancelled=false;
     const warm=()=>{
-      if(cancelled)return;
-      for(const route of MAIN_ROUTES)router.prefetch(route);
-      for(const route of NEXT_ROUTES[pathname]||[])router.prefetch(route);
-      const token=getSessionToken();
-      if(token)void Promise.allSettled([api.wallet.get(token),api.orders(token),api.notifications.list(token)]);
+      if(cancelled||document.visibilityState!=="visible"||!navigator.onLine)return;
+      for(const route of NEXT_ROUTES[pathname]||[]){
+        if(warmed.current.has(route))continue;
+        warmed.current.add(route);
+        router.prefetch(route);
+      }
     };
     const id=window.setTimeout(warm,250);
     const onVisible=()=>{if(document.visibilityState==="visible")warm()};
