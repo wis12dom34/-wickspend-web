@@ -1,0 +1,37 @@
+.backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;background:rgba(15,23,42,.34);padding:0}
+.sheet{width:100%;max-width:560px;max-height:92dvh;overflow:auto;background:#fff;border-radius:26px 26px 0 0;box-shadow:0 -12px 40px rgba(15,23,42,.18);padding:0 18px calc(18px + env(safe-area-inset-bottom));transition:transform .18s ease-out;color:#111827}
+.dragZone{height:28px;display:grid;place-items:center;touch-action:none;cursor:grab}
+.handle{width:42px;height:4px;border-radius:99px;background:#d5dbe5}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:2px 0 4px}
+.header h2{margin:0;font-size:21px;line-height:28px;letter-spacing:-.35px;font-weight:800;color:#111827}
+.header p{margin:3px 0 0;font-size:13px;line-height:19px;color:#667085}
+.close{width:36px;height:36px;display:grid;place-items:center;flex:0 0 36px;border:1px solid #e5e7eb;border-radius:13px;background:#fff;color:#475467;font-size:25px;line-height:1;cursor:pointer}
+.intro{margin:12px 0 14px;font-size:14px;line-height:20px;color:#344054}
+.categories{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.category{min-height:58px;border:1px solid #dce3ee;border-radius:15px;background:#fff;padding:10px 11px;display:flex;align-items:center;gap:9px;text-align:left;color:#344054;cursor:pointer;transition:border-color .14s ease,background .14s ease,box-shadow .14s ease}
+.category span{font-size:20px;line-height:1}
+.category b{font-size:13px;line-height:17px;font-weight:700}
+.categorySelected{border-color:#0866f5;background:#eef5ff;color:#0757d9;box-shadow:0 0 0 1px rgba(8,102,245,.08)}
+.messageLabel{display:block;margin:0 0 7px;font-size:13px;font-weight:700;color:#344054}
+.textareaWrap{position:relative}
+.textareaWrap textarea{box-sizing:border-box;width:100%;min-height:132px;resize:vertical;border:1px solid #dce3ee;border-radius:16px;background:#fff;padding:13px 13px 34px;font:inherit;font-size:15px;line-height:21px;color:#111827;outline:none;transition:border-color .14s ease,box-shadow .14s ease}
+.textareaWrap textarea:focus{border-color:#0866f5;box-shadow:0 0 0 3px rgba(8,102,245,.11)}
+.textareaWrap textarea::placeholder{color:#98a2b3}
+.counter{position:absolute;right:12px;bottom:10px;font-size:12px;color:#98a2b3}
+.error{margin:10px 0 0;border-radius:12px;background:#fff2f0;color:#b42318;padding:9px 11px;font-size:12px;line-height:17px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.actions button{height:46px;border-radius:15px;font-size:14px;font-weight:750;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.secondary{border:1px solid #dce3ee;background:#fff;color:#344054}
+.primary{border:1px solid #0866f5;background:#0866f5;color:#fff;box-shadow:0 6px 14px rgba(8,102,245,.18)}
+.actions button:disabled{cursor:not-allowed;opacity:.65}
+.spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .75s linear infinite}
+.footer{margin:13px 3px 0;text-align:center;font-size:11.5px;line-height:17px;color:#7b8494}
+.footer a{color:#0866f5;text-decoration:none;font-weight:700}
+.successState{min-height:320px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 16px 36px}
+.successIcon{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:#eaf8ef;color:#128a43;font-size:30px;font-weight:800;margin-bottom:15px}
+.successState h2{margin:0;font-size:21px;line-height:28px;color:#111827}
+.successState p{margin:6px 0 0;color:#667085;font-size:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:340px){.sheet{padding-left:14px;padding-right:14px}.category{padding:9px 8px;gap:6px}.category b{font-size:12px}.header h2{font-size:20px}}
+@media (min-width:720px){.backdrop{align-items:center;padding:24px}.sheet{border-radius:26px;max-height:min(780px,calc(100dvh - 48px));padding-left:22px;padding-right:22px;padding-bottom:22px;box-shadow:0 24px 70px rgba(15,23,42,.2)}.dragZone{height:18px}.handle{display:none}}
+@media (prefers-reduced-motion:reduce){.sheet,.category,.textareaWrap textarea{transition:none}.spinner{animation-duration:1.5s}}

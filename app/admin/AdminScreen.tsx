@@ -30,6 +30,7 @@ const routes = {
   support: '/admin/support',
   chats: '/admin/chats',
   notifications: '/admin/notifications',
+  suggestions: '/admin/suggestions',
   referrals: '/admin/referrals',
   menu: '/admin/menu',
   period: '/admin/period',
@@ -215,7 +216,7 @@ function Referrals() {
 
 function Menu() {
   const items = [
-    ['Dashboard','Overview and platform health',routes.dashboard],['Users','Customer accounts and activity',routes.users],['Transactions','Payments and order transactions',routes.transactions],['Revenue','Revenue analytics and trends',routes.revenue],['Support','Inbox and active chats',routes.support],['Referrals','Referral performance and rewards',routes.referrals],['Notifications','Platform alerts and updates',routes.notifications]
+    ['Dashboard','Overview and platform health',routes.dashboard],['Users','Customer accounts and activity',routes.users],['Transactions','Payments and order transactions',routes.transactions],['Revenue','Revenue analytics and trends',routes.revenue],['Support','Inbox and active chats',routes.support],['Suggestions','Customer ideas, issues and requests',routes.suggestions],['Referrals','Referral performance and rewards',routes.referrals],['Notifications','Platform alerts and updates',routes.notifications]
   ];
   return <Page nodeId="508:3292"><Header title="Admin Menu" subtitle="Navigate WickSpend administration"/><Card className={styles.identity}><span className={styles.identityCircle}/><div><strong>WickSpend Admin</strong><small>Secure administrator session</small></div></Card><nav className={styles.menuList}>{items.map(([title,sub,href],i) => <Link href={href} key={title} className={styles.menuItem}><span className={i===0?styles.menuDotActive:styles.menuDot}/><div><strong>{title}</strong><small>{sub}</small></div></Link>)}</nav></Page>;
 }
