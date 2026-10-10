@@ -50,6 +50,16 @@ assert(!JSON.stringify(customerCatalog).includes('supplier.invalid'));
 sandbox.fetch=async()=>Response.json({ok:true,products:null});
 const malformed=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/catalog/marketplace'),{params:Promise.resolve({path:['catalog','marketplace']})});
 assert.equal(malformed.status,502);
+sandbox.fetch=async()=>Response.json({ok:false,error:'SECRET_SUPPLIER_FAILURE',api_key:'private'},{status:503});
+const unavailable=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/catalog/marketplace'),{params:Promise.resolve({path:['catalog','marketplace']})});
+assert.equal(unavailable.status,503);
+assert.deepEqual(await unavailable.json(),{ok:false,code:'CATALOG_UNAVAILABLE'});
+sandbox.fetch=async()=>new Response("function note(m,e){var n=document.getElementById('notice');n.textContent=m}\nasync function loadMarketplace(options){return options}");
+const changedScript=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/app.js'),{params:Promise.resolve({path:['app.js']})});
+const changedBody=await changedScript.text();
+assert(changedBody.includes("document.querySelector('dialog[open]')"));
+assert(changedBody.includes('async function loadMarketplace(options)'));
+assert(!changedBody.includes('marketOrdering=true'));
 console.log('PASS customer catalog projection: selling price/reference preserved; supplier/markup omitted; malformed response fails safely');
 const browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.TEST_CHROMIUM?{executablePath:process.env.TEST_CHROMIUM}:{})});
 try{

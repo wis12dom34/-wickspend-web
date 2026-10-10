@@ -242,6 +242,11 @@ async function proxy(request: Request, context: ProxyContext) {
   }
   // Expose only existing customer product fields, retaining selling price and
   // the product reference required by the unchanged purchase endpoint.
+  if (safePath === "catalog/marketplace" && !upstream.ok) {
+    return Response.json({ ok: false, code: "CATALOG_UNAVAILABLE" }, {
+      status: upstream.status, headers: { "Cache-Control": "no-store" },
+    });
+  }
   if (safePath === "catalog/marketplace" && upstream.ok) {
     try {
       const payload = JSON.parse(new TextDecoder().decode(upstreamBody));
@@ -309,14 +314,14 @@ async function proxy(request: Request, context: ProxyContext) {
   if (safePath === "app.js" && upstream.ok) {
     const script = new TextDecoder().decode(upstreamBody);
     // Fail safely if the upstream app changes its renderer signatures.
-    if (!/^async function loadMarketplace\(\)\{[^\n]*\}/m.test(script) || !script.includes('async function buyMarketplace(i){')) {
-      return new Response(upstreamBody, { status: upstream.status, headers: responseHeaders });
-    }
-    const rewritten = script
+    const canRewriteMarketplace = /^async function loadMarketplace\(\)\{[^\n]*\}/m.test(script) && script.includes('async function buyMarketplace(i){');
+    const marketplaceScript = canRewriteMarketplace ? script
       .replace(/^async function loadMarketplace\(\)\{[^\n]*\}/m, MINI_STORE_MARKETPLACE_RENDERER)
       .replace("async function buyMarketplace(i){", "async function placeMarketplaceOrder(i){")
       .replace("Provider is confirming your delivery.", "Your delivery is being confirmed.")
       .replace("else note(x.j.code||'Marketplace order failed.',true)", "else note('Could not place your order. Check your balance and try again.',true)")
+      : script;
+    const rewritten = marketplaceScript
       .replace(NOTICE_START, DIALOG_NOTICE_START)
       .replace(NUMBER_CLICK_OLD, NUMBER_CLICK_NEW)
       .replace(BUY_NUMBER_OLD, BUY_NUMBER_NEW)
@@ -328,7 +333,7 @@ async function proxy(request: Request, context: ProxyContext) {
         "await loadNumberFilters()}\nasync function session",
       );
     // Retain the existing authenticated wallet/order request; guard only its UI entry.
-    const guarded = rewritten + String.raw`
+    const guarded = rewritten + (canRewriteMarketplace ? String.raw`
 async function buyMarketplace(i){
   var v=marketplaceCatalog[i];if(!v||marketOrdering||marketBusy)return;
   var stock=marketStock(v),input=document.querySelector('.marketQty[data-i="'+i+'"]'),qty=Number(input?input.value:1);
@@ -338,7 +343,7 @@ async function buyMarketplace(i){
   marketOrdering=true;document.querySelectorAll('#marketProducts .marketBag,#marketProducts .marketQty').forEach(function(el){el.disabled=true});document.querySelectorAll('#marketProducts .marketCard').forEach(function(el){el.setAttribute('aria-disabled','true')});
   try{await placeMarketplaceOrder(i)}catch(e){note('Could not confirm your order. Check My orders before trying again.',true)}finally{marketOrdering=false;await loadMarketplace()}
 }
-`;
+` : '');
     return new Response(guarded, { status: upstream.status, headers: responseHeaders });
   }
   return new Response(upstreamBody, { status: upstream.status, headers: responseHeaders });
