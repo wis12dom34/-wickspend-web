@@ -191,7 +191,7 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!body.includes('data-wick-store-header-v2')) {
     body = body.replace('</head>', MINI_STORE_HEADER_STYLES + '</head>');
   }
-  if (!body.includes('data-wick-store-landing-v1')) {
+  if (!body.includes('data-wick-store-landing-v2')) {
     body = body.replace('</head>', MINI_STORE_LANDING_STYLES + '</head>');
   }
   if (!body.includes('rel="icon"') && !body.includes("rel='icon'")) {
@@ -245,7 +245,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}${authFixScript}${PASSWORD_RESET_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
   let html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
-  if (!html.includes('data-wick-store-landing-script')) {
+  if (!html.includes('data-wick-store-landing-script-v2')) {
     html = html.replace('</body>', landing.script + '</body>');
   }
   const headers = new Headers();
