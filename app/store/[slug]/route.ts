@@ -155,6 +155,13 @@ export async function GET(_request: Request, context: RouteContext) {
     return brandedPage("Store temporarily unavailable", "We could not load this reseller store right now. Please try again shortly.", 503);
   }
 
+  // The hosted customer dashboard supplies its own attribution footer.
+  // Remove it here so the existing Mini Store remains reseller-branded.
+  body = body.replace(
+    /<div\s+class=["']footer["']\s*>\s*Powered\s+by\s+WickSpend\s*<\/div>/gi,
+    "",
+  );
+
   if (!body.includes('id="regConfirmPassword"')) {
     body = body.replace(
       /(<input id="regPassword"[^>]*>)/,
