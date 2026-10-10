@@ -209,7 +209,7 @@ export function renderMiniStoreLanding(store: MiniStoreLandingStore) {
   const initial = escapeHtml(storeName.charAt(0).toUpperCase() || "S");
   const logoUrl = safeImageUrl(store.logo_url);
   const logoClass = logoUrl ? "wick-logo has-image" : "wick-logo";
-  const logo = logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapedName} logo" loading="eager" decoding="async" onerror="this.parentElement.classList.remove('has-image');this.remove();this.parentElement.textContent=${JSON.stringify(initial)}">` : initial;
+  const logo = logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapedName} logo" loading="eager" decoding="async" onerror="var p=this.parentElement;p.classList.remove('has-image');p.textContent=(this.alt||'S').charAt(0)||'S'">` : initial;
   const rentEnabled = store.rent_number_enabled !== false;
   const primary = safeColor(store.primary_color);
   const config = normalizedConfig(store.landing_config);
