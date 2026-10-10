@@ -94,6 +94,14 @@ const formatNgn = (value: any) => {
   return n === null ? "Price at checkout" : `₦${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(n)}`;
 };
 const availabilityCount = (p: any) => finiteNumber(p?.available ?? p?.stock ?? p?.count ?? p?.quantity ?? p?.availability);
+const formatOtpWait = (value: any) => {
+  const seconds = finiteNumber(value);
+  if (seconds === null || seconds < 0) return "—";
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+};
 
 function purchaseOfferKey(p: any, country: string, service: string, index: number) {
   const providerId = String(p?.provider_id ?? "").trim();
@@ -197,6 +205,14 @@ function normalizePrices(payload: any): any[] {
   return [];
 }
 
+function safeTopOtpLabel(value: unknown) {
+  const label = String(value || "").trim();
+  if (!label) return "Recommended";
+  if (/fast\s*&\s*reliable/i.test(label)) return "Fast & reliable";
+  if (/top\s+pick/i.test(label)) return "Top pick";
+  return "Recommended";
+}
+
 function ServiceBrandIcon({ service, code }: { service: string; code?: string }) {
   const [sourceFailed, setSourceFailed] = useState(false);
   useEffect(() => { setSourceFailed(false); }, [code]);
@@ -230,6 +246,9 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   const [picker, setPicker] = useState<"country" | "service" | null>(null);
   const [search, setSearch] = useState("");
   const [loadingServices, setLoadingServices] = useState(false);
+  const [topOtpPicks, setTopOtpPicks] = useState<any[]>([]);
+  const [topOtpMeta, setTopOtpMeta] = useState<any>(null);
+  const [loadingTopOtp, setLoadingTopOtp] = useState(false);
   const priceRequest = useRef(0);
   const buyingRef = useRef(false);
   const buying = buyingOfferKey !== null;
@@ -291,6 +310,26 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
     });
     return () => { cancelled = true; };
   }, [country, premium, initialService]);
+
+  useEffect(() => {
+    if (premium || !service) {
+      setTopOtpPicks([]);
+      setTopOtpMeta(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingTopOtp(true);
+    api.numbers.topOtp(service, 168).then((data: any) => {
+      if (cancelled) return;
+      setTopOtpPicks(Array.isArray(data?.items) ? data.items : []);
+      setTopOtpMeta(data || null);
+    }).catch(() => {
+      if (!cancelled) { setTopOtpPicks([]); setTopOtpMeta(null); }
+    }).finally(() => {
+      if (!cancelled) setLoadingTopOtp(false);
+    });
+    return () => { cancelled = true; };
+  }, [premium, service]);
 
   function currentServiceCode() {
     return service;
@@ -452,6 +491,9 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   const query = search.trim().toLowerCase();
   const filteredCountries = countries.filter((item) => !query || item.name.toLowerCase().includes(query) || item.iso?.toLowerCase().includes(query));
   const filteredServices = serviceOptions.filter((item) => !query || item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
+  const selectedTopCountry = topOtpPicks.find((item) => String(item?.country_code || "") === String(country));
+  const selectedTopProviders = Array.isArray(selectedTopCountry?.providers) ? selectedTopCountry.providers : [];
+  const providerPerformance = Array.isArray(topOtpMeta?.provider_performance) ? topOtpMeta.provider_performance : [];
 
   return (
     <PageShell title={seoTitle} subtitle={premium ? "Choose a Premium USA service" : "Choose a country and service"}>
@@ -486,6 +528,52 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
         </div>
         {message && <p className="buyNumberMessage" role="status">{messageTitle && <><strong>{messageTitle}</strong><br /></>}{message}</p>}
       </form>
+
+      {!premium && (loadingTopOtp || topOtpPicks.length > 0) && (
+        <section aria-label="Top OTP picks" style={{margin:"14px 0 18px",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,background:"#fff",boxShadow:"0 8px 28px rgba(0,0,0,.055)",overflow:"hidden"}}>
+          <div style={{padding:"16px 16px 12px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,borderBottom:"1px solid rgba(0,0,0,.06)"}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><span aria-hidden="true">⚡</span><strong style={{fontSize:16}}>Top OTP picks right now</strong></div>
+              <p style={{margin:0,fontSize:12,lineHeight:1.45,color:"#6e6e73"}}>Recent WickSpend OTP results + live provider ranking for {selectedService?.name || friendlyServiceName(service)}.</p>
+            </div>
+            <span style={{flex:"0 0 auto",fontSize:10,fontWeight:700,padding:"5px 8px",borderRadius:999,background:"#edf8f1",color:"#157a3a"}}>LIVE</span>
+          </div>
+          {loadingTopOtp && topOtpPicks.length === 0 ? (
+            <div style={{padding:18,color:"#6e6e73",fontSize:13}}>Checking recent OTP performance…</div>
+          ) : (
+            <div style={{display:"grid"}}>
+              {topOtpPicks.slice(0,5).map((item: any) => {
+                const code = String(item?.country_code || "");
+                const countryInfo = countries.find((c) => c.code === code);
+                const activations = Number(item?.activations || 0);
+                const otpOrders = Number(item?.otp_orders || 0);
+                const otpRate = finiteNumber(item?.otp_rate);
+                const wait = item?.median_otp_seconds ?? item?.avg_otp_seconds;
+                const selectable = Boolean(code && countryInfo);
+                return (
+                  <div key={`${code || item?.country_name}-${item?.rank}`} style={{minHeight:72,padding:"12px 14px",display:"flex",alignItems:"center",gap:11,borderBottom:"1px solid rgba(0,0,0,.055)"}}>
+                    <span style={{fontSize:24,width:30,textAlign:"center",flex:"0 0 auto"}}>{countryInfo?.flag || "🌐"}</span>
+                    <div style={{minWidth:0,flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                        <strong style={{fontSize:14}}>{item?.country_name || countryInfo?.name || `Country ${code}`}</strong>
+                        <span style={{fontSize:9,fontWeight:700,padding:"3px 6px",borderRadius:999,background:safeTopOtpLabel(item?.label) === "Fast & reliable" ? "#edf8f1" : "#f4f4f5",color:safeTopOtpLabel(item?.label) === "Fast & reliable" ? "#157a3a" : "#52525b"}}>{safeTopOtpLabel(item?.label)}</span>
+                      </div>
+                      <div style={{marginTop:5,display:"flex",gap:8,flexWrap:"wrap",fontSize:10.5,color:"#6e6e73"}}>
+                        {otpRate !== null && activations > 0 && <span><strong style={{color:"#111"}}>{otpRate}%</strong> recent OTP</span>}
+                        {finiteNumber(wait) !== null && <span>Typical <strong style={{color:"#111"}}>{formatOtpWait(wait)}</strong></span>}
+                        {otpOrders > 0 && <span>{otpOrders}/{activations} activations</span>}
+                        {Number(item?.stock || 0) > 0 && <span>{new Intl.NumberFormat("en-NG", { notation:"compact", maximumFractionDigits:1 }).format(Number(item.stock))} live stock</span>}
+                      </div>
+                    </div>
+                    {selectable && <button type="button" onClick={() => { resetSelection("country", code); setMessageTitle("Top OTP pick selected"); setMessage(`${item?.country_name || countryInfo?.name} selected. Tap View Prices to choose a live provider.`); window.scrollTo({top:0,behavior:"smooth"}); }} style={{border:0,borderRadius:12,background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"9px 11px",flex:"0 0 auto"}}>Use</button>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p style={{margin:0,padding:"10px 14px 12px",fontSize:9.5,lineHeight:1.4,color:"#8a8a8e"}}>Based on the last 7 days of eligible WickSpend number activations. Past delivery does not guarantee a future OTP.</p>
+        </section>
+      )}
 
       {picker && (
         <div role="presentation" onClick={closePicker} style={{position:"fixed",inset:0,zIndex:120,background:"rgba(0,0,0,.22)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 12px calc(env(safe-area-inset-bottom) + 12px)"}}>
@@ -542,11 +630,23 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
                   : available === null
                     ? "Availability unavailable"
                     : `${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(available)} ${available === 1 ? "number" : "numbers"} available`;
+                const providerId = String(p?.provider_id ?? "").trim();
+                const localProvider = providerPerformance.find((item: any) => String(item?.provider_id || "") === providerId && String(item?.country_code || "") === String(country));
+                const rankedIndex = selectedTopProviders.findIndex((item: any) => String(item?.provider_id || "") === providerId);
+                const providerRate = finiteNumber(localProvider?.otp_rate);
+                const providerSamples = Number(localProvider?.activations || 0);
+                const providerWait = localProvider?.median_otp_seconds ?? localProvider?.avg_otp_seconds;
+                const providerSignal = providerSamples >= 3 && providerRate !== null
+                  ? `${providerRate}% recent OTP${finiteNumber(providerWait) !== null ? ` · ${formatOtpWait(providerWait)} typical` : ""}`
+                  : rankedIndex >= 0
+                    ? `Provider ranked highly${rankedIndex === 0 ? " · top live pick" : ""}`
+                    : "";
                 return (
                   <div className="priceRow" key={rowKey}>
                     <div className="priceRowCopy">
                       <strong className="priceRowPrice">{formattedPrice}</strong>
                       <small className="priceRowAvailability">{availabilityLabel}</small>
+                      {providerSignal && <small style={{display:"block",marginTop:3,color:providerSamples >= 3 ? "#157a3a" : "#6e6e73",fontWeight:600}}>{providerSignal}</small>}
                     </div>
                     <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => buy(p, rowKey)}>{isBuyingThisOffer ? "Buying…" : "Buy"}</button>
                   </div>

@@ -6,7 +6,7 @@ const DIALOG_NOTICE_START = "function note(m,e){var d=document.querySelector('di
 const NUMBER_CLICK_OLD = "box.querySelectorAll('.numberBuy').forEach(function(b){b.onclick=function(){buyNumber(Number(b.dataset.i))}})}";
 const NUMBER_CLICK_NEW = "box.querySelectorAll('.numberBuy').forEach(function(b){b.onclick=function(){buyNumber(Number(b.dataset.i),b)}})}";
 const BUY_NUMBER_OLD = "async function buyNumber(i){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;note('Placing your order…');var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,service_code:v.service_code,provider_id:v.provider_id||'auto',request_key:requestKey()})});if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else note(x.j.code||'Order failed.',true)}";
-const BUY_NUMBER_NEW = "async function buyNumber(i,b){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;var label=b&&b.textContent;if(b){b.disabled=true;b.textContent='Buying…'}note('Placing your order…');try{var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,service_code:v.service_code,provider_id:v.provider_id||'auto',offer_id:v.offer_id||undefined,operator_id:v.operator_id||undefined,request_key:requestKey()})});var code=String(x.j.code||x.j.error||'').toUpperCase();if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else if(x.r.status===401||code==='UNAUTHORIZED'){note('Session expired — sign in again.',true);openAuth()}else if(code==='INSUFFICIENT_FUNDS'||x.r.status===402)note('Insufficient balance.',true);else if(code==='SELECTED_OFFER_UNAVAILABLE'){await loadNumberCatalog();note('Selected price changed — refreshed. Choose an available offer.',true)}else if(['NO_NUMBERS','PURCHASE_FAILED','NUMBER_UNAVAILABLE','PURCHASE_UNAVAILABLE'].includes(code)){await loadNumberCatalog();note('Number temporarily unavailable. Choose another available offer.',true)}else if(code==='FX_UNAVAILABLE'||code==='PROVIDER_UNAVAILABLE'||x.r.status>=500)note('Provider temporarily unavailable. Please try again shortly.',true);else note('Could not place order. Please try again.',true)}catch(e){note('Could not place order. Please try again.',true)}finally{if(b){b.disabled=false;b.textContent=label||'Buy number'}}}";
+const BUY_NUMBER_NEW = "async function buyNumber(i,b){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;var label=b&&b.textContent;if(b){b.disabled=true;b.textContent='Buying…'}note('Placing your order…');try{var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,country_iso_code:v.iso_code||'',service_code:v.service_code,provider_id:v.provider_id||'auto',offer_id:v.offer_id||undefined,operator_id:v.operator_id||undefined,request_key:requestKey()})});var code=String(x.j.code||x.j.error||'').toUpperCase();if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else if(x.r.status===401||code==='UNAUTHORIZED'){note('Session expired — sign in again.',true);openAuth()}else if(code==='INSUFFICIENT_FUNDS'||x.r.status===402)note('Insufficient balance.',true);else if(code==='SELECTED_OFFER_UNAVAILABLE'){await loadNumberCatalog();note('Selected price changed — refreshed. Choose an available offer.',true)}else if(['NO_NUMBERS','PURCHASE_FAILED','NUMBER_UNAVAILABLE','PURCHASE_UNAVAILABLE'].includes(code)){await loadNumberCatalog();note('Number temporarily unavailable. Choose another available offer.',true)}else if(code==='FX_UNAVAILABLE'||code==='PROVIDER_UNAVAILABLE'||x.r.status>=500)note('Provider temporarily unavailable. Please try again shortly.',true);else note('Could not place order. Please try again.',true)}catch(e){note('Could not place order. Please try again.',true)}finally{if(b){b.disabled=false;b.textContent=label||'Buy number'}}}";
 const CHECK_OTP_OLD = "async function checkOtp(ref,out){var x=await req('wickspend/store/numbers/status?reference='+encodeURIComponent(ref));if(!x.j.ok)return note(x.j.code||'Could not load OTP.',true);out.textContent=x.j.otp||'Waiting';note(x.j.otp?'OTP received: '+x.j.otp:'Still waiting for the SMS code.')}";
 const CHECK_OTP_NEW = "async function checkOtp(ref,out){var x=await req('wickspend/store/numbers/status?reference='+encodeURIComponent(ref));if(!x.j.ok)return note(x.j.code||'Could not load OTP.',true);if(x.j.otp){out.textContent=x.j.otp;return note('OTP received: '+x.j.otp)}if(x.j.status==='completed'){out.textContent='No code';return note('Activation finished without an OTP code.',true)}out.textContent='Waiting';note('Still waiting for the SMS code.')}";
 const FUND_WALLET_OLD = "async function fundWallet(){if(!token)return openAuth();var a=Number(document.getElementById('fundAmount').value||0);if(a<500)return note('Minimum funding is ₦500.',true);var w=window.open('about:blank','_blank');var x=await req('wickspend/store/wallet/funding/initialize',{method:'POST',body:JSON.stringify({amount_ngn:a})});if(x.j.ok&&x.j.checkout_url){if(w)w.location=x.j.checkout_url;else location.href=x.j.checkout_url;note('Complete payment, then return here and tap Refresh.')}else{if(w)w.close();note(x.j.code||'Could not start funding.',true)}}";
@@ -109,6 +109,29 @@ finally {
 } }
 `;
 
+const MINI_STORE_TOP_OTP = String.raw`
+var topOtpCache = new Map(), topOtpInflight = new Map(), topOtpGeneration = 0;
+function topOtpLabel(label){return label==='Fast & reliable'||label==='Top pick'?label:'Recommended'}
+function topOtpWait(seconds){var n=Number(seconds);return n<60?Math.round(n)+' sec':Math.round(n/60)+' min'}
+function topOtpBox(){var box=document.getElementById('storeTopOtp');if(!box){box=document.createElement('section');box.id='storeTopOtp';box.setAttribute('aria-label','Top OTP picks');document.getElementById('numberProducts').before(box)}return box}
+async function loadTopOtpPicks(){
+  var service=document.getElementById('service').value, generation=++topOtpGeneration, box=topOtpBox();
+  if(!service){box.hidden=true;return}box.hidden=false;
+  box.innerHTML='<h3>Top OTP picks right now</h3><p role="status">Checking recent OTP performance…</p>';box.setAttribute('aria-busy','true');
+  try{
+    var cached=topOtpCache.get(service),data;
+    if(cached&&cached.expires>Date.now())data=cached.data;
+    else{var pending=topOtpInflight.get(service);if(!pending){pending=req('wickspend/store/catalog/numbers?top_otp=1&service_code='+encodeURIComponent(service)).then(function(x){if(!x.r.ok||!x.j.ok||!Array.isArray(x.j.items))throw Error('ranking');topOtpCache.set(service,{expires:Date.now()+30000,data:x.j});return x.j}).finally(function(){topOtpInflight.delete(service)});topOtpInflight.set(service,pending)}data=await pending}
+    if(generation!==topOtpGeneration||service!==document.getElementById('service').value)return;
+    var countries=Array.from(document.getElementById('country').options),rows=data.items.filter(function(v){return countries.some(function(c){return c.value===String(v.country_code)})&&Number(v.stock)>0}).slice(0,5);
+    box.innerHTML='<h3>Top OTP picks right now</h3><p>Recent OTP results and live rankings for '+esc(document.getElementById('service').selectedOptions[0]?.textContent||service)+'.</p>'+(rows.length?rows.map(function(v,i){var c=countries.find(function(c){return c.value===String(v.country_code)}),details=[],rate=v.otp_rate,wait=v.median_otp_seconds??v.avg_otp_seconds;if(rate!==null&&rate!==undefined&&Number(v.activations)>0)details.push(Number(rate)+'% recent OTP');if(wait!==null&&wait!==undefined)details.push(topOtpWait(wait)+' typical');if(Number(v.activations)>0)details.push(Number(v.otp_orders)+'/'+Number(v.activations)+' activations');return '<div class="topOtpRow"><span class="topOtpRank" aria-hidden="true">'+(i+1)+'</span><div class="topOtpCopy"><strong>'+esc(c.textContent)+'</strong><span class="topOtpLabel">'+esc(topOtpLabel(v.label))+'</span><small>'+esc(details.length?details.join(' · '):'Live availability ranking')+'</small></div><button type="button" data-country="'+esc(v.country_code)+'">View prices</button></div>'}).join(''):'<p role="status">No ranked countries available for this service right now. You can still use the country selector.</p>')+'<small class="topOtpFoot">Based on eligible activations from the last 7 days. Past delivery does not guarantee a future OTP.</small>';
+    box.querySelectorAll('button[data-country]').forEach(function(button){button.onclick=async function(){button.disabled=true;try{document.getElementById('country').value=button.dataset.country;await loadNumberServices();if(document.getElementById('service').value!==service)note('This service is unavailable in the selected country. Showing available services.',true);await loadNumberCatalog();document.getElementById('numberProducts').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){note('Could not load prices. Please try again.',true)}finally{button.disabled=false}}});
+  }catch(e){if(generation===topOtpGeneration){box.innerHTML='<h3>Top OTP picks right now</h3><p role="status">Rankings are temporarily unavailable. You can still choose a country and buy numbers.</p><button type="button" class="topOtpRetry">Try again</button>';box.querySelector('button').onclick=loadTopOtpPicks}}
+  finally{if(generation===topOtpGeneration)box.setAttribute('aria-busy','false')}
+}
+async function loadNumberCatalog(){await Promise.all([loadStoreNumberCatalog(),loadTopOtpPicks()])}
+`;
+
 const RENTAL_SAFE_CODES = new Set([
   "UNAUTHORIZED", "INVALID_OR_EXPIRED_SESSION", "INSUFFICIENT_BALANCE",
   "RENTALS_DISABLED", "SERVICE_DISABLED", "SERVICE_NOT_FOUND",
@@ -139,6 +162,28 @@ async function proxy(request: Request, context: ProxyContext) {
   }
 
   const incoming = new URL(request.url);
+  if (safePath === "catalog/numbers" && incoming.searchParams.get("top_otp") === "1") {
+    if (request.method !== "GET") return Response.json({ok:false}, {status:405});
+    const service = (incoming.searchParams.get("service_code") || "").trim();
+    if (!service || service.length > 80) return Response.json({ok:false}, {status:400});
+    try {
+      const ranking = await fetch(`https://n8n.wickspend.com/webhook/wickspend/backend/numbers/top-otp?service_code=${encodeURIComponent(service)}&window_hours=168`, {next:{revalidate:30}, signal:AbortSignal.timeout(20000)});
+      if (!ranking.ok) throw new Error("ranking unavailable");
+      const data = await ranking.json();
+      if (!data.ok || !Array.isArray(data.items)) throw new Error("invalid ranking");
+      const items = data.items.map((row:Record<string,unknown>) => {
+        const item:Record<string,unknown> = {country_code:String(row.country_code ?? ""), label:row.label === "Fast & reliable" || row.label === "Top pick" ? row.label : "Recommended"};
+        for (const key of ["rank", "stock", "activations", "otp_orders", "otp_rate", "median_otp_seconds", "avg_otp_seconds"]) {
+          const value = row[key];
+          item[key] = value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+        }
+        return item;
+      });
+      return Response.json({ok:true, service_code:service, window_hours:168, items}, {headers:{"Cache-Control":"public, max-age=30"}});
+    } catch {
+      return Response.json({ok:false, code:"RANKINGS_UNAVAILABLE"}, {status:503, headers:{"Cache-Control":"no-store"}});
+    }
+  }
   const upstreamUrl = `${UPSTREAM_BASE}${safePath}${incoming.search}`;
   const headers = new Headers();
   const authorization = request.headers.get("authorization");
@@ -321,13 +366,15 @@ async function proxy(request: Request, context: ProxyContext) {
       .replace("Provider is confirming your delivery.", "Your delivery is being confirmed.")
       .replace("else note(x.j.code||'Marketplace order failed.',true)", "else note('Could not place your order. Check your balance and try again.',true)")
       : script;
+    const canRewriteNumbers = script.includes("async function loadNumberCatalog(){");
     const rewritten = marketplaceScript
       .replace(NOTICE_START, DIALOG_NOTICE_START)
       .replace(NUMBER_CLICK_OLD, NUMBER_CLICK_NEW)
       .replace(BUY_NUMBER_OLD, BUY_NUMBER_NEW)
+      .replace(BUY_NUMBER_OLD.replace("country_code:v.country_code,", "country_code:v.country_code,country_iso_code:v.iso_code||'',"), BUY_NUMBER_NEW)
       .replace(CHECK_OTP_OLD, CHECK_OTP_NEW)
       .replace(FUND_WALLET_OLD, FUND_WALLET_NEW)
-      .replace("async function loadNumberCatalog(){", `${DYNAMIC_NUMBER_FILTERS}\nasync function loadNumberCatalog(){`)
+      .replace("async function loadNumberCatalog(){", `${DYNAMIC_NUMBER_FILTERS}\nasync function loadStoreNumberCatalog(){`)
       .replace(
         "await loadNumberCatalog()}\nasync function session",
         "await loadNumberFilters()}\nasync function session",
@@ -344,7 +391,7 @@ async function buyMarketplace(i){
   try{await placeMarketplaceOrder(i)}catch(e){note('Could not confirm your order. Check My orders before trying again.',true)}finally{marketOrdering=false;await loadMarketplace()}
 }
 ` : '');
-    return new Response(guarded, { status: upstream.status, headers: responseHeaders });
+    return new Response(guarded + (canRewriteNumbers ? MINI_STORE_TOP_OTP : ""), { status: upstream.status, headers: responseHeaders });
   }
   return new Response(upstreamBody, { status: upstream.status, headers: responseHeaders });
 }

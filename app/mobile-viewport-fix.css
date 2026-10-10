@@ -5,12 +5,31 @@ html,
 body {
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  min-width: 0;
+  overscroll-behavior-y: none;
+}
+
+/* One document scroll root. Do not clip/position body: Safari can retain a
+   stale fixed-layer viewport while its browser toolbar expands on scroll. */
+html {
+  overflow-x: hidden;
 }
 
 body {
-  position: relative;
-  min-width: 0;
+  position: static;
+  overflow: visible;
+}
+
+@supports (min-height: 100dvh) {
+  .homeShell { min-height: 100dvh; }
+}
+
+/* Home already reserves the fixed nav in its own bottom padding. */
+body:has(.homeShell) > .bottomNavSpacer {
+  display: none;
+}
+body:has(.homeShell) {
+  padding-bottom: 0;
 }
 
 *,

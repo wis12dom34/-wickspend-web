@@ -119,6 +119,11 @@ for (const required of [
   'monthly_enabled:true,six_month_enabled:true,annual_enabled:true',
   'features:{api_access:true,api_key_limit:Number(FIXED_RESELLER_POLICY.apiKeyLimit),custom_domain:true,custom_domain_limit:Number(FIXED_RESELLER_POLICY.customDomainLimit)}',
   "Fixed production policy: ₦7,500 monthly, ₦30,000 for 6 months and ₦50,000 yearly.",
+  'async function restorePlan(p:any)',
+  'action:"restore"',
+  'archived_at:null,is_active:true,is_public:true',
+  '"Restore & Activate"',
+  'Plan restored, activated and public',
 ]) {
   if (!adminResellerSource.includes(required)) fail(`Admin reseller source missing ${required}`);
   else pass(`Admin reseller source contains ${required}`);
