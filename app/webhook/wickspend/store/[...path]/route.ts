@@ -6,7 +6,7 @@ const DIALOG_NOTICE_START = "function note(m,e){var d=document.querySelector('di
 const NUMBER_CLICK_OLD = "box.querySelectorAll('.numberBuy').forEach(function(b){b.onclick=function(){buyNumber(Number(b.dataset.i))}})}";
 const NUMBER_CLICK_NEW = "box.querySelectorAll('.numberBuy').forEach(function(b){b.onclick=function(){buyNumber(Number(b.dataset.i),b)}})}";
 const BUY_NUMBER_OLD = "async function buyNumber(i){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;note('Placing your order…');var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,service_code:v.service_code,provider_id:v.provider_id||'auto',request_key:requestKey()})});if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else note(x.j.code||'Order failed.',true)}";
-const BUY_NUMBER_NEW = "async function buyNumber(i,b){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;var label=b&&b.textContent;if(b){b.disabled=true;b.textContent='Buying…'}note('Placing your order…');try{var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,country_iso_code:v.iso_code||'',service_code:v.service_code,provider_id:v.provider_id||'auto',offer_id:v.offer_id||undefined,operator_id:v.operator_id||undefined,request_key:requestKey()})});var code=String(x.j.code||x.j.error||'').toUpperCase();if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else if(x.r.status===401||code==='UNAUTHORIZED'){note('Session expired — sign in again.',true);openAuth()}else if(code==='INSUFFICIENT_FUNDS'||x.r.status===402)note('Insufficient balance.',true);else if(code==='SELECTED_OFFER_UNAVAILABLE'){await loadNumberCatalog();note('Selected price changed — refreshed. Choose an available offer.',true)}else if(['NO_NUMBERS','PURCHASE_FAILED','NUMBER_UNAVAILABLE','PURCHASE_UNAVAILABLE'].includes(code)){await loadNumberCatalog();note('Number temporarily unavailable. Choose another available offer.',true)}else if(code==='FX_UNAVAILABLE'||code==='PROVIDER_UNAVAILABLE'||x.r.status>=500)note('Provider temporarily unavailable. Please try again shortly.',true);else note('Could not place order. Please try again.',true)}catch(e){note('Could not place order. Please try again.',true)}finally{if(b){b.disabled=false;b.textContent=label||'Buy number'}}}";
+const BUY_NUMBER_NEW = "async function buyNumber(i,b){if(!token)return openAuth();var v=numberCatalog[i];if(!v)return;if(numberAvailable(v)===0)return note('This number is out of stock.',true);var label=b&&b.textContent;if(b){b.disabled=true;b.textContent='Buying…'}note('Placing your order…');try{var x=await req('wickspend/store/numbers/buy',{method:'POST',body:JSON.stringify({country_code:v.country_code,country_iso_code:v.iso_code||'',service_code:v.service_code,provider_id:v.provider_id||'auto',offer_id:v.offer_id||undefined,operator_id:v.operator_id||undefined,request_key:requestKey()})});var code=String(x.j.code||x.j.error||'').toUpperCase();if(x.j.ok){note('Number purchased.');await session()}else if(x.r.status===202)note('Provider is confirming your number.');else if(x.r.status===401||code==='UNAUTHORIZED'){note('Session expired — sign in again.',true);openAuth()}else if(code==='INSUFFICIENT_FUNDS'||x.r.status===402)note('Insufficient balance.',true);else if(code==='SELECTED_OFFER_UNAVAILABLE'){await loadNumberCatalog();note('Selected price changed — refreshed. Choose an available offer.',true)}else if(['NO_NUMBERS','PURCHASE_FAILED','NUMBER_UNAVAILABLE','PURCHASE_UNAVAILABLE'].includes(code)){await loadNumberCatalog();note('Number temporarily unavailable. Choose another available offer.',true)}else if(code==='FX_UNAVAILABLE'||code==='PROVIDER_UNAVAILABLE'||x.r.status>=500)note('Provider temporarily unavailable. Please try again shortly.',true);else note('Could not place order. Please try again.',true)}catch(e){note('Could not place order. Please try again.',true)}finally{if(b){b.disabled=false;b.textContent=label||'Buy number'}}}";
 const CHECK_OTP_OLD = "async function checkOtp(ref,out){var x=await req('wickspend/store/numbers/status?reference='+encodeURIComponent(ref));if(!x.j.ok)return note(x.j.code||'Could not load OTP.',true);out.textContent=x.j.otp||'Waiting';note(x.j.otp?'OTP received: '+x.j.otp:'Still waiting for the SMS code.')}";
 const CHECK_OTP_NEW = "async function checkOtp(ref,out){var x=await req('wickspend/store/numbers/status?reference='+encodeURIComponent(ref));if(!x.j.ok)return note(x.j.code||'Could not load OTP.',true);if(x.j.otp){out.textContent=x.j.otp;return note('OTP received: '+x.j.otp)}if(x.j.status==='completed'){out.textContent='No code';return note('Activation finished without an OTP code.',true)}out.textContent='Waiting';note('Still waiting for the SMS code.')}";
 const FUND_WALLET_OLD = "async function fundWallet(){if(!token)return openAuth();var a=Number(document.getElementById('fundAmount').value||0);if(a<500)return note('Minimum funding is ₦500.',true);var w=window.open('about:blank','_blank');var x=await req('wickspend/store/wallet/funding/initialize',{method:'POST',body:JSON.stringify({amount_ngn:a})});if(x.j.ok&&x.j.checkout_url){if(w)w.location=x.j.checkout_url;else location.href=x.j.checkout_url;note('Complete payment, then return here and tap Refresh.')}else{if(w)w.close();note(x.j.code||'Could not start funding.',true)}}";
@@ -130,6 +130,31 @@ async function loadTopOtpPicks(){
   finally{if(generation===topOtpGeneration)box.setAttribute('aria-busy','false')}
 }
 async function loadNumberCatalog(){await Promise.all([loadStoreNumberCatalog(),loadTopOtpPicks()])}
+`;
+
+const MINI_STORE_NUMBER_RENDERER = String.raw`
+var numberCatalogGeneration=0;
+function numberAvailable(v){var n=v.available??v.stock??v.count??v.quantity;return n!==null&&n!==undefined&&n!==''&&Number.isFinite(Number(n))&&Number(n)>=0?Math.floor(Number(n)):null}
+async function loadStoreNumberCatalog(){
+  var box=document.getElementById('numberProducts'),generation=++numberCatalogGeneration,c=document.getElementById('country').value,s=document.getElementById('service').value;
+  box.setAttribute('aria-busy','true');box.innerHTML='<div class="empty" style="grid-column:1/-1">Checking live availability…</div>';
+  try{
+    var x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)+'&country_code='+encodeURIComponent(c)+'&service_code='+encodeURIComponent(s));
+    if(generation!==numberCatalogGeneration)return;
+    numberCatalog=Array.isArray(x.j.items)?x.j.items.slice():[];
+    numberCatalog.sort(function(a,b){var ar=Number(a.provider_rank),br=Number(b.provider_rank);return (Number.isSafeInteger(ar)&&ar>0?ar:Infinity)-(Number.isSafeInteger(br)&&br>0?br:Infinity)});
+    if(!x.j.ok)throw Error('catalog');
+    if(!numberCatalog.length){box.innerHTML='<div class="empty" style="grid-column:1/-1">No numbers available right now.</div>';return}
+    box.innerHTML=numberCatalog.slice(0,18).map(function(v,i){
+      var available=numberAvailable(v),unavailable=available===0,rank=Number(v.provider_rank),ranked=Number.isSafeInteger(rank)&&rank>0;
+      var stock=unavailable?'Out of stock':available===null?'Availability unconfirmed':available.toLocaleString('en-NG')+' '+(available===1?'number':'numbers')+' available';
+      var metrics=[];if(Number(v.provider_activations)>=3&&v.provider_otp_rate!==null&&v.provider_otp_rate!==undefined){metrics.push(Number(v.provider_otp_rate)+'% recent OTP');if(v.provider_otp_seconds!==null&&v.provider_otp_seconds!==undefined)metrics.push(topOtpWait(v.provider_otp_seconds)+' typical')}
+      return '<div class="product"><div class="row" style="gap:8px;flex-wrap:wrap"><b style="overflow-wrap:anywhere">'+esc(v.service_name||v.service_code)+'</b><span class="grow"></span><span class="pill stock">'+esc(stock)+'</span></div><div class="muted">'+esc((v.flag||'')+' '+(v.country_name||v.country_code))+'</div><div class="numberProviderRank" style="margin-top:8px;font-size:13px;font-weight:700;color:var(--p)">'+(ranked?'Provider rank #'+rank+(rank===1?' · Top live pick':''):'Provider not ranked yet')+'</div>'+(metrics.length?'<div class="muted" style="font-size:12px;margin-top:4px">'+esc(metrics.join(' · '))+'</div>':'')+'<div class="price">'+money(v.price_ngn)+'</div><button class="btn blue numberBuy" style="width:100%" data-i="'+i+'" '+(unavailable?'disabled aria-disabled="true"':'')+'>'+(unavailable?'Out of stock':'Buy number')+'</button></div>';
+    }).join('');
+    box.querySelectorAll('.numberBuy').forEach(function(b){b.onclick=function(){if(!b.disabled&&numberAvailable(numberCatalog[Number(b.dataset.i)])!==0)buyNumber(Number(b.dataset.i),b)}});
+  }catch(e){if(generation===numberCatalogGeneration){numberCatalog=[];box.innerHTML='<div class="empty" style="grid-column:1/-1">Could not load live prices. <button type="button" class="btn numberRetry">Try again</button></div>';box.querySelector('button').onclick=loadNumberCatalog}}
+  finally{if(generation===numberCatalogGeneration)box.setAttribute('aria-busy','false')}
+}
 `;
 
 const RENTAL_SAFE_CODES = new Set([
@@ -341,12 +366,32 @@ async function proxy(request: Request, context: ProxyContext) {
       const payload = JSON.parse(new TextDecoder().decode(upstreamBody)) as {
         items?: Array<Record<string, unknown>>;
       };
+      let ranking: { items?: Array<Record<string, unknown>>; provider_performance?: Array<Record<string, unknown>> } = {};
+      const selectedService = (incoming.searchParams.get("service_code") || "").trim();
+      if (selectedService && selectedService.length <= 80 && Array.isArray(payload.items) && payload.items.length) {
+        try {
+          const response = await fetch(`https://n8n.wickspend.com/webhook/wickspend/backend/numbers/top-otp?service_code=${encodeURIComponent(selectedService)}&window_hours=168`, { next: { revalidate: 30 }, signal: AbortSignal.timeout(5000) });
+          if (response.ok) ranking = await response.json();
+        } catch { /* Rankings are optional; keep live prices available during an outage. */ }
+      }
       if (Array.isArray(payload.items)) {
         payload.items = payload.items.map((item) => {
           const code = String(item.service_code || "").trim();
+          const country = String(item.country_code ?? "");
+          const provider = String(item.provider_id ?? "");
+          const rankedCountry = Array.isArray(ranking.items) ? ranking.items.find(row => String(row.country_code ?? "") === country) : undefined;
+          const providers = Array.isArray(rankedCountry?.providers) ? rankedCountry.providers as Array<Record<string, unknown>> : [];
+          const index = provider ? providers.findIndex(row => String(row.provider_id ?? "") === provider) : -1;
+          const performance = Array.isArray(ranking.provider_performance) ? ranking.provider_performance.find(row => String(row.country_code ?? "") === country && String(row.provider_id ?? "") === provider) : undefined;
+          const measured = performance || (index >= 0 ? providers[index] : undefined);
+          const numeric = (value: unknown) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
           return {
             ...item,
             service_name: item.service_name || NUMBER_SERVICE_NAMES[code.toLowerCase()] || code.toUpperCase(),
+            provider_rank: index >= 0 ? index + 1 : null,
+            provider_otp_rate: numeric(measured?.otp_rate),
+            provider_activations: numeric(measured?.activations),
+            provider_otp_seconds: numeric(measured?.median_otp_seconds ?? measured?.avg_otp_seconds),
           };
         });
       }
@@ -366,7 +411,7 @@ async function proxy(request: Request, context: ProxyContext) {
       .replace("Provider is confirming your delivery.", "Your delivery is being confirmed.")
       .replace("else note(x.j.code||'Marketplace order failed.',true)", "else note('Could not place your order. Check your balance and try again.',true)")
       : script;
-    const canRewriteNumbers = script.includes("async function loadNumberCatalog(){");
+    const canRewriteNumbers = /^async function loadNumberCatalog\(\)\{[^\n]*\}/m.test(script);
     const rewritten = marketplaceScript
       .replace(NOTICE_START, DIALOG_NOTICE_START)
       .replace(NUMBER_CLICK_OLD, NUMBER_CLICK_NEW)
@@ -374,7 +419,7 @@ async function proxy(request: Request, context: ProxyContext) {
       .replace(BUY_NUMBER_OLD.replace("country_code:v.country_code,", "country_code:v.country_code,country_iso_code:v.iso_code||'',"), BUY_NUMBER_NEW)
       .replace(CHECK_OTP_OLD, CHECK_OTP_NEW)
       .replace(FUND_WALLET_OLD, FUND_WALLET_NEW)
-      .replace("async function loadNumberCatalog(){", `${DYNAMIC_NUMBER_FILTERS}\nasync function loadStoreNumberCatalog(){`)
+      .replace(/^async function loadNumberCatalog\(\)\{[^\n]*\}/m, `${DYNAMIC_NUMBER_FILTERS}\n${MINI_STORE_NUMBER_RENDERER}`)
       .replace(
         "await loadNumberCatalog()}\nasync function session",
         "await loadNumberFilters()}\nasync function session",
