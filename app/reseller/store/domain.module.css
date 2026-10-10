@@ -83,3 +83,24 @@
 .landingActions button{min-width:118px}
 @media(max-width:720px){.landingGrid,.serviceEditorGrid{grid-template-columns:1fr}.fullField{grid-column:1}.testimonialToolbar{align-items:flex-start;flex-direction:column}.testimonialToolbar button{width:100%}.testimonialHead{align-items:flex-start;flex-direction:column}.testimonialControls{width:100%;flex-wrap:wrap}.testimonialControls .deleteButton{margin-left:auto}.landingActions{display:grid;grid-template-columns:1fr 1fr;bottom:6px}.landingActions button{width:100%;min-width:0}}
 @media(max-width:380px){.landingActions{grid-template-columns:1fr}.landingTab,.landingTabActive{padding:0 11px}.testimonialControls .deleteButton{margin-left:0}}
+
+.colorSection{display:grid;gap:12px;min-width:0}
+.colorSectionHead{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.colorSectionHead>div{min-width:0}
+.colorSectionHead label{margin:0}
+.colorSectionHead p{margin:3px 0 0}
+.colorPreview{width:38px;height:38px;flex:0 0 38px;border-radius:12px;border:3px solid #fff;box-shadow:0 0 0 1px #dfe3e8,0 4px 12px rgba(15,23,42,.08)}
+.colorPalette{display:grid;grid-template-columns:repeat(8,44px);gap:10px;max-width:100%;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.colorSwatch{position:relative;width:44px;height:44px;min-width:44px;border-radius:14px;border:3px solid #fff;box-shadow:0 0 0 1px #d7dce2;cursor:pointer;display:grid;place-items:center;padding:0;transition:transform .15s ease,box-shadow .15s ease}
+.colorSwatch:hover:not(:disabled){transform:translateY(-1px)}
+.colorSwatch:disabled{cursor:not-allowed;opacity:.55}
+.colorSwatchActive{box-shadow:0 0 0 3px #101828,0 4px 14px rgba(15,23,42,.14)}
+.colorCheck{opacity:0;color:#fff;font-size:16px;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.colorSwatchActive .colorCheck{opacity:1}
+.colorCustomRow{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(180px,1fr);gap:12px;align-items:end}
+.colorPickerLabel,.colorHexLabel{margin:0}
+.colorPicker{width:100%;height:46px;padding:4px;border:1px solid #dfe3e8;border-radius:13px;background:#fff;cursor:pointer}
+.colorPicker::-webkit-color-swatch-wrapper{padding:0}
+.colorPicker::-webkit-color-swatch{border:0;border-radius:9px}
+.colorPicker::-moz-color-swatch{border:0;border-radius:9px}
+@media(max-width:720px){.colorPalette{grid-template-columns:repeat(8,42px);gap:9px}.colorSwatch{width:42px;height:42px;min-width:42px}.colorCustomRow{grid-template-columns:1fr}.colorPreview{width:36px;height:36px;flex-basis:36px}}
