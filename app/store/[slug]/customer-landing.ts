@@ -208,7 +208,7 @@ export function renderMiniStoreLanding(store: MiniStoreLandingStore) {
   const escapedName = escapeHtml(storeName);
   const initial = escapeHtml(storeName.charAt(0).toUpperCase() || "S");
   const logoUrl = safeImageUrl(store.logo_url);
-  const logo = logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapedName} logo" loading="eager" decoding="async">` : initial;
+  const logo = logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapedName} logo" loading="eager" decoding="async" onerror="this.remove();this.parentElement.textContent=${JSON.stringify(initial)}">` : initial;
   const rentEnabled = store.rent_number_enabled !== false;
   const primary = safeColor(store.primary_color);
   const config = normalizedConfig(store.landing_config);
