@@ -288,7 +288,7 @@ async function proxy(request: Request, context: ProxyContext) {
   // Expose only existing customer product fields, retaining selling price and
   // the product reference required by the unchanged purchase endpoint.
   if (safePath === "catalog/marketplace" && !upstream.ok) {
-    return Response.json({ ok: false, code: "CATALOG_UNAVAILABLE" }, {
+    return Response.json({ ok: false, code: upstream.status === 404 ? "STORE_NOT_FOUND" : "CATALOG_UNAVAILABLE" }, {
       status: upstream.status, headers: { "Cache-Control": "no-store" },
     });
   }

@@ -54,6 +54,10 @@ sandbox.fetch=async()=>Response.json({ok:false,error:'SECRET_SUPPLIER_FAILURE',a
 const unavailable=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/catalog/marketplace'),{params:Promise.resolve({path:['catalog','marketplace']})});
 assert.equal(unavailable.status,503);
 assert.deepEqual(await unavailable.json(),{ok:false,code:'CATALOG_UNAVAILABLE'});
+sandbox.fetch=async()=>Response.json({ok:false,code:'SECRET_SUPPLIER_FAILURE'},{status:404});
+const missing=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/catalog/marketplace'),{params:Promise.resolve({path:['catalog','marketplace']})});
+assert.equal(missing.status,404);
+assert.deepEqual(await missing.json(),{ok:false,code:'STORE_NOT_FOUND'});
 sandbox.fetch=async()=>new Response("function note(m,e){var n=document.getElementById('notice');n.textContent=m}\nasync function loadMarketplace(options){return options}");
 const changedScript=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/app.js'),{params:Promise.resolve({path:['app.js']})});
 const changedBody=await changedScript.text();
