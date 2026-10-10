@@ -18,7 +18,7 @@ function listOf(x:any){return Array.isArray(x)?x:Array.isArray(x?.products)?x.pr
 function idOf(p:any){return String(p?.product_id??p?.id??p?.code??"")}
 function stockOf(p:any){const raw=p?.remaining_stock??p?.available_inventory??p?.inventory_available??p?.stock??p?.quantity_available??p?.available_stock??p?.stock_quantity??p?.available??null;const n=Number(raw);return raw!==null&&raw!==undefined&&raw!==""&&Number.isFinite(n)?n:null}
 function isInStock(p:any){if(p?.in_stock===false||p?.inStock===false||p?.available===false)return false;const stock=stockOf(p);if(stock!==null)return stock>0;return true}
-async function getJson(path:string){try{const r=await fetch(`${API_BASE}/${path}`,{next:{revalidate:120}});return r.ok?await r.json():null}catch{return null}}
+async function getJson(path:string){try{const r=await fetch(`${API_BASE}/${path}`,{next:{revalidate:30}});return r.ok?await r.json():null}catch{return null}}
 async function initialMarketplaceProducts(){
   const [provider,manual]=await Promise.all([
     getJson("wickspend/backend/marketplace/products?page=1&limit=40"),

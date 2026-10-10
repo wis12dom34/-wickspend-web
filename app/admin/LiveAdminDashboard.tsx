@@ -9,6 +9,27 @@ import styles from './admin.module.css';
 type RevenuePoint = { date: string; revenue_ngn: number | string };
 type TransactionPoint = { date: string; total: number | string; successful: number | string; pending: number | string; failed: number | string };
 type UserActivity = { id?: string | number; reference?: string; user_id?: string | number; user_name?: string; customer_name?: string; full_name?: string; name?: string; email?: string; product_name?: string; service_name?: string; status?: string; price_ngn?: number | string; amount_ngn?: number | string; created_at?: string; date?: string; type?: string; kind?: string; category?: string; description?: string };
+type ProfitBreakdown = {
+  service: string;
+  orders: number | string;
+  sales_ngn: number | string;
+  cost_ngn: number | string | null;
+  profit_ngn: number | string | null;
+  cost_tracked: boolean;
+};
+type ProfitPeriodData = {
+  period_key: 'this_month' | 'last_month';
+  period_label: string;
+  start_at: string;
+  end_at: string;
+  gross_sales_ngn: number | string;
+  tracked_cost_ngn: number | string;
+  confirmed_gross_profit_ngn: number | string;
+  manual_marketplace_sales_unknown_cost_ngn: number | string;
+  max_profit_if_manual_cost_zero_ngn: number | string;
+  breakdown: ProfitBreakdown[];
+};
+
 type AdminStats = {
   ok: boolean;
   authorized: boolean;
@@ -34,6 +55,12 @@ type AdminStats = {
     rewards_paid: number | string;
     rewards_today: number | string;
     rewards_month: number | string;
+  };
+  profit_cost?: {
+    this_month: ProfitPeriodData;
+    last_month: ProfitPeriodData;
+    method?: string;
+    excludes?: string;
   };
   revenue_history: RevenuePoint[];
   transaction_history: TransactionPoint[];
@@ -124,6 +151,7 @@ export default function LiveAdminDashboard() {
   const [period, setPeriod] = useState<Period>('all');
   const [userActivity, setUserActivity] = useState<UserActivity[]>([]);
   const [monthlyUsers, setMonthlyUsers] = useState<number | null>(null);
+  const [profitPeriod, setProfitPeriod] = useState<'last_month' | 'this_month'>('last_month');
 
   useEffect(() => {
     let alive = true;
@@ -193,6 +221,7 @@ export default function LiveAdminDashboard() {
   const activityName = (tx: UserActivity) => tx.user_name || tx.customer_name || tx.full_name || tx.name || tx.email || (tx.user_id ? `User #${tx.user_id}` : 'WickSpend user');
   const activityAction = (tx: UserActivity) => tx.product_name ? `Bought ${tx.product_name}` : tx.service_name ? `Bought ${tx.service_name}` : tx.description || tx.type || tx.kind || tx.category || 'Marketplace purchase';
   const generatedLabel = stats?.generated_at ? new Date(stats.generated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : 'Loading live data…';
+  const profit = stats?.profit_cost?.[profitPeriod];
 
   return <main className={`${styles.page} wick-dashboard-page`} data-node-id="497:3280">
     <div className={styles.dashboardHeader}>
@@ -227,6 +256,48 @@ export default function LiveAdminDashboard() {
       ].map(([icon, label, value]) => <Link href={routes.revenue} className="ws-revenue-metric" key={label}><span className="ws-icon"><Icon name={icon as IconName}/></span><small>{label}</small><strong>{value}</strong></Link>)}
     </section>
 
+    <section className="ws-card ws-profit-card">
+      <div className="ws-profit-head">
+        <div>
+          <span className="ws-profit-kicker">Direct margin</span>
+          <strong>Profit &amp; Cost</strong>
+          <small>{profit?.period_label || 'Loading live figures…'} · completed customer charges with refunded orders removed</small>
+        </div>
+        <select value={profitPeriod} onChange={(e) => setProfitPeriod(e.target.value as 'last_month' | 'this_month')} aria-label="Profit and cost period">
+          <option value="last_month">Last month</option>
+          <option value="this_month">This month</option>
+        </select>
+      </div>
+
+      <div className="ws-profit-summary">
+        <div className="ws-profit-metric"><small>Gross Sales</small><strong>{profit ? money(profit.gross_sales_ngn) : '—'}</strong><span>Completed customer sales</span></div>
+        <div className="ws-profit-metric"><small>Tracked Cost</small><strong>{profit ? money(profit.tracked_cost_ngn) : '—'}</strong><span>Known provider/product cost</span></div>
+        <div className="ws-profit-metric is-profit"><small>Confirmed Gross Profit</small><strong>{profit ? money(profit.confirmed_gross_profit_ngn) : '—'}</strong><span>Known direct margin</span></div>
+        <div className="ws-profit-metric is-warning"><small>Manual Marketplace</small><strong>{profit ? money(profit.manual_marketplace_sales_unknown_cost_ngn) : '—'}</strong><span>Sales · cost not tracked</span></div>
+      </div>
+
+      <div className="ws-profit-table-wrap">
+        <table className="ws-profit-table">
+          <thead><tr><th>Service</th><th>Orders</th><th>Sales</th><th>Cost</th><th>Profit</th></tr></thead>
+          <tbody>
+            {(profit?.breakdown || []).map((row) => <tr key={row.service}>
+              <td><strong>{row.service}</strong>{!row.cost_tracked && <span className="ws-cost-warning">Cost not tracked</span>}</td>
+              <td>{count(row.orders)}</td>
+              <td>{money(row.sales_ngn)}</td>
+              <td>{row.cost_tracked && row.cost_ngn !== null ? money(row.cost_ngn) : <span className="ws-unknown">Not tracked</span>}</td>
+              <td>{row.cost_tracked && row.profit_ngn !== null ? <strong className="ws-profit-value">{money(row.profit_ngn)}</strong> : <span className="ws-unknown">Unknown</span>}</td>
+            </tr>)}
+            {!profit && <tr><td colSpan={5} className="ws-profit-loading">Loading profit breakdown…</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="ws-profit-foot">
+        <div><span>Maximum if manual Marketplace cost was ₦0</span><strong>{profit ? money(profit.max_profit_if_manual_cost_zero_ngn) : '—'}</strong></div>
+        <p><b>Confirmed Gross Profit is not net profit.</b> Manual Marketplace acquisition cost, payment gateway fees, VPS, ads, salaries and other operating expenses are not deducted yet.</p>
+      </div>
+    </section>
+
     <section className="ws-card ws-stats-grid">
       {statisticItems.map((item) => {
         const body = <><span className="ws-icon plain"><Icon name={item.icon}/></span><div className="ws-stat-copy"><small>{item.label}</small><strong>{item.value}</strong><span>{item.note}</span></div>{item.trend.length > 1 && <MiniTrend points={item.trend} />}</>;
@@ -240,8 +311,8 @@ export default function LiveAdminDashboard() {
     </section>
 
     <style jsx global>{`
-      .wick-dashboard-page{width:min(100%,1180px)!important;max-width:1180px!important;margin:0 auto!important;padding:24px 28px 44px!important;gap:18px!important;background:#f6f7f9!important;border-radius:0!important;overflow:visible!important}.wick-dashboard-page .${styles.dashboardHeader}{border-bottom:1px solid #e7e9ec;padding-bottom:16px;height:auto;gap:10px;background:transparent}.ws-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:8px 0 4px}.ws-title-row h1{margin:0;font-size:34px;line-height:1.1;letter-spacing:-.8px;color:#101318}.ws-title-row p{margin:7px 0 0;font-size:14px;color:#687180}.ws-date-control{height:42px;padding:0 14px;border:1px solid #dfe3e8;border-radius:10px;background:#fff;color:#161a20;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.03)}.ws-date-control b{font-size:14px;margin-left:4px}.ws-card{background:#fff;border:1px solid #e2e5e9;border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.025);overflow:hidden}.ws-revenue-card{padding:26px 28px 20px}.ws-revenue-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.ws-revenue-head>div{display:flex;flex-direction:column;align-items:flex-start}.ws-revenue-head span{font-size:14px;font-weight:650;color:#252a32}.ws-revenue-head strong{font-size:38px;line-height:1.1;margin-top:6px;letter-spacing:-1.2px;color:#111318}.ws-revenue-head small{margin-top:8px;font-size:12px;font-weight:650}.positive{color:#12864b}.negative{color:#c83232}.ws-revenue-head select{height:40px;padding:0 34px 0 12px;border:1px solid #dfe3e8;border-radius:9px;background:#fff;color:#1a1e24;font-size:13px;font-weight:600;outline:none}.ws-chart-wrap{height:255px;margin-top:18px;position:relative;padding-left:64px}.ws-y-axis{position:absolute;left:0;top:16px;bottom:24px;width:58px;display:flex;flex-direction:column;justify-content:space-between;color:#77808d;font-size:10px;text-align:right;padding-right:8px}.ws-chart{width:100%;height:100%;display:block;overflow:visible}.ws-grid{stroke:#e9edf2;stroke-width:1;fill:none}.ws-line{stroke:#3478f6;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.ws-area{fill:rgba(52,120,246,.075)}.ws-chart-dates{display:flex;justify-content:space-between;padding-left:64px;color:#77808d;font-size:10px;margin-top:-2px}.ws-revenue-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.ws-revenue-metric{min-height:132px;padding:22px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;border-right:1px solid #eceff2}.ws-revenue-metric:last-child{border-right:0}.ws-icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#edf4ff;color:#3478f6}.ws-icon.plain{background:transparent;width:28px;height:28px;border-radius:0;flex:0 0 28px}.ws-revenue-metric small{font-size:12px;color:#667080}.ws-revenue-metric strong{font-size:22px;color:#14171c;letter-spacing:-.35px}.ws-stats-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ws-stat{min-height:102px;padding:20px 24px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:14px;border-bottom:1px solid #eceff2}.ws-stat:nth-child(odd){border-right:1px solid #eceff2}.ws-stat:nth-last-child(-n+2){border-bottom:0}.ws-stat-copy{display:flex;flex-direction:column;gap:3px;min-width:0}.ws-stat-copy small{font-size:12px;color:#667080}.ws-stat-copy strong{font-size:24px;line-height:1.1;color:#14171c}.ws-stat-copy span{font-size:10px;color:#7c8592}.ws-mini{width:52px;height:26px;overflow:visible}.ws-mini path{stroke:#3478f6;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}.ws-recent{padding:0}.ws-section-head{min-height:76px;padding:18px 24px;border-bottom:1px solid #eceff2;display:flex;align-items:center;justify-content:space-between;gap:18px}.ws-section-head>div{display:flex;flex-direction:column;gap:4px}.ws-section-head strong{font-size:17px;color:#15181d}.ws-section-head span{font-size:10px;color:#7a8491}.ws-section-head a{color:#3478f6;font-size:13px;font-weight:650}.ws-transaction-row{min-height:62px;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #f0f2f4}.ws-transaction-row:last-child{border-bottom:0}.ws-transaction-row>div{display:flex;flex-direction:column;gap:4px}.ws-activity-copy{min-width:0}.ws-activity-action{font-size:12px!important;color:#303641!important;font-weight:600}.ws-activity-copy small{font-size:10px;color:#7a8491;text-transform:capitalize}.ws-transaction-row strong{font-size:13px;color:#1b1e23}.ws-transaction-row span{font-size:10px;color:#747e8b}.ws-transaction-row b{font-size:15px;color:#16191e}.ws-empty{padding:28px 24px;color:#77808d;font-size:12px}
-      @media(max-width:720px){.wick-dashboard-page{padding:18px 16px 34px!important;gap:14px!important}.wick-dashboard-page .${styles.dashboardHeader}{gap:6px;padding-bottom:12px}.wick-dashboard-page .${styles.brand} strong{font-size:18px}.wick-dashboard-page .${styles.sessionMini}{width:104px;flex-basis:104px}.ws-title-row{align-items:flex-start;flex-direction:column;gap:12px}.ws-title-row h1{font-size:30px}.ws-title-row p{font-size:13px}.ws-date-control{align-self:flex-end}.ws-revenue-card{padding:20px 16px 16px}.ws-revenue-head strong{font-size:32px}.ws-revenue-head select{height:38px;max-width:118px}.ws-chart-wrap{height:210px;padding-left:48px;margin-top:14px}.ws-y-axis{width:44px;font-size:8px}.ws-chart-dates{padding-left:48px}.ws-revenue-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-revenue-metric{min-height:118px;padding:17px 16px;border-bottom:1px solid #eceff2}.ws-revenue-metric:nth-child(2){border-right:0}.ws-revenue-metric:nth-last-child(-n+2){border-bottom:0}.ws-revenue-metric strong{font-size:19px}.ws-stats-grid{grid-template-columns:1fr}.ws-stat{min-height:92px;padding:16px;border-right:0!important}.ws-stat:nth-last-child(2){border-bottom:1px solid #eceff2}.ws-stat:last-child{border-bottom:0}.ws-section-head,.ws-transaction-row{padding-left:16px;padding-right:16px}}
+      .wick-dashboard-page{width:min(100%,1180px)!important;max-width:1180px!important;margin:0 auto!important;padding:24px 28px 44px!important;gap:18px!important;background:#f6f7f9!important;border-radius:0!important;overflow:visible!important}.wick-dashboard-page .${styles.dashboardHeader}{border-bottom:1px solid #e7e9ec;padding-bottom:16px;height:auto;gap:10px;background:transparent}.ws-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:8px 0 4px}.ws-title-row h1{margin:0;font-size:34px;line-height:1.1;letter-spacing:-.8px;color:#101318}.ws-title-row p{margin:7px 0 0;font-size:14px;color:#687180}.ws-date-control{height:42px;padding:0 14px;border:1px solid #dfe3e8;border-radius:10px;background:#fff;color:#161a20;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.03)}.ws-date-control b{font-size:14px;margin-left:4px}.ws-card{background:#fff;border:1px solid #e2e5e9;border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.025);overflow:hidden}.ws-revenue-card{padding:26px 28px 20px}.ws-revenue-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.ws-revenue-head>div{display:flex;flex-direction:column;align-items:flex-start}.ws-revenue-head span{font-size:14px;font-weight:650;color:#252a32}.ws-revenue-head strong{font-size:38px;line-height:1.1;margin-top:6px;letter-spacing:-1.2px;color:#111318}.ws-revenue-head small{margin-top:8px;font-size:12px;font-weight:650}.positive{color:#12864b}.negative{color:#c83232}.ws-revenue-head select{height:40px;padding:0 34px 0 12px;border:1px solid #dfe3e8;border-radius:9px;background:#fff;color:#1a1e24;font-size:13px;font-weight:600;outline:none}.ws-chart-wrap{height:255px;margin-top:18px;position:relative;padding-left:64px}.ws-y-axis{position:absolute;left:0;top:16px;bottom:24px;width:58px;display:flex;flex-direction:column;justify-content:space-between;color:#77808d;font-size:10px;text-align:right;padding-right:8px}.ws-chart{width:100%;height:100%;display:block;overflow:visible}.ws-grid{stroke:#e9edf2;stroke-width:1;fill:none}.ws-line{stroke:#3478f6;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.ws-area{fill:rgba(52,120,246,.075)}.ws-chart-dates{display:flex;justify-content:space-between;padding-left:64px;color:#77808d;font-size:10px;margin-top:-2px}.ws-revenue-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.ws-revenue-metric{min-height:132px;padding:22px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;border-right:1px solid #eceff2}.ws-revenue-metric:last-child{border-right:0}.ws-icon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#edf4ff;color:#3478f6}.ws-icon.plain{background:transparent;width:28px;height:28px;border-radius:0;flex:0 0 28px}.ws-revenue-metric small{font-size:12px;color:#667080}.ws-revenue-metric strong{font-size:22px;color:#14171c;letter-spacing:-.35px}.ws-profit-card{padding:0}.ws-profit-head{padding:22px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.ws-profit-head>div{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.ws-profit-kicker{font-size:10px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:#3478f6}.ws-profit-head strong{font-size:20px;color:#15181d}.ws-profit-head small{font-size:11px;color:#77808d;line-height:1.45}.ws-profit-head select{height:40px;padding:0 34px 0 12px;border:1px solid #dfe3e8;border-radius:9px;background:#fff;color:#1a1e24;font-size:13px;font-weight:600;outline:none}.ws-profit-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #eceff2;border-bottom:1px solid #eceff2}.ws-profit-metric{padding:18px 20px;min-height:110px;display:flex;flex-direction:column;gap:5px;border-right:1px solid #eceff2}.ws-profit-metric:last-child{border-right:0}.ws-profit-metric small{font-size:11px;color:#667080}.ws-profit-metric strong{font-size:23px;color:#14171c;letter-spacing:-.35px}.ws-profit-metric span{font-size:10px;color:#7c8592}.ws-profit-metric.is-profit strong{color:#12864b}.ws-profit-metric.is-warning strong{color:#a15c00}.ws-profit-table-wrap{overflow-x:auto}.ws-profit-table{width:100%;border-collapse:collapse;min-width:680px}.ws-profit-table th,.ws-profit-table td{padding:13px 20px;text-align:right;border-bottom:1px solid #f0f2f4;white-space:nowrap}.ws-profit-table th:first-child,.ws-profit-table td:first-child{text-align:left}.ws-profit-table th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#7a8491;background:#fbfcfd}.ws-profit-table td{font-size:12px;color:#343a44}.ws-profit-table td:first-child strong{display:block;color:#181b20;font-size:12px}.ws-cost-warning{display:inline-block;margin-top:4px;padding:2px 6px;border-radius:999px;background:#fff4df;color:#9a5a00;font-size:9px;font-weight:700}.ws-profit-value{color:#12864b}.ws-unknown{color:#9a5a00;font-size:11px;font-weight:650}.ws-profit-loading{text-align:center!important;color:#77808d!important;padding:24px!important}.ws-profit-foot{padding:17px 20px 19px;display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fbfcfd}.ws-profit-foot>div{display:flex;flex-direction:column;gap:3px}.ws-profit-foot span{font-size:10px;color:#667080}.ws-profit-foot strong{font-size:18px;color:#14171c}.ws-profit-foot p{max-width:570px;margin:0;font-size:10px;line-height:1.5;color:#77808d;text-align:right}.ws-profit-foot p b{color:#4b535f}.ws-stats-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.ws-stat{min-height:102px;padding:20px 24px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:14px;border-bottom:1px solid #eceff2}.ws-stat:nth-child(odd){border-right:1px solid #eceff2}.ws-stat:nth-last-child(-n+2){border-bottom:0}.ws-stat-copy{display:flex;flex-direction:column;gap:3px;min-width:0}.ws-stat-copy small{font-size:12px;color:#667080}.ws-stat-copy strong{font-size:24px;line-height:1.1;color:#14171c}.ws-stat-copy span{font-size:10px;color:#7c8592}.ws-mini{width:52px;height:26px;overflow:visible}.ws-mini path{stroke:#3478f6;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}.ws-recent{padding:0}.ws-section-head{min-height:76px;padding:18px 24px;border-bottom:1px solid #eceff2;display:flex;align-items:center;justify-content:space-between;gap:18px}.ws-section-head>div{display:flex;flex-direction:column;gap:4px}.ws-section-head strong{font-size:17px;color:#15181d}.ws-section-head span{font-size:10px;color:#7a8491}.ws-section-head a{color:#3478f6;font-size:13px;font-weight:650}.ws-transaction-row{min-height:62px;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #f0f2f4}.ws-transaction-row:last-child{border-bottom:0}.ws-transaction-row>div{display:flex;flex-direction:column;gap:4px}.ws-activity-copy{min-width:0}.ws-activity-action{font-size:12px!important;color:#303641!important;font-weight:600}.ws-activity-copy small{font-size:10px;color:#7a8491;text-transform:capitalize}.ws-transaction-row strong{font-size:13px;color:#1b1e23}.ws-transaction-row span{font-size:10px;color:#747e8b}.ws-transaction-row b{font-size:15px;color:#16191e}.ws-empty{padding:28px 24px;color:#77808d;font-size:12px}
+      @media(max-width:720px){.wick-dashboard-page{padding:18px 16px 34px!important;gap:14px!important}.wick-dashboard-page .${styles.dashboardHeader}{gap:6px;padding-bottom:12px}.wick-dashboard-page .${styles.brand} strong{font-size:18px}.wick-dashboard-page .${styles.sessionMini}{width:104px;flex-basis:104px}.ws-title-row{align-items:flex-start;flex-direction:column;gap:12px}.ws-title-row h1{font-size:30px}.ws-title-row p{font-size:13px}.ws-date-control{align-self:flex-end}.ws-revenue-card{padding:20px 16px 16px}.ws-revenue-head strong{font-size:32px}.ws-revenue-head select{height:38px;max-width:118px}.ws-chart-wrap{height:210px;padding-left:48px;margin-top:14px}.ws-y-axis{width:44px;font-size:8px}.ws-chart-dates{padding-left:48px}.ws-revenue-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-revenue-metric{min-height:118px;padding:17px 16px;border-bottom:1px solid #eceff2}.ws-revenue-metric:nth-child(2){border-right:0}.ws-revenue-metric:nth-last-child(-n+2){border-bottom:0}.ws-revenue-metric strong{font-size:19px}.ws-profit-head{padding:18px 16px;flex-direction:column;align-items:stretch}.ws-profit-head select{align-self:flex-end}.ws-profit-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-profit-metric{padding:15px 14px;min-height:100px}.ws-profit-metric:nth-child(2){border-right:0}.ws-profit-metric:nth-child(-n+2){border-bottom:1px solid #eceff2}.ws-profit-metric strong{font-size:19px}.ws-profit-table th,.ws-profit-table td{padding-left:14px;padding-right:14px}.ws-profit-foot{align-items:flex-start;flex-direction:column;gap:10px;padding:15px 16px}.ws-profit-foot p{text-align:left}.ws-stats-grid{grid-template-columns:1fr}.ws-stat{min-height:92px;padding:16px;border-right:0!important}.ws-stat:nth-last-child(2){border-bottom:1px solid #eceff2}.ws-stat:last-child{border-bottom:0}.ws-section-head,.ws-transaction-row{padding-left:16px;padding-right:16px}}
       @media(min-width:721px) and (max-width:1024px){.wick-dashboard-page{padding-left:22px!important;padding-right:22px!important}.ws-revenue-metric{padding-left:18px;padding-right:18px}}
     `}</style>
   </main>;

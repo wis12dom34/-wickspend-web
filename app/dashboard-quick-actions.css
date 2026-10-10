@@ -102,3 +102,90 @@
     height: 76px;
   }
 }
+
+/* Dashboard density: scoped to Home; no shared page or purchase styles. */
+.homeShell {
+  width: min(100%, 1040px);
+  padding: 18px 16px calc(100px + env(safe-area-inset-bottom));
+}
+.homeShell .homeHeader { height: auto; min-height: 44px; align-items: center; margin-bottom: 12px; }
+.homeShell .homeHeader h1 { margin: 0; font-size: 20px; line-height: 1.25; letter-spacing: -.03em; }
+.homeShell .homeHeader p { font-size: 12px; margin-top: 3px; }
+.homeShell .headerActions .circle { box-shadow: none; background: #f8fafc; }
+.homeShell .homeBalanceCard {
+  min-height: 0 !important;
+  border-radius: 20px !important;
+  padding: 14px 16px !important;
+  box-shadow: 0 2px 8px rgba(16,24,40,.04);
+  background: #f7f9fc;
+}
+.homeShell .balanceLabel { font-size: 12px; }
+.homeShell .balanceActions { margin-top: 10px !important; }
+.homeShell .balanceActions > * { height: 44px !important; border-radius: 13px !important; font-size: 12px; }
+.homeShell .homeSectionTitle,
+.homeShell > section:has(> .homeActionGrid) .homeSectionTitle,
+.homeShell > section:has(.activeServiceCard:has(img[alt="TikTok"])) + section .homeSectionTitle {
+  margin: 18px 0 8px;
+  min-height: 20px;
+  gap: 8px;
+}
+.homeShell .homeSectionTitle h2 { font-size: 14px; line-height: 1.35; letter-spacing: -.02em; }
+.homeShell .homeActionGrid { width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.homeShell .homeActionGrid > .quickActionCard { height: 72px; padding: 8px 4px; border-radius: 14px; gap: 5px; }
+.homeShell .homeActionGrid > .quickActionCard b { font-size: 11px; line-height: 1.2; }
+.homeShell .activeServiceCard {
+  height: auto;
+  min-height: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  box-shadow: 0 1px 4px rgba(16,24,40,.04);
+}
+.homeShell .activeServiceCard:has(img[alt="TikTok"]) { min-height: 0; padding: 14px 16px; }
+.homeShell .activeServiceCard:has(img[alt="TikTok"]) .activeServiceFooter { margin-top: 10px !important; }
+.homeShell .activeServiceButton { min-height: 44px; height: auto; border-radius: 13px; }
+.homeShell .activeServiceFooter { gap: 10px; }
+.homeShell .activeServiceFooter > div { min-width: 0; overflow-wrap: anywhere; }
+.homeShell .activeServiceFooter > a { flex-shrink: 0; }
+.homeShell .serviceGrid,
+.homeShell .countryGrid { gap: 8px; }
+.homeShell .serviceChip,
+.homeShell .countryChip { height: auto; min-height: 44px; padding: 8px 10px; border-radius: 13px; }
+.homeShell .serviceChip b,
+.homeShell .countryChip b { min-width: 0; font-size: 11px; line-height: 1.3; }
+.homeShell .countryChip > span { flex-shrink: 0; }
+.homeShell .marketList { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.homeShell .marketItem { min-height: 68px; padding: 12px; gap: 10px; border-radius: 16px; box-shadow: 0 1px 4px rgba(16,24,40,.04); }
+.homeShell .marketItem b { font-size: 12px; line-height: 1.4; }
+.homeShell .marketItem small { font-size: 11px; line-height: 1.4; }
+.homeShell .marketBuy { min-width: 56px; height: 44px; padding: 0 12px; border-radius: 12px; }
+.homeShell .marketHeading > a { font-size: 12px; min-height: 44px; display: inline-flex; align-items: center; }
+.homeShell .recentCard { padding: 2px 12px; border-radius: 16px; }
+.homeShell .recentCard > div { height: auto; min-height: 60px; padding: 10px 0; grid-template-columns: 24px minmax(0,1fr) auto; gap: 8px; }
+.homeShell .recentCard b,
+.homeShell .recentCard strong { font-size: 12px; line-height: 1.4; }
+.homeShell .recentCard small { font-size: 11px; line-height: 1.4; }
+.homeShell .recentCard strong { max-width: 110px; overflow-wrap: anywhere; text-align: right; }
+.homeShell a:focus-visible,
+.homeShell button:focus-visible { outline: 2px solid #0866F5; outline-offset: 3px; }
+@media (min-width: 380px) {
+  .homeShell .homeActionGrid { grid-template-columns: repeat(5, minmax(0,1fr)); }
+}
+@media (min-width: 700px) {
+  .homeShell { width: min(calc(100% - 40px),1040px); padding: 24px 20px calc(104px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 20px; align-items: start; }
+  .homeShell > .homeHeader,
+  .homeShell > .homeBalanceCard,
+  .homeShell > section:has(> .homeActionGrid) { grid-column: 1 / -1; }
+  .homeShell > section { min-width: 0; width: 100%; }
+  .homeShell .homeActionGrid { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .homeShell .homeActionGrid > .quickActionCard { height: 76px; }
+  .homeShell .homeSectionTitle { margin-top: 20px; }
+  .homeShell .serviceGrid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .homeShell .countryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (min-width: 1024px) {
+  .homeShell { padding: 28px 24px 48px; }
+  .homeShell .homeActionGrid { grid-template-columns: repeat(10,minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .homeShell .quickActionCard { transition: none; }
+}

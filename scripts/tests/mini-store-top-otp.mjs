@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+const raw=fs.readFileSync(process.env.TEST_UPSTREAM_SCRIPT,'utf8').replace(/boot\(\);\s*$/,'');
+const source=fs.readFileSync('app/webhook/wickspend/store/[...path]/route.ts','utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+let rankingCalls=[];
+const ranking={ok:true,provider_name:'SECRET',items:[{country_code:'6',stock:50,rank:1,label:'Fast & reliable',otp_rate:90,activations:10,otp_orders:9,median_otp_seconds:40,provider_name:'SECRET',price_ngn:2,providers:[{provider_id:'SECRET'}]},{country_code:'0',stock:20,rank:2,label:'SECRET',otp_rate:null,activations:0,otp_orders:0},{country_code:'99',stock:100},{country_code:'1',stock:0}]};
+const sandbox={exports:{},require:()=>({NUMBER_SERVICE_NAMES:{}}),fetch:async(url,opt)=>{rankingCalls.push({url,opt});return Response.json(ranking)},Response,Request,Headers,URL,AbortSignal,TextDecoder,console};
+vm.runInNewContext(compiled,sandbox);
+const request=new Request('https://store.test/webhook/wickspend/store/catalog/numbers?top_otp=1&service_code=wa',{headers:{Authorization:'Bearer private-store-session'}});
+const result=await sandbox.exports.GET(request,{params:Promise.resolve({path:['catalog','numbers']})});
+const safe=await result.json();
+assert.equal(result.status,200);assert(!JSON.stringify(safe).includes('SECRET'));assert(!JSON.stringify(safe).includes('price_ngn'));assert.equal(safe.items[0].otp_rate,90);assert.equal(safe.items[1].otp_rate,null);assert.equal(rankingCalls[0].opt.headers,undefined);assert(rankingCalls[0].url.includes('/backend/numbers/top-otp?service_code=wa&window_hours=168'));
+sandbox.fetch=async()=>{throw Error('SECRET')};
+const failed=await sandbox.exports.GET(request,{params:Promise.resolve({path:['catalog','numbers']})});assert.equal(failed.status,503);assert.deepEqual(await failed.json(),{ok:false,code:'RANKINGS_UNAVAILABLE'});
+sandbox.fetch=async()=>new Response(raw,{headers:{'content-type':'application/javascript'}});
+const res=await sandbox.exports.GET(new Request('https://store.test/webhook/wickspend/store/app.js'),{params:Promise.resolve({path:['app.js']})});const script=await res.text();assert(script.includes('async function loadStoreNumberCatalog()'));
+const css=fs.readFileSync('app/store/[slug]/route.ts','utf8').match(/const MINI_STORE_MARKETPLACE_STYLES = `([\s\S]*?)`;/)[1];
+const html=`<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;padding:12px;font-family:Arial}:root{--p:#a32675}.product{padding:12px;border:1px solid #ddd}.row{display:flex}.grow{flex:1}</style>${css}</head><body><div id="notice"></div><select id="country"><option value="0">🇷🇺 Russia</option><option value="6">🇮🇩 Indonesia</option><option value="1">🇺🇦 Ukraine</option></select><select id="service"><option value="wa">WhatsApp</option><option value="tg">Telegram</option></select><div id="numberProducts"></div><script src="/webhook/wickspend/store/app.js"></script></body></html>`;
+const browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM,args:['--no-sandbox']});
+try{for(const width of [320,375,390,393,414,430,768,1024,1440]){
+const page=await browser.newPage({viewport:{width,height:900}});let errors=[],calls=0,rankFail=false,buys=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.route('https://store.test/**',async route=>{const u=new URL(route.request().url());if(u.pathname.endsWith('app.js'))return route.fulfill({body:script,contentType:'application/javascript'});
+if(u.searchParams.has('top_otp')){calls++;if(u.searchParams.get('service_code')==='wa')await new Promise(r=>setTimeout(r,50));return route.fulfill({status:rankFail?503:200,body:JSON.stringify(rankFail?{ok:false}:safe),contentType:'application/json'})}
+if(u.pathname.endsWith('catalog/numbers'))return route.fulfill({body:JSON.stringify({ok:true,items:[{country_code:u.searchParams.get('country_code'),country_name:'Indonesia',service_code:'wa',service_name:'WhatsApp',count:20,available:20,provider_id:'7',offer_id:'offer-7',operator_id:'7',price_ngn:3500}]}),contentType:'application/json'});
+if(u.pathname.endsWith('numbers/buy')){buys.push({body:route.request().postDataJSON(),auth:route.request().headers().authorization});return route.fulfill({body:JSON.stringify({ok:true}),contentType:'application/json'})}
+return route.fulfill({body:html,contentType:'text/html'})});
+await page.goto('https://store.test/?store=test');await page.evaluate(()=>loadNumberCatalog());
+assert.equal(await page.locator('.topOtpRow').count(),2);assert.equal(await page.locator('#storeTopOtp').innerText().then(t=>t.includes('SECRET')),false);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+assert(await page.locator('#storeTopOtp').innerText().then(t=>t.includes('90% recent OTP')&&t.includes('40 sec typical')&&t.includes('Live availability ranking')));
+assert.equal(await page.locator('.topOtpRow button').first().evaluate(el=>getComputedStyle(el).color),'rgb(163, 38, 117)');
+await page.locator('.topOtpRow button').first().click();await page.waitForFunction(()=>document.getElementById('numberProducts').textContent.includes('3,500')&&numberCatalog[0]?.country_code==='6');assert.equal(await page.locator('#country').inputValue(),'6');assert(await page.locator('#numberProducts').innerText().then(t=>/₦3[,.]?500/.test(t)),await page.locator('#numberProducts').innerText());assert.equal(buys.length,0);assert.equal(calls,1);
+await page.evaluate(()=>{token='fixture';session=async()=>{window.refreshed=true};});await page.locator('.numberBuy').click();await page.waitForFunction(()=>window.refreshed);assert.equal(buys[0].body.country_code,'6');assert.equal(buys[0].body.provider_id,'7');assert.equal(buys[0].body.offer_id,'offer-7');assert.equal(buys[0].auth,'Bearer fixture');assert(buys[0].body.request_key);assert.equal(await page.evaluate(()=>window.refreshed),true);
+await page.evaluate(()=>{topOtpCache.clear();document.getElementById('service').add(new Option('Telegram','tg'));document.getElementById('service').value='wa';loadTopOtpPicks();document.getElementById('service').value='tg';return loadTopOtpPicks()});await page.waitForTimeout(80);assert(await page.locator('#storeTopOtp p').first().innerText().then(t=>t.includes('Telegram')));
+rankFail=true;await page.evaluate(()=>{topOtpCache.clear();return loadNumberCatalog()});assert(await page.locator('#storeTopOtp').innerText().then(t=>t.includes('temporarily unavailable')));assert.equal(await page.locator('.numberBuy').count(),1);rankFail=false;await page.getByRole('button',{name:'Try again'}).click();await page.waitForFunction(()=>document.getElementById('storeTopOtp').getAttribute('aria-busy')==='false');assert.equal(await page.locator('.topOtpRow').count(),2);assert.deepEqual(errors,[]);
+console.log(`PASS ${width}px: ranking redaction, real renderer, theme, metrics, price selection, unchanged wallet payload, cache, stale-service race, outage recovery`);await page.close();
+}}finally{await browser.close()}
