@@ -147,7 +147,7 @@ export default function OtpPage() {
           const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type,item?.service,item?.service_name].filter(Boolean).join(" ")).toLowerCase();
           const looksLikeNumber = Boolean(phoneOf(item)) || /number|sms|otp|activation/.test(type) || /WICKWEB-NUM-/i.test(itemReference);
           const isTerminal = /failed|refunded|cancelled|canceled|rejected|error|completed|complete|expired|delivered|fulfilled/.test(status);
-          return itemReference && looksLikeNumber && !isTerminal && item?.provider_pending !== true;
+          return itemReference && looksLikeNumber && !isTerminal;
         });
         const unique = Array.from(new Map(candidates.map((item: any) => [referenceOf(item), item])).values()) as any[];
         unique.sort((a: any,b: any) => timeOf(b) - timeOf(a));
