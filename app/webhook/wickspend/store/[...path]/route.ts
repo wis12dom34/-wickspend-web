@@ -12,7 +12,28 @@ const CHECK_OTP_NEW = "async function checkOtp(ref,out){var x=await req('wickspe
 const FUND_WALLET_OLD = "async function fundWallet(){if(!token)return openAuth();var a=Number(document.getElementById('fundAmount').value||0);if(a<500)return note('Minimum funding is ₦500.',true);var w=window.open('about:blank','_blank');var x=await req('wickspend/store/wallet/funding/initialize',{method:'POST',body:JSON.stringify({amount_ngn:a})});if(x.j.ok&&x.j.checkout_url){if(w)w.location=x.j.checkout_url;else location.href=x.j.checkout_url;note('Complete payment, then return here and tap Refresh.')}else{if(w)w.close();note(x.j.code||'Could not start funding.',true)}}";
 const FUND_WALLET_NEW = "async function fundWallet(){if(!token)return openAuth();var a=Number(document.getElementById('fundAmount').value||0);if(a<500)return note('Minimum funding is ₦500.',true);var w=window.open('about:blank','_blank');var x=await req('wickspend/store/wallet/funding/initialize',{method:'POST',body:JSON.stringify({amount_ngn:a})});if(x.j.ok&&x.j.checkout_url){try{localStorage.setItem('wickstore_pending_funding_return',JSON.stringify({slug:slug,reference:String(x.j.reference||''),createdAt:Date.now()}))}catch(e){}if(w)w.location=x.j.checkout_url;else location.href=x.j.checkout_url;note('Complete payment. You will return to this Mini Store.')}else{if(w)w.close();note(x.j.code||'Could not start funding.',true)}}";
 const DYNAMIC_NUMBER_FILTERS = `
-async function loadNumberFilters(){var country=document.getElementById('country'),service=document.getElementById('service'),x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)),countries=x.j.countries||[];if(x.j.ok&&countries.length){country.innerHTML=countries.map(function(v){return '<option value="'+esc(v.country_code)+'">'+esc((v.flag||'🌐')+' '+(v.country_name||v.iso_code||v.country_code))+'</option>'}).join('');var preferred=countries.find(function(v){return v.country_name==='United States'})||countries[0];country.value=String(preferred.country_code)}country.onchange=async function(){await loadNumberServices();await loadNumberCatalog()};service.onchange=loadNumberCatalog;var initialService=service.value;await Promise.all([loadNumberCatalog(),loadNumberServices()]);if(service.value!==initialService)await loadNumberCatalog()}
+async function loadNumberFilters(){
+  var country=document.getElementById('country'),service=document.getElementById('service');
+  // One country-specific catalog provides both the country dropdown and service names.
+  // Avoid a second full-catalog fetch during initial page load.
+  var x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)+'&country_code=US'),countries=x.j.countries||[];
+  if(x.j.ok&&countries.length){
+    country.innerHTML=countries.map(function(v){return '<option value="'+esc(v.country_code)+'">'+esc((v.flag||'🌐')+' '+(v.country_name||v.iso_code||v.country_code))+'</option>'}).join('');
+    var preferred=countries.find(function(v){return v.country_name==='United States'})||countries[0];
+    country.value=String(preferred.country_code);
+  }
+  country.onchange=async function(){await loadNumberServices();await loadNumberCatalog()};
+  service.onchange=loadNumberCatalog;
+  if(x.j.ok&&Array.isArray(x.j.items)&&x.j.items.length&&countries.some(function(v){return String(v.country_code)===String(country.value)&&String(v.iso_code||'').toUpperCase()==='US'})){
+    var names={};x.j.items.forEach(function(v){var code=String(v.service_code||'').trim();if(code&&Number(v.available||v.count||0)>0&&!names[code])names[code]=v.service_name||code.toUpperCase()});
+    var codes=Object.keys(names).sort(function(a,b){return String(names[a]).localeCompare(String(names[b]))});
+    service.innerHTML=codes.length?codes.map(function(code){return '<option value="'+esc(code)+'">'+esc(names[code])+'</option>'}).join(''):'<option value="">No services available</option>';
+    var preferredService=codes.indexOf('telegram')>=0?'telegram':(codes.indexOf('wa')>=0?'wa':codes[0]);
+    if(preferredService)service.value=preferredService;
+    service.disabled=!codes.length;
+  }else await loadNumberServices();
+  if(service.value)await loadNumberCatalog();
+}
 async function loadNumberServices(){var country=document.getElementById('country'),service=document.getElementById('service'),previous=service.value;service.disabled=true;service.innerHTML='<option>Loading services…</option>';var x=await req('wickspend/store/catalog/numbers?store_slug='+encodeURIComponent(slug)+'&country_code='+encodeURIComponent(country.value)),names={};(x.j.items||[]).forEach(function(v){var code=String(v.service_code||'').trim();if(code&&Number(v.available||v.count||0)>0&&!names[code])names[code]=v.service_name||code.toUpperCase()});var codes=Object.keys(names).sort(function(a,b){return String(names[a]).localeCompare(String(names[b]))});service.innerHTML=codes.length?codes.map(function(code){return '<option value="'+esc(code)+'">'+esc(names[code])+'</option>'}).join(''):'<option value="">No services available</option>';var preferred=codes.indexOf(previous)>=0?previous:(codes.indexOf('telegram')>=0?'telegram':(codes.indexOf('wa')>=0?'wa':codes[0]));if(preferred)service.value=preferred;service.disabled=!codes.length}
 `;
 const MINI_STORE_MARKETPLACE_RENDERER = String.raw`
