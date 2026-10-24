@@ -107,18 +107,23 @@ function brandedPage(title: string, message: string, status: number) {
   return new Response(html, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" } });
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { slug: rawSlug } = await context.params;
   const slug = String(rawSlug || "").trim().toLowerCase();
+  const requestUrl = new URL(request.url);
+  const requestHost = String(request.headers.get("x-forwarded-host") || request.headers.get("host") || requestUrl.host || "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
+  const customHost = requestHost && !["wickspend.com", "www.wickspend.com", "127.0.0.1", "localhost"].includes(requestHost) ? requestHost : "";
   if (!/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(slug)) {
     return brandedPage("Store not found", "This WickSpend reseller store does not exist or the link is invalid.", 404);
   }
 
   let resolved = false;
   let rentalsEnabled = true;
+  let effectiveSlug = slug;
   let storeMeta: MiniStoreLandingStore = { slug, rent_number_enabled: true };
   try {
-    const check = await fetch(`${STORE_RESOLVE_URL}?slug=${encodeURIComponent(slug)}`, {
+    const resolveQuery = customHost ? `host=${encodeURIComponent(customHost)}` : `slug=${encodeURIComponent(slug)}`;
+    const check = await fetch(`${STORE_RESOLVE_URL}?${resolveQuery}`, {
       cache: "no-store",
       redirect: "manual",
       headers: { Accept: "application/json", "X-Forwarded-Host": "wickspend.com" },
@@ -129,10 +134,11 @@ export async function GET(_request: Request, context: RouteContext) {
         store?: Omit<MiniStoreLandingStore, "slug"> & { slug?: string };
       } | null;
       resolved = payload?.ok === true;
+      effectiveSlug = String(payload?.store?.slug || slug).trim().toLowerCase();
       rentalsEnabled = payload?.store?.rent_number_enabled !== false;
       storeMeta = {
         ...payload?.store,
-        slug,
+        slug: effectiveSlug,
         rent_number_enabled: rentalsEnabled,
       };
     } else if (check.status === 404) {
@@ -145,7 +151,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
   if (!resolved) return brandedPage("Store unavailable", "This reseller store is currently unavailable.", 404);
 
-  const upstream = await fetch(`${STORE_APP_URL}?store=${encodeURIComponent(slug)}`, {
+  const upstream = await fetch(`${STORE_APP_URL}?store=${encodeURIComponent(effectiveSlug)}`, {
     cache: "no-store",
     redirect: "manual",
     headers: { "X-Forwarded-Host": "wickspend.com" },
@@ -191,7 +197,7 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!body.includes('data-wick-store-header-v2')) {
     body = body.replace('</head>', MINI_STORE_HEADER_STYLES + '</head>');
   }
-  if (!body.includes('data-wick-store-landing-v1')) {
+  if (!body.includes('data-wick-store-landing-v2')) {
     body = body.replace('</head>', MINI_STORE_LANDING_STYLES + '</head>');
   }
   if (!body.includes('rel="icon"') && !body.includes("rel='icon'")) {
@@ -201,8 +207,8 @@ export async function GET(_request: Request, context: RouteContext) {
   // Rental screens live in the existing Next.js Mini Store route tree while
   // the shared customer session and wallet remain owned by the Store backend.
   // Keep these as normal links so the n8n-served storefront is not duplicated.
-  const rentUrl = `/store/${encodeURIComponent(slug)}/rent-number`;
-  const rentalsUrl = `/store/${encodeURIComponent(slug)}/rentals`;
+  const rentUrl = `/store/${encodeURIComponent(effectiveSlug)}/rent-number`;
+  const rentalsUrl = `/store/${encodeURIComponent(effectiveSlug)}/rentals`;
   if (rentalsEnabled) {
     if (!body.includes('data-wick-rent-number')) {
       body = body.replace(
@@ -243,9 +249,9 @@ export async function GET(_request: Request, context: RouteContext) {
     body = body.replace('<body>', `<body class="wick-landing-active">${landing.html}`);
   }
 
-  const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(slug)}))</script>${APP_SCRIPT}${authFixScript}${PASSWORD_RESET_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
+  const bootSlug = `<script>history.replaceState(null,'',location.pathname+'?store='+encodeURIComponent(${JSON.stringify(effectiveSlug)}))</script>${APP_SCRIPT}${authFixScript}${PASSWORD_RESET_SCRIPT}<script>history.replaceState(null,'',location.pathname)</script>`;
   let html = body.includes(APP_SCRIPT) ? body.replace(APP_SCRIPT, bootSlug) : body;
-  if (!html.includes('data-wick-store-landing-script')) {
+  if (!html.includes('data-wick-store-landing-script-v2')) {
     html = html.replace('</body>', landing.script + '</body>');
   }
   const headers = new Headers();

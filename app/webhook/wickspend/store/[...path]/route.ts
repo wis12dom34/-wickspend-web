@@ -229,6 +229,80 @@ async function proxy(request: Request, context: ProxyContext) {
       return Response.json({ok:false, code:"RANKINGS_UNAVAILABLE"}, {status:503, headers:{"Cache-Control":"no-store"}});
     }
   }
+  if (safePath === "landing/rankings") {
+    if (request.method !== "GET") return Response.json({ ok:false }, { status:405 });
+    const storeSlug = (incoming.searchParams.get("store_slug") || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(storeSlug)) return Response.json({ok:false,code:"INVALID_STORE"}, {status:400});
+    const rankingServices = ["wa", "tg", "fb", "ig", "lf", "go"];
+    try {
+      const countryResponse = await fetch(`${UPSTREAM_BASE}catalog/numbers?store_slug=${encodeURIComponent(storeSlug)}`, {
+        next:{revalidate:60}, signal:AbortSignal.timeout(12000), headers:{"X-Forwarded-Host": incoming.host},
+      });
+      if (!countryResponse.ok) throw new Error("country catalog unavailable");
+      const countryPayload = await countryResponse.json();
+      if (!countryPayload?.ok || !Array.isArray(countryPayload.countries)) throw new Error("invalid country catalog");
+      const countries = new Map<string, Record<string, unknown>>(countryPayload.countries.map((row:Record<string,unknown>) => [String(row.country_code ?? ""), row]));
+      const results = await Promise.allSettled(rankingServices.map(async service => {
+        const response = await fetch(`https://n8n.wickspend.com/webhook/wickspend/backend/numbers/top-otp?service_code=${encodeURIComponent(service)}&window_hours=168`, {
+          next:{revalidate:30}, signal:AbortSignal.timeout(8000),
+        });
+        if (!response.ok) throw new Error("ranking unavailable");
+        const data = await response.json();
+        if (!data?.ok || !Array.isArray(data.items)) throw new Error("invalid ranking");
+        return data.items.map((row:Record<string,unknown>) => ({service, row}));
+      }));
+      const numeric = (value:unknown) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+      const candidates:Array<Record<string,unknown>> = [];
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        for (const entry of result.value) {
+          const row = entry.row;
+          const countryCode = String(row.country_code ?? "");
+          const country = countries.get(countryCode);
+          const stock = numeric(row.stock);
+          if (!country || !stock || stock <= 0) continue;
+          const activations = numeric(row.activations) ?? 0;
+          const otpRate = activations > 0 ? numeric(row.otp_rate) : null;
+          candidates.push({
+            country_code:countryCode,
+            country_name:String(country.country_name ?? country.iso_code ?? countryCode),
+            iso_code:String(country.iso_code ?? ""),
+            flag:String(country.flag ?? ""),
+            service_code:entry.service,
+            service_name:NUMBER_SERVICE_NAMES[entry.service] || entry.service.toUpperCase(),
+            stock,
+            otp_rate:otpRate,
+            activations,
+            otp_orders:numeric(row.otp_orders),
+            median_otp_seconds:numeric(row.median_otp_seconds ?? row.avg_otp_seconds),
+            source_rank:numeric(row.rank) ?? 999,
+          });
+        }
+      }
+      candidates.sort((a,b) => {
+        const ar = a.otp_rate == null ? -1 : Number(a.otp_rate), br = b.otp_rate == null ? -1 : Number(b.otp_rate);
+        if (br !== ar) return br - ar;
+        const aa = Number(a.activations || 0), ba = Number(b.activations || 0);
+        if (ba !== aa) return ba - aa;
+        const sr = Number(a.source_rank || 999) - Number(b.source_rank || 999);
+        if (sr) return sr;
+        return Number(b.stock || 0) - Number(a.stock || 0);
+      });
+      const seen = new Set<string>();
+      const items:Array<Record<string,unknown>> = [];
+      for (const candidate of candidates) {
+        const key = `${candidate.service_code}:${candidate.country_code}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const { source_rank: _sourceRank, ...safe } = candidate;
+        items.push(safe);
+        if (items.length >= 5) break;
+      }
+      return Response.json({ok:true,window_hours:168,items}, {headers:{"Cache-Control":"public, max-age=30, s-maxage=30, stale-while-revalidate=120"}});
+    } catch {
+      return Response.json({ok:false,code:"RANKINGS_UNAVAILABLE",items:[]}, {status:503,headers:{"Cache-Control":"no-store"}});
+    }
+  }
   const upstreamUrl = `${UPSTREAM_BASE}${safePath}${incoming.search}`;
   const headers = new Headers();
   const authorization = request.headers.get("authorization");
