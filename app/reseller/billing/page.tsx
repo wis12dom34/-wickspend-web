@@ -435,6 +435,7 @@ export default function ResellerBilling() {
                 {busy ? "Activating…" : `Pay ${money(selected.price)} from Wallet`}
               </button>
             )}
+            {message && <div className="insufficientBox" role="alert" aria-live="assertive">{message}</div>}
             <p className="checkoutNote">Renewing early extends from your existing expiry date, so you do not lose remaining subscription time.</p>
           </section>
         </div>
