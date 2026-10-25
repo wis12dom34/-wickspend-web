@@ -432,6 +432,21 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       const purchasedNumber = String(payload?.number || payload?.phone_number || result?.number || result?.phone_number || "").trim();
       const confirmed = result?.ok === true && reference && purchasedNumber && result?.provider_pending !== true;
 
+      if (result?.provider_pending === true && reference) {
+        const numberContext = JSON.stringify({
+          service: selectedService?.name || currentServiceCode(),
+          service_code: currentServiceCode(),
+          country: selectedCountry?.name || country,
+          country_code: country,
+        });
+        window.sessionStorage.setItem("wickspend:lastNumberReference", reference);
+        window.localStorage.setItem("wickspend:lastNumberReference", reference);
+        window.sessionStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
+        window.localStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
+        window.location.assign(`/otp?reference=${encodeURIComponent(reference)}`);
+        return;
+      }
+
       if (!confirmed) {
         const code = String(result?.code || result?.error || payload?.code || payload?.error || "").toUpperCase();
         const unavailable = ["NO_NUMBERS", "PURCHASE_FAILED", "SELECTED_OFFER_UNAVAILABLE", "PURCHASE_UNAVAILABLE", "PREMIUM_USA_UNAVAILABLE", "NUMBER_UNAVAILABLE"].includes(code);
