@@ -52,8 +52,13 @@ function statusClass(status:string){return /active|processing|pending|delivered|
 type ProgressFilter = "all"|"in_progress"|"done"|"attention";
 function refundConfirmedForOrder(o:any){
   const explicit=String(o?.refund_status||o?.refund?.status||"").trim().toLowerCase();
-  if(explicit)return /^(refunded|completed|approved|successful|success)$/.test(explicit);
-  return /^(refunded|failed_refunded|cancelled_refunded|canceled_refunded)$/.test(String(o?.status||o?.state||"").toLowerCase());
+  // An approval alone is not evidence that money reached the wallet.
+  if(explicit)return /^(refunded|completed|successful|success)$/.test(explicit);
+  // Preserve the running release's stricter status-only fallback: without a
+  // confirmed refund status, require a real refund amount before claiming credit.
+  const raw=String(o?.status||o?.state||"").toLowerCase();
+  const hasAmount=Boolean(refundOf(o)) && Number(o?.refund_amount_ngn??o?.refunded_amount_ngn??o?.refund?.amount_ngn??o?.refund?.amount??o?.refund_amount_usd??o?.refunded_amount_usd??o?.refund_amount??0)>0;
+  return /^(refunded|failed_refunded|cancelled_refunded|canceled_refunded)$/.test(raw) && hasAmount;
 }
 function orderGuide(o:any):{label:string;help:string;group:ProgressFilter}{
   const raw=String(o?.status||o?.state||"processing").toLowerCase();
