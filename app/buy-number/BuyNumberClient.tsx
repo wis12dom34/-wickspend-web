@@ -663,7 +663,9 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
               </div>
             ) : (<div className="priceSheetList">
               {prices.map((p: any, i) => {
-                const formattedPrice = formatNgn(priceNgn(p));
+                const offerAmount = finiteNumber(priceNgn(p));
+                const hasKnownPrice = offerAmount !== null && offerAmount > 0;
+                const formattedPrice = hasKnownPrice ? formatNgn(offerAmount) : "Price unavailable";
                 const available = availabilityCount(p);
                 const unavailable = available !== null && available <= 0;
                 const rowKey = purchaseOfferKey(p, country, service, i);
@@ -691,7 +693,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
                       <small className="priceRowAvailability">{availabilityLabel}</small>
                       {providerSignal && <small style={{display:"block",marginTop:3,color:providerSamples >= 3 ? "#157a3a" : "#6e6e73",fontWeight:600}}>{providerSignal}</small>}
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => { setMessage(""); setMessageTitle(""); setReviewOffer({offer:p,key:rowKey}); }}>{isBuyingThisOffer ? "Buying…" : "Review"}</button>
+                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable || !hasKnownPrice} title={!hasKnownPrice ? "The price is unavailable. Refresh offers before buying." : undefined} aria-busy={isBuyingThisOffer} onClick={() => { setMessage(""); setMessageTitle(""); setReviewOffer({offer:p,key:rowKey}); }}>{isBuyingThisOffer ? "Buying…" : !hasKnownPrice ? "No price" : "Review"}</button>
                   </div>
                 );
               })}
