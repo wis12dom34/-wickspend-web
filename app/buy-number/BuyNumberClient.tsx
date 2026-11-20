@@ -269,6 +269,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   const [loadingTopOtp, setLoadingTopOtp] = useState(false);
   const priceRequest = useRef(0);
   const buyingRef = useRef(false);
+  const unavailableOffers = useRef(new Map<string, number>());
   const buying = buyingOfferKey !== null;
 
   useEffect(() => {
@@ -396,7 +397,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       if (premium && !token) throw new Error("Please sign in first");
       const data: any = premium ? await api.numbers.premiumCatalog(token!) : await api.numbers.prices("", selectedCountryCode, selectedServiceCode);
       if (requestId !== priceRequest.current) return;
-      const parsed = normalizePrices(data).filter((item: any) => item != null && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
+      const parsed = normalizePrices(data).filter((item: any) => item != null && offerAvailable(item) && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
       setPrices(parsed);
       setMessage(parsed.length ? "" : "No numbers are available for this selection right now.");
       setSheetOpen(parsed.length > 0);
@@ -410,6 +411,32 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
     }
   }
 
+  function offerAvailable(offer: any) {
+    const key = `${country}:${currentServiceCode()}:${String(offer?.provider_id ?? "")}`;
+    const until = unavailableOffers.current.get(key) || 0;
+    if (until <= Date.now()) { unavailableOffers.current.delete(key); return true; }
+    return false;
+  }
+
+  async function recoverUnavailableOffer(offer: any, payload: any) {
+    const key = `${country}:${currentServiceCode()}:${String(offer?.provider_id ?? "")}`;
+    unavailableOffers.current.set(key, Date.now() + 60_000);
+    setSheetOpen(false);
+    setReviewOffer(null);
+    setMessageTitle("Number unavailable");
+    setMessage(payload?.refunded === true
+      ? "This offer could not supply a number. Your payment was refunded. Choose another offer below."
+      : "This offer is no longer available. Choose another offer below.");
+    if (payload?.refunded === true) {
+      if (finiteNumber(payload?.balance_ngn) !== null) setBalance(money(payload.balance_ngn));
+      else {
+        const token = getSessionToken();
+        if (token) { try { const wallet = await api.wallet.get(token); setBalance(money(walletBalance(wallet))); } catch { setBalance("—"); } }
+      }
+    }
+    await refreshFailedSelection();
+  }
+
   async function refreshFailedSelection() {
     const selectedCountryCode = country;
     const selectedServiceCode = currentServiceCode();
@@ -418,7 +445,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       const data: any = premium
         ? (token ? await api.numbers.premiumCatalog(token) : null)
         : await api.numbers.prices("", selectedCountryCode, selectedServiceCode, true);
-      const parsed = normalizePrices(data).filter((item: any) => item != null && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
+      const parsed = normalizePrices(data).filter((item: any) => item != null && offerAvailable(item) && (!premium || String(item?.service_code || "").toLowerCase() === selectedServiceCode.toLowerCase()));
       setPrices(parsed);
     } catch {
       setPrices([]);
@@ -426,7 +453,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   }
 
   async function buy(selectedOffer: any, selectedOfferKey: string) {
-    if (buyingRef.current) return;
+    if (buyingRef.current || !offerAvailable(selectedOffer)) return;
     buyingRef.current = true;
     setBuyingOfferKey(selectedOfferKey);
     setMessageTitle("");
@@ -467,11 +494,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
           setMessage("We’re still confirming this number. A success state will appear only after the purchase is confirmed.");
           if (reference) openNumberStatus(reference, numberContext);
         } else if (unavailable) {
-          setMessageTitle("Number unavailable");
-          setMessage(result?.refunded === true
-            ? "This number is no longer available. Your payment has been refunded. Please choose another number."
-            : "This number is no longer available. Please choose another number.");
-          await refreshFailedSelection();
+          await recoverUnavailableOffer(selectedOffer, result);
         } else {
           setMessageTitle("Purchase not confirmed");
           setMessage("We could not confirm this number purchase. Please choose another number or try again.");
@@ -487,12 +510,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       const payload: any = apiError?.payload;
       const unavailable = ["NO_NUMBERS", "PURCHASE_FAILED", "SELECTED_OFFER_UNAVAILABLE", "PURCHASE_UNAVAILABLE", "PREMIUM_USA_UNAVAILABLE", "NUMBER_UNAVAILABLE"].includes(code);
       if (unavailable) {
-        setSheetOpen(false);
-        setMessageTitle("Number unavailable");
-        setMessage(payload?.refunded === true
-          ? "This number is no longer available. Your payment has been refunded. Please choose another number."
-          : "This number is no longer available. Please choose another number.");
-        await refreshFailedSelection();
+        await recoverUnavailableOffer(selectedOffer, payload);
       } else {
         setSheetOpen(false);
         setReviewOffer(null);
