@@ -302,7 +302,7 @@ export default function OtpPage() {
         <h2>Refund status</h2>
         <div className={styles.expiredRefund}><b>Refund review</b><p>If the provider confirms the number was unused,<br/>the eligible amount is returned to your wallet.</p><strong>Status • {refundConfirmed(data)?"Provider confirmation received":"Pending provider confirmation"}</strong></div>
         <Link className={styles.expiredPrimary} href="/buy-number">Buy another number</Link><Link className={styles.expiredSecondary} href="/orders">View order details</Link><a className={styles.expiredSecondary} href="https://t.me/wickspendsupport" target="_blank" rel="noopener noreferrer">Help with expired number</a>
-        <div className={styles.expiredNote}><b>You will not be charged twice</b><p>Any approved refund returns to your WickSpend Wallet.</p></div>
+        <div className={styles.expiredNote}><b>Refunds require provider confirmation</b><p>If a refund is approved, it is returned to your WickSpend Wallet.</p></div>
       </section> : <>
       <header className={styles.header}>
         <h1>Your number &amp; SMS code</h1><p>Copy your number, use it in the app, then check here for the code.</p>
@@ -359,9 +359,9 @@ export default function OtpPage() {
     {confirm && data && <div className={styles.confirmBackdrop} onClick={() => !busy && setConfirm(false)}>
       <section className={styles.confirm} role="dialog" aria-modal="true" aria-label="Cancel number" onClick={e => e.stopPropagation()}>
         <h2>Cancel Number?</h2><p>Review refund eligibility before continuing.</p>
-        <div className={styles.refundEligibility}><strong>Refund eligible</strong><span>Only if cancellation is accepted by the backend.</span><div><small>Refund amount</small><b>{refund || "Confirmed after cancellation"}</b></div><em>No refund is shown as completed until cancellation is confirmed.</em></div>
+        <div className={styles.refundEligibility}><strong>Refund not yet confirmed</strong><span>Cancellation and refund eligibility depend on the provider’s response.</span><div><small>Refund amount</small><b>{refund || "Confirmed after cancellation"}</b></div><em>No refund is shown as completed until cancellation is confirmed.</em></div>
         <button type="button" className={styles.keepButton} disabled={busy} onClick={() => setConfirm(false)}>Keep Number</button>
-        <button className={styles.refundButton} type="button" disabled={busy} onClick={cancel}>{busy ? "Cancelling…" : "Cancel & Refund"}</button>
+        <button className={styles.refundButton} type="button" disabled={busy} onClick={cancel}>{busy ? "Requesting cancellation…" : "Request cancellation"}</button>
         <small className={styles.cancelNote}>Cancellation may fail depending on the number status.</small>
       </section>
     </div>}
