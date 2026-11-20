@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Mobile, Clock, BagShopping, ChartTrend, Sms, Receipt, Wallet, Shop, PlayCircle, Category, Bell, User } from "reicon-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -40,21 +41,14 @@ function txIcon(tx:any){const raw=String([tx?.type,tx?.category,tx?.title,tx?.de
 function marketName(item:any){return String(item?.name??item?.title??item?.product_name??"Marketplace product")}
 function marketPrice(item:any){const raw=item?.price_ngn??item?.final_price_ngn??item?.customer_price_ngn;const n=Number(raw);return raw!==undefined&&raw!==null&&Number.isFinite(n)?`₦${n.toLocaleString()}`:"Live price"}
 function marketId(item:any){return String(item?.id??item?.product_id??item?.code??"")}
-function BellIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>}
-function ProfileFallback(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"/></svg>}
+function BellIcon(){return <Bell size={19} weight="Outline" aria-hidden="true"/>}
+function ProfileFallback(){return <User size={19} weight="Outline" aria-hidden="true"/>}
 function QuickActionIcon({type}:{type:(typeof primaryActions)[number][0] | (typeof moreActions)[number][0]}){
-  const common={width:28,height:28,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.85,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true};
-  if(type==="phone")return <svg {...common}><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M10.5 18.5h3"/></svg>;
-  if(type==="rent")return <svg {...common}><rect x="3.5" y="2.5" width="9.5" height="19" rx="2.2"/><path d="M6.5 18h3.5"/><circle cx="17.5" cy="15.5" r="4.5"/><path d="M17.5 13v2.8l1.9 1.1"/></svg>;
-  if(type==="bag")return <svg {...common}><path d="M6 7h12l1 14H5L6 7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>;
-  if(type==="boost")return <svg {...common}><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg>;
-  if(type==="mail")return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>;
-  if(type==="orders")return <svg {...common}><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21V3z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>;
-  if(type==="wallet")return <svg {...common}><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><path d="M16 11v6M13 14h6"/></svg>;
-  if(type==="reseller")return <svg {...common}><path d="M4 10h16l-1.4-5H5.4L4 10z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M7 10v2M12 10v2M17 10v2"/></svg>;
-  if(type==="tutorials")return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8z"/></svg>;
-  return <svg {...common}><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><rect x="14" y="14" width="6" height="6" rx="1.2"/></svg>;
+  const icons = { phone: Mobile, rent: Clock, bag: BagShopping, boost: ChartTrend, mail: Sms, orders: Receipt, wallet: Wallet, reseller: Shop, tutorials: PlayCircle, more: Category };
+  const Icon = icons[type];
+  return <Icon size={23} weight="Outline" aria-hidden="true"/>;
 }
+
 export default function Home(){
   const router=useRouter();
   const[balance,setBalance]=useState<number|null>(null),[balanceState,setBalanceState]=useState<"loading"|"ready"|"signed-out"|"error">("loading"),[hidden,setHidden]=useState(false),[active,setActive]=useState<any>(null),[recent,setRecent]=useState<any[]>([]),[avatarUrl,setAvatarUrl]=useState(""),[name,setName]=useState(""),[currency,setCurrency]=useState("NGN"),[marketplace,setMarketplace]=useState<any[]>([]),[marketplaceState,setMarketplaceState]=useState<"loading"|"ready"|"error">("loading");
