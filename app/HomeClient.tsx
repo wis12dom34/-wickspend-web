@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Mobile, Clock, BagShopping, ChartTrend, Sms, Receipt, Wallet, Shop, PlayCircle, Category, Bell, User } from "reicon-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,17 +12,19 @@ import {readMarketplaceCache,readVerifiedBalance,writeVerifiedBalance} from "@/l
 
 const SuggestionBox = dynamic(() => import("@/components/SuggestionBox"), { ssr: false });
 
-const quickActions = [
-  ["phone","Buy Number","/buy-number"],
-  ["rent","Rent Number","/rent-number"],
-  ["bag","Marketplace","/marketplace"],
-  ["boost","Boostly","/boostly"],
-  ["mail","Temp Mail","/temp-mail"],
-  ["orders","Orders","/orders"],
-  ["wallet","Add Funds","/add-funds"],
-  ["reseller","Reseller Center","/reseller"],
-  ["tutorials","Tutorials","/tutorials"],
-  ["more","More","/profile"],
+const primaryActions = [
+  ["phone", "Buy a Number", "Get a number to receive an SMS code", "/buy-number"],
+  ["rent", "Rent a Number", "Keep a number for a longer period", "/rent-number"],
+  ["bag", "Digital Products", "Explore useful digital tools", "/marketplace"],
+  ["boost", "Boost Socials", "Buy likes, views and followers", "/boostly"],
+] as const;
+const moreActions = [
+  ["mail", "Temporary Email", "/temp-mail"],
+  ["orders", "My Orders", "/orders"],
+  ["wallet", "Add Money", "/add-funds"],
+  ["reseller", "Reseller Tools", "/reseller"],
+  ["tutorials", "Video Tutorials", "/tutorials"],
+  ["more", "My Account", "/profile"],
 ] as const;
 const services = [["/icons/services/whatsapp.svg","WhatsApp","/buy-number?service=WhatsApp"],["/icons/services/telegram.svg","Telegram","/buy-number?service=Telegram"],["/icons/services/instagram.svg","Instagram","/buy-number?service=Instagram"],["/icons/services/facebook.svg","Facebook","/buy-number?service=Facebook"],["/icons/services/tiktok.svg","TikTok","/buy-number?service=TikTok"],["/icons/services/google.svg","Google","/buy-number?service=Google"]] as const;
 const countries = [["🇺🇸","United States","187"],["🇬🇧","United Kingdom","16"],["🇩🇪","Germany","43"],["🇳🇬","Nigeria","19"],["🇨🇦","Canada","36"],["🇵🇱","Poland","15"]] as const;
@@ -38,21 +41,14 @@ function txIcon(tx:any){const raw=String([tx?.type,tx?.category,tx?.title,tx?.de
 function marketName(item:any){return String(item?.name??item?.title??item?.product_name??"Marketplace product")}
 function marketPrice(item:any){const raw=item?.price_ngn??item?.final_price_ngn??item?.customer_price_ngn;const n=Number(raw);return raw!==undefined&&raw!==null&&Number.isFinite(n)?`₦${n.toLocaleString()}`:"Live price"}
 function marketId(item:any){return String(item?.id??item?.product_id??item?.code??"")}
-function BellIcon(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>}
-function ProfileFallback(){return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 3-6 6.5-6s5.8 2 6.5 6"/></svg>}
-function QuickActionIcon({type}:{type:(typeof quickActions)[number][0]}){
-  const common={width:28,height:28,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.85,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true};
-  if(type==="phone")return <svg {...common}><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M10.5 18.5h3"/></svg>;
-  if(type==="rent")return <svg {...common}><rect x="3.5" y="2.5" width="9.5" height="19" rx="2.2"/><path d="M6.5 18h3.5"/><circle cx="17.5" cy="15.5" r="4.5"/><path d="M17.5 13v2.8l1.9 1.1"/></svg>;
-  if(type==="bag")return <svg {...common}><path d="M6 7h12l1 14H5L6 7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>;
-  if(type==="boost")return <svg {...common}><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg>;
-  if(type==="mail")return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>;
-  if(type==="orders")return <svg {...common}><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21V3z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>;
-  if(type==="wallet")return <svg {...common}><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><path d="M16 11v6M13 14h6"/></svg>;
-  if(type==="reseller")return <svg {...common}><path d="M4 10h16l-1.4-5H5.4L4 10z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M7 10v2M12 10v2M17 10v2"/></svg>;
-  if(type==="tutorials")return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8z"/></svg>;
-  return <svg {...common}><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><rect x="14" y="14" width="6" height="6" rx="1.2"/></svg>;
+function BellIcon(){return <Bell size={19} weight="Outline" aria-hidden="true"/>}
+function ProfileFallback(){return <User size={19} weight="Outline" aria-hidden="true"/>}
+function QuickActionIcon({type}:{type:(typeof primaryActions)[number][0] | (typeof moreActions)[number][0]}){
+  const icons = { phone: Mobile, rent: Clock, bag: BagShopping, boost: ChartTrend, mail: Sms, orders: Receipt, wallet: Wallet, reseller: Shop, tutorials: PlayCircle, more: Category };
+  const Icon = icons[type];
+  return <Icon size={23} weight="Outline" aria-hidden="true"/>;
 }
+
 export default function Home(){
   const router=useRouter();
   const[balance,setBalance]=useState<number|null>(null),[balanceState,setBalanceState]=useState<"loading"|"ready"|"signed-out"|"error">("loading"),[hidden,setHidden]=useState(false),[active,setActive]=useState<any>(null),[recent,setRecent]=useState<any[]>([]),[avatarUrl,setAvatarUrl]=useState(""),[name,setName]=useState(""),[currency,setCurrency]=useState("NGN"),[marketplace,setMarketplace]=useState<any[]>([]),[marketplaceState,setMarketplaceState]=useState<"loading"|"ready"|"error">("loading");
@@ -61,5 +57,25 @@ export default function Home(){
   useEffect(()=>{const token=getSessionToken();if(!token)return;let cancelled=false;const refresh=async()=>{try{const result=await api.numbers.active(token);if(!cancelled)setActive(activeOf(result))}catch{}};const timer=window.setInterval(refresh,8000);return()=>{cancelled=true;window.clearInterval(timer)}},[]);
   useEffect(()=>{let cancelled=false;const cached=readMarketplaceCache();if(cached.length){setMarketplace(cached.filter((item:any)=>marketId(item)).slice(0,3));setMarketplaceState("ready")}(async()=>{try{const result:any=await api.marketplace.products({page:1,limit:3});if(cancelled)return;const items=listOf(result,["products","items"]).filter((item:any)=>marketId(item));setMarketplace(items.slice(0,3));setMarketplaceState("ready")}catch{if(!cancelled&&!cached.length){setMarketplace([]);setMarketplaceState("error")}}})();return()=>{cancelled=true}},[]);
   const balanceLabel=balanceState==="loading"?"Loading…":balance!==null?`₦${balance.toLocaleString()}`:"—";
-  return <main className="shell homeShell"><header className="homeHeader"><div><h1>WickSpend</h1><p>{name?`Hi ${name}`:"Welcome"}</p></div><div className="headerActions"><Link href="/notifications" className="circle" aria-label="Notifications" style={{width:40,height:40,borderRadius:16,color:"#111"}}><BellIcon/></Link><Link href="/profile" className="circle" aria-label="Profile" style={{width:40,height:40,borderRadius:16,color:"#111"}}><ProfileFallback/></Link></div></header><section className="balanceCard homeBalanceCard" style={{height:"auto",minHeight:138,padding:"15px 16px",borderRadius:24}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><p className="balanceLabel">Available Balance</p><span style={{height:24,minWidth:44,padding:"0 9px",borderRadius:12,background:"#fff",border:"1px solid rgba(0,0,0,.07)",display:"grid",placeItems:"center",fontSize:9,fontWeight:650,color:"#3a3a3c"}}>{currency}</span></div><strong style={{fontSize:29,lineHeight:"34px",margin:"10px 0 2px",letterSpacing:"-.5px"}}>{hidden?"••••••":balanceLabel}</strong>{balanceState==="signed-out"&&<small className="statusText" style={{display:"block",marginTop:1}}>Sign in to view your balance.</small>}{balanceState==="error"&&<small className="statusText" style={{display:"block",marginTop:1}}>Balance unavailable right now.</small>}<div className="balanceActions" style={{marginTop:12}}><Link href="/add-funds" className="homePrimaryButton" style={{flex:1,width:"auto",height:38,borderRadius:16}}>Add Funds</Link><button type="button" className="homeSecondaryButton" style={{width:82,height:38,borderRadius:16}} aria-pressed={hidden} onClick={()=>setHidden(v=>!v)}>{hidden?"Show":"Hide"}</button></div></section><section><div className="sectionTitle homeSectionTitle"><h2>Quick Actions</h2></div><div className="actionGrid homeActionGrid">{quickActions.map(([icon,label,href])=><Link href={href} className="quickActionCard" key={href}><span><QuickActionIcon type={icon}/></span><b>{label}</b></Link>)}</div></section><section><div className="sectionTitle homeSectionTitle"><h2>Active Service</h2></div><ActiveServiceCard active={active}/></section><section><div className="sectionTitle homeSectionTitle"><h2>Popular Services</h2></div><div className="serviceGrid">{services.map(([icon,label,href])=><Link href={href} className="serviceChip" key={label}><span style={{width:22,height:22,display:"grid",placeItems:"center",flex:"0 0 22px"}}><img src={icon} alt="" width="19" height="19" loading="lazy" style={{display:"block",maxWidth:"100%",maxHeight:"100%"}}/></span><b>{label}</b></Link>)}</div></section><section><div className="sectionTitle homeSectionTitle"><h2>Popular Countries</h2></div><div className="countryGrid">{countries.map(([flag,countryName,query])=><Link href={`/buy-number?country=${encodeURIComponent(query)}`} className="countryChip" key={countryName}><span>{flag}</span><b>{countryName}</b></Link>)}</div></section><section><div className="sectionTitle homeSectionTitle marketHeading"><h2>Recommended Marketplace</h2><Link href="/marketplace">View all ›</Link></div><div className="marketList">{marketplaceState==="loading"?<div className="marketItem"><div><b>Loading live catalog…</b><small>Checking current Marketplace products, prices and stock.</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>:marketplace.length?marketplace.map((item:any)=><div className="marketItem" key={marketId(item)}><div><b>{marketName(item)}</b><small>{marketPrice(item)} • {Number(item?.stock)>0?`${Number(item.stock)} available`:"Live stock"}</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>):<div className="marketItem"><div><b>{marketplaceState==="error"?"Marketplace temporarily unavailable":"No Marketplace products available"}</b><small>{marketplaceState==="error"?"Please try again shortly.":"New products will appear here when available."}</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>}</div></section><section className="recentSection"><div className="sectionTitle homeSectionTitle"><h2>Recent Activity</h2></div>{recent.length?<div className="recentCard">{recent.map((tx:any,i)=><div key={tx?.id||tx?.reference||i}><span>{txIcon(tx)}</span><p><b>{txTitle(tx)}</b><small>{txStatus(tx)}</small></p><strong>{txAmount(tx)}</strong></div>)}</div>:<div className="recentCard"><div><span>📋</span><p><b>No recent activity</b><small>Your latest transactions will appear here.</small></p><strong/></div></div>}</section><SuggestionBox/></main>
+  return <main className="shell homeShell"><header className="homeHeader"><div><h1>WickSpend</h1><p>{name?`Hi ${name}`:"Welcome"}</p></div><div className="headerActions"><Link href="/notifications" className="circle" aria-label="Notifications" style={{width:40,height:40,borderRadius:16,color:"#111"}}><BellIcon/></Link><Link href="/profile" className="circle" aria-label="Profile" style={{width:40,height:40,borderRadius:16,color:"#111"}}><ProfileFallback/></Link></div></header><section className="balanceCard homeBalanceCard" style={{height:"auto",minHeight:138,padding:"15px 16px",borderRadius:24}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><p className="balanceLabel">Available Balance</p><span style={{height:24,minWidth:44,padding:"0 9px",borderRadius:12,background:"#fff",border:"1px solid rgba(0,0,0,.07)",display:"grid",placeItems:"center",fontSize:9,fontWeight:650,color:"#3a3a3c"}}>{currency}</span></div><strong style={{fontSize:29,lineHeight:"34px",margin:"10px 0 2px",letterSpacing:"-.5px"}}>{hidden?"••••••":balanceLabel}</strong>{balanceState==="signed-out"&&<small className="statusText" style={{display:"block",marginTop:1}}>Sign in to view your balance.</small>}{balanceState==="error"&&<small className="statusText" style={{display:"block",marginTop:1}}>Balance unavailable right now.</small>}<div className="balanceActions" style={{marginTop:12}}><Link href="/add-funds" className="homePrimaryButton" style={{flex:1,width:"auto",height:38,borderRadius:16}}>Add Funds</Link><button type="button" className="homeSecondaryButton" style={{width:82,height:38,borderRadius:16}} aria-pressed={hidden} onClick={()=>setHidden(v=>!v)}>{hidden?"Show":"Hide"}</button></div></section><section className="homeChooseService" aria-labelledby="homeChooseTitle">
+      <div className="sectionTitle homeSectionTitle homeChooseHeading"><div><h2 id="homeChooseTitle">What would you like to do?</h2><p>Choose a service to get started.</p></div></div>
+      <div className="actionGrid homeActionGrid homePrimaryActionGrid">
+        {primaryActions.map(([icon,label,description,href])=><Link href={href} className="quickActionCard homeActionTile" key={href}><span><QuickActionIcon type={icon}/></span><b>{label}</b><small>{description}</small></Link>)}
+      </div>
+      <details className="homeMoreServices">
+        <summary>See all services <span aria-hidden="true">⌄</span></summary>
+        <div className="homeMoreGrid">{moreActions.map(([icon,label,href])=><Link href={href} key={href} className="homeMoreLink"><span><QuickActionIcon type={icon}/></span><b>{label}</b></Link>)}</div>
+      </details>
+    </section>
+    <section className="homeGetStarted" aria-labelledby="homeGetStartedTitle">
+      <div className="sectionTitle homeSectionTitle"><h2 id="homeGetStartedTitle">First time here?</h2><Link href="/tutorials" className="homeGuideLink">Watch video guides</Link></div>
+      <p className="homeGuideIntro">Buying your first number is as easy as 1, 2, 3.</p>
+      <ol className="homeGuideSteps">
+        <li><span>1</span><div><b>Add money</b><small>Fund your wallet securely.</small></div><Link href="/add-funds" aria-label="Add money to wallet">Add money ›</Link></li>
+        <li><span>2</span><div><b>Choose a number</b><small>Pick an app and country, then check the live price.</small></div><Link href="/buy-number" aria-label="Choose a number">Get started ›</Link></li>
+        <li><span>3</span><div><b>Receive your code</b><small>Follow your order and see its SMS status.</small></div><Link href="/orders" aria-label="Track your order">My orders ›</Link></li>
+      </ol>
+      <Link href="/help-support" className="homeHelpLink">Need help? Get answers or contact support ›</Link>
+    </section>
+    <section><div className="sectionTitle homeSectionTitle"><h2>{active ? "Your Active Number" : "Featured Service"}</h2></div><ActiveServiceCard active={active}/></section><section><div className="sectionTitle homeSectionTitle"><h2>Popular Services</h2></div><div className="serviceGrid">{services.map(([icon,label,href])=><Link href={href} className="serviceChip" key={label}><span style={{width:22,height:22,display:"grid",placeItems:"center",flex:"0 0 22px"}}><img src={icon} alt="" width="19" height="19" loading="lazy" style={{display:"block",maxWidth:"100%",maxHeight:"100%"}}/></span><b>{label}</b></Link>)}</div></section><section><div className="sectionTitle homeSectionTitle"><h2>Popular Countries</h2></div><div className="countryGrid">{countries.map(([flag,countryName,query])=><Link href={`/buy-number?country=${encodeURIComponent(query)}`} className="countryChip" key={countryName}><span>{flag}</span><b>{countryName}</b></Link>)}</div></section><section><div className="sectionTitle homeSectionTitle marketHeading"><h2>Recommended Marketplace</h2><Link href="/marketplace">View all ›</Link></div><div className="marketList">{marketplaceState==="loading"?<div className="marketItem"><div><b>Loading live catalog…</b><small>Checking current Marketplace products, prices and stock.</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>:marketplace.length?marketplace.map((item:any)=><div className="marketItem" key={marketId(item)}><div><b>{marketName(item)}</b><small>{marketPrice(item)} • {Number(item?.stock)>0?`${Number(item.stock)} available`:"Live stock"}</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>):<div className="marketItem"><div><b>{marketplaceState==="error"?"Marketplace temporarily unavailable":"No Marketplace products available"}</b><small>{marketplaceState==="error"?"Please try again shortly.":"New products will appear here when available."}</small></div><Link href="/marketplace" className="marketBuy">View</Link></div>}</div></section><section className="recentSection"><div className="sectionTitle homeSectionTitle"><h2>Recent Activity</h2></div>{recent.length?<div className="recentCard">{recent.map((tx:any,i)=><div key={tx?.id||tx?.reference||i}><span>{txIcon(tx)}</span><p><b>{txTitle(tx)}</b><small>{txStatus(tx)}</small></p><strong>{txAmount(tx)}</strong></div>)}</div>:<div className="recentCard"><div><span>📋</span><p><b>No recent activity</b><small>Your latest transactions will appear here.</small></p><strong/></div></div>}</section><SuggestionBox/></main>
 }

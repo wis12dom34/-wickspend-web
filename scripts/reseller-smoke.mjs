@@ -86,9 +86,35 @@ const storeSession = await expectStatus("/webhook/wickspend/store/auth/session",
 if (storeSession.json?.code !== "UNAUTHORIZED") fail("Mini Store session: expected UNAUTHORIZED");
 else pass("Mini Store session boundary rejects missing customer token");
 
-const rentalCatalog = await expectStatus("/webhook/wickspend/store/catalog/rentals?store_slug=johnsms", 200);
-if (!Array.isArray(rentalCatalog.json?.services) && !Array.isArray(rentalCatalog.json?.items)) fail("Mini Store rentals: catalog has no dynamic services");
-else pass("Mini Store rentals: dynamic catalog is available");
+// johnsms is an example storefront slug, NOT a guaranteed live fixture.
+// Do not mistake a legitimate STORE_UNAVAILABLE response for a broken proxy.
+// For a positive live integration check, provision a dedicated test store and set
+// RESELLER_RENTAL_CATALOG_TEST_SLUG; a missing configured fixture is a hard failure.
+const configuredRentalStore = process.env.RESELLER_RENTAL_CATALOG_TEST_SLUG?.trim() || "";
+if (configuredRentalStore && !/^[a-z0-9][a-z0-9-]{2,62}$/i.test(configuredRentalStore)) {
+  fail("Mini Store rentals: configured test slug is invalid");
+}
+const rentalStoreSlug = configuredRentalStore || "johnsms";
+const rentalCatalogPath = `/webhook/wickspend/store/catalog/rentals?store_slug=${encodeURIComponent(rentalStoreSlug)}`;
+const rentalCatalog = await request(rentalCatalogPath);
+const catalogServices = rentalCatalog.json?.services ?? rentalCatalog.json?.items;
+if (rentalCatalog.response.status === 200) {
+  if (rentalCatalog.json?.ok !== true || !Array.isArray(catalogServices)) {
+    fail("Mini Store rentals: successful catalog response is missing dynamic services");
+  } else if (configuredRentalStore && !catalogServices.some((item) =>
+    typeof item?.service_code === "string" && item.service_code.trim() &&
+    Array.isArray(item.periods) && item.periods.some((period) =>
+      Number(period.duration_minutes) > 0 && Number.isFinite(Number(period.price_ngn)) && Number(period.price_ngn) > 0))) {
+    fail("Mini Store rentals: configured live fixture has no purchasable duration/price");
+  } else pass(`Mini Store rentals: dynamic catalog contract verified for ${rentalStoreSlug}`);
+} else if (!configuredRentalStore &&
+    rentalCatalog.response.status === 404 &&
+    ["STORE_UNAVAILABLE", "STORE_NOT_FOUND"].includes(rentalCatalog.json?.code) &&
+    rentalCatalog.json?.ok === false) {
+  pass("Mini Store rentals: absent example storefront fails closed (404); positive contract tested separately with mock catalog");
+} else {
+  fail(`Mini Store rentals: unexpected catalog status ${rentalCatalog.response.status}, code ${rentalCatalog.json?.code || "none"}${configuredRentalStore ? " (configured fixture required)" : ""}`);
+}
 
 for (const protectedRentalPath of ["rentals/orders", "rentals/status?reference=SMOKE-NOT-REAL"]) {
   const result = await expectStatus(`/webhook/wickspend/store/${protectedRentalPath}`, 401);
