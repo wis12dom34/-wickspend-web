@@ -266,3 +266,11 @@
     pointer-events: none;
   }
 }
+
+/* Prevent the support launcher covering the final wallet-charge confirmation. */
+@media (max-width: 699px) {
+  body:has(.sheetBackdrop .purchaseReview) .smartSupportRoot:not(:has(.smartSupportPanel)) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
