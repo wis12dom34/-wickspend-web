@@ -50,3 +50,7 @@
 .detailActions .danger{background:#fff!important;border:1px solid #e5d0d0;color:#9e2a2a!important}
 .row strong{overflow-wrap:anywhere}
 @media(max-width:380px){.card .status{max-width:52%}.card .name{font-size:12px}.progressButton{padding:9px 10px}}
+/* Keep the PageShell back arrow and use an explicit 'All orders' action in details. */
+.detailHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;margin-top:4px}
+.detailHeader h1{font-size:19px;margin:0}
+.detailHeader .back{position:static;left:auto;top:auto;font-size:12px;font-weight:700;line-height:1.3;color:#0757d9;padding:10px 13px;border:1px solid #cbdcf9;border-radius:12px;min-height:42px;white-space:nowrap}
