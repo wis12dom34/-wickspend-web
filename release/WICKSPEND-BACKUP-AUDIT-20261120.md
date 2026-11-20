@@ -49,3 +49,20 @@ This audit is read-only except for creating a restricted local frontend snapshot
 8. Obtain explicit deployment approval, then run an approved controlled switch and health checks with a documented rollback plan.
 
 **Verdict:** Current frontend source/build integrity has a verified *local partial* recovery snapshot. **Off-server customer-data recovery and a complete non-production restore remain BLOCKED** until the real backend database, storage destination, and access are verified. Preserve the existing production service and all user data.
+
+## 2026-11-20 follow-up — Encrypted OFF-SERVER FRONTEND archive verified
+This **supersedes the earlier audit's statement that no off-server frontend copy was available**, but does not resolve the backend/database recovery blockers.
+
+- Original plaintext frontend source/build archive on first authorized VPS: `/opt/wickspend-v2-release-backups/ux-source-build-snapshot-20261120/runtime-source-build-no-private-env.tar.gz`; SHA-256: `b80afcaf8396c6dd05f0c36a2c8a009a76c11bbe12a79e70f4db240dff37b4e2`.
+- Archive encrypted using OpenSSL CMS to a dedicated X.509 recipient certificate; recipient private key and its passphrase were generated on and retained on the **second** VPS, not copied back to the frontend VPS.
+- Authenticated SFTP transfer used a dedicated, source-IP-restricted temporary user with no forwarding, no PTY, and forced SFTP-only command. The SSH host's ED25519 key fingerprint was verified before transfer.
+- Encrypted archive stored **off-server** on authorized second VPS `vmi3669743` (`169.58.189.217`): `/var/backups/wickspend-frontend-ux-20261120/runtime-source-build-no-private-env.tar.gz.cms`, root-owned, mode 0600, in a root-restricted backup directory.
+- SHA-256 of transferred ciphertext: `b64224cd6f255abf4d3a49fef93de32907e798bc8828aa632d6c475a06e3bb82`, identical on both VPSs.
+- Isolated **off-server** decryption succeeded with the private key on destination. Recovered plaintext archive SHA-256 matched the original; extracted source/build files and runtime BUILD_ID hash matched the original. Private .env, dependencies, and Next cache were absent as expected.
+- Test decryption and extraction directories erased. Temporary SFTP user, key access and transfer staging deleted; no temporary account remains. Temporary public recipient certificate cache on source also deleted. A root-only verification record is stored beside the encrypted backup.
+- `wickspend-v2.service` remained active on the frontend VPS. No production restart or deployment; no customer data or financial mutation.
+- **Key custody limitation:** destination private key and passphrase are currently on that same destination server under separate root-restricted paths. An independent, recoverable key escrow and a second geographically/provider-separated backup copy have NOT been verified.
+- **Scope limitation:** the off-server backup contains **frontend source + compiled build only**. It does NOT contain the runtime private environment, npm dependencies, PostgreSQL wallet/user/order database, n8n backend workflows/credentials, payment provider configuration, or financial ledger. It is a verified archive extraction, not a full application startup or complete production disaster-recovery restoration.
+- **Next blockers:** confirm actual PostgreSQL host/database, obtain safe credentialed backup access, encrypt and securely export the correct financial DB + workflow state and private runtime configuration, and perform a fully isolated nonproduction restoration before any release.
+
+**Revised verdict:** `FRONTEND_ENCRYPTED_OFFSERVER_ARCHIVE_VERIFIED` / `FULL_BUSINESS_RECOVERY_NOT_VERIFIED`. **Deployment remains HOLD**.
