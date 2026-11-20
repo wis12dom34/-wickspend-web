@@ -62,7 +62,11 @@ const refundRefOf = (v: any) => String(v?.refund_reference || v?.refund_ref || v
 const dateObj = (v: any) => { if (!v) return null; const d = new Date(v); return Number.isNaN(d.getTime()) ? null : d; };
 const clock = (v: any) => { const d = dateObj(v); return d ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "—"; };
 const cancelledStatus = (v: any) => /cancelled|canceled/i.test(String(v?.status || v?.state || ""));
-const refundConfirmed = (v:any) => /refunded|refund(ed)?|completed|approved|successful|success/i.test(String(v?.refund_status || v?.refund?.status || v?.status || v?.state || ""));
+const refundConfirmed = (v:any) => {
+  const explicit = String(v?.refund_status || v?.refund?.status || "").toLowerCase();
+  if (explicit) return /^(refunded|completed|approved|successful|success)$/.test(explicit);
+  return /^(failed_refunded|cancelled_refunded|canceled_refunded|refunded)$/.test(String(v?.status || v?.state || "").toLowerCase());
+};
 const walletMoney = (v:any) => { const n=Number(v); return Number.isFinite(n)?`₦${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`:""; };
 const referenceOf = (v:any) => String(v?.reference || v?.order_reference || v?.orderReference || v?.ref || v?.order?.reference || v?.data?.reference || "").trim();
 const timeOf = (v:any) => {
@@ -86,25 +90,32 @@ export default function OtpPage() {
   const [cancelError, setCancelError] = useState(false);
   const [toast, setToast] = useState("");
   const [walletBalance,setWalletBalance]=useState("");
-  const [reference, setReference] = useState(() => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("reference") || "" : "");
+  const [reference, setReference] = useState("");
   const [recoveringReference, setRecoveringReference] = useState(false);
   const mounted = useRef(true);
   const seq = useRef(0);
+  const statusRequest = useRef<{ reference: string; id: number } | null>(null);
 
-  useEffect(() => () => { mounted.current = false; seq.current++; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; seq.current++; statusRequest.current = null; };
+  }, []);
 
   function rememberReference(value:string) {
     const recovered = value.trim();
     if (!recovered || typeof window === "undefined") return;
-    window.sessionStorage.setItem("wickspend:lastNumberReference", recovered);
-    window.localStorage.setItem("wickspend:lastNumberReference", recovered);
+    for (const storageName of ["sessionStorage", "localStorage"] as const) {
+      try { window[storageName].setItem("wickspend:lastNumberReference", recovered); }
+      catch { /* The URL reference remains authoritative when storage is unavailable. */ }
+    }
   }
 
   async function refresh(silent = false) {
-    if (busy || !reference) return;
+    if (!reference || statusRequest.current?.reference === reference) return;
     const token = getSessionToken();
     if (!token) { setMessage("Please sign in to view this number."); return; }
     const id = ++seq.current;
+    statusRequest.current = { reference, id };
     if (!silent) { setBusy(true); setMessage("Checking for OTP…"); }
     try {
       const r: any = await api.numbers.status(token, reference);
@@ -117,18 +128,29 @@ export default function OtpPage() {
     } catch (e) {
       if (mounted.current && id === seq.current) setMessage(e instanceof Error ? e.message : "Unable to refresh number status");
     } finally {
+      if (statusRequest.current?.id === id) statusRequest.current = null;
       if (mounted.current && id === seq.current && !silent) setBusy(false);
     }
   }
 
   useEffect(() => {
     if (!reference) {
+      const requestedReference = new URLSearchParams(window.location.search).get("reference")?.trim() || "";
+      if (requestedReference) {
+        setReference(requestedReference);
+        return;
+      }
       const token = getSessionToken();
       setMessage("");
       if (!token) return;
-      const remembered = typeof window !== "undefined"
-        ? window.sessionStorage.getItem("wickspend:lastNumberReference") || window.localStorage.getItem("wickspend:lastNumberReference") || ""
-        : "";
+      let remembered = "";
+      if (typeof window !== "undefined") {
+        for (const storageName of ["sessionStorage", "localStorage"] as const) {
+          try { remembered = window[storageName].getItem("wickspend:lastNumberReference") || ""; }
+          catch { /* Continue to the other store or authenticated order recovery. */ }
+          if (remembered.trim()) break;
+        }
+      }
       if (remembered.trim()) {
         const recovered = remembered.trim();
         window.history.replaceState({}, "", `/otp?reference=${encodeURIComponent(recovered)}`);
@@ -147,7 +169,9 @@ export default function OtpPage() {
           const type = String([item?.type,item?.category,item?.product_type,item?.service_type,item?.order_type,item?.service,item?.service_name].filter(Boolean).join(" ")).toLowerCase();
           const looksLikeNumber = Boolean(phoneOf(item)) || /number|sms|otp|activation/.test(type) || /WICKWEB-NUM-/i.test(itemReference);
           const isTerminal = /failed|refunded|cancelled|canceled|rejected|error|completed|complete|expired|delivered|fulfilled/.test(status);
-          return itemReference && looksLikeNumber && !isTerminal && item?.provider_pending !== true;
+          // Pending provider orders must remain recoverable after a refresh or browser restart.
+          // Keep terminal failures excluded; completed orders are only relevant if an OTP exists.
+          return itemReference && looksLikeNumber && (!isTerminal || (/completed|complete/.test(status) && Boolean(otpOf(item))));
         });
         const unique = Array.from(new Map(candidates.map((item: any) => [referenceOf(item), item])).values()) as any[];
         unique.sort((a: any,b: any) => timeOf(b) - timeOf(a));
@@ -163,7 +187,7 @@ export default function OtpPage() {
     }
     rememberReference(reference);
     refresh();
-    const timer = window.setInterval(() => { if (!busy) refresh(true); }, 5000);
+    const timer = window.setInterval(() => { refresh(true); }, 5000);
     return () => window.clearInterval(timer);
   }, [reference]);
 
@@ -208,8 +232,11 @@ export default function OtpPage() {
 
       if (cancelledStatus(confirmed) || refundConfirmed(confirmed)) setMessage("");
       else {
-        setCancelError(true);
-        setMessage("Cancellation was not confirmed. Refresh before taking another action.");
+        const pending = cancelResult?.provider_pending === true || cancelResult?.code === "CANCEL_STATUS_UNKNOWN" || confirmed?.provider_pending === true;
+        setCancelError(!pending);
+        setMessage(pending
+          ? "Cancellation pending provider confirmation. No refund is confirmed yet; check the order status before trying again."
+          : "Cancellation was not confirmed. Refresh before taking another action.");
       }
     } catch (e) {
       if (!mounted.current || id !== seq.current) return;
@@ -241,14 +268,14 @@ export default function OtpPage() {
   const cancelled = cancelledStatus(data);
   const waitingNumber = /waiting_number|retrying_number|processing|provider_unknown/i.test(status) || (data?.provider_pending === true && !phoneOf(data));
   const terminal = expired || cancelled || refunded || /failed|complete/i.test(status);
-  const displayStatus = waitingNumber ? "Waiting for number" : (terminal ? status : "Active");
+  const displayStatus = waitingNumber ? "Waiting for number" : otp ? "SMS code received" : (terminal ? status.replace(/[_-]/g, " ") : "Waiting for SMS");
   const created = data?.created_at || data?.createdAt || data?.purchased_at || data?.purchase_date;
   const expires = data?.expires_at || data?.expiry_at || data?.expiresAt;
   const refundReference = refundRefOf(data);
   const remaining = (() => {
     if (expired) return "Expired";
     const exp = dateObj(expires);
-    if (!exp) return data?.time_remaining || data?.remaining || "20:00";
+    if (!exp) return data?.time_remaining || data?.remaining || "—";
     const delta = Math.max(0, exp.getTime() - Date.now());
     const m = Math.floor(delta / 60000), s = Math.floor((delta % 60000) / 1000);
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
@@ -258,7 +285,7 @@ export default function OtpPage() {
   const productLabel=`${country} ${service} Number`;
 
   return <main className="shell appShell">
-    <div className={styles.screen}>
+    <div className={styles.screen} data-otp-screen="true">
       {!reference ? <section className={styles.cancelledSuccess}>
         <h2>{recoveringReference ? "Checking recent number…" : "No active number selected"}</h2>
         <p>{recoveringReference ? "Restoring your latest confirmed number and OTP status." : "Open a number order to view its OTP and status here."}</p>
@@ -274,22 +301,24 @@ export default function OtpPage() {
         <div className={styles.expiredStatus}><small>STATUS</small><strong>Expired</strong><b>{productLabel}</b><p>{orderLabel}</p></div>
         <h2>Refund status</h2>
         <div className={styles.expiredRefund}><b>Refund review</b><p>If the provider confirms the number was unused,<br/>the eligible amount is returned to your wallet.</p><strong>Status • {refundConfirmed(data)?"Provider confirmation received":"Pending provider confirmation"}</strong></div>
-        <Link className={styles.expiredPrimary} href="/buy-number">Buy another number</Link><Link className={styles.expiredSecondary} href="/orders">View order details</Link>
+        <Link className={styles.expiredPrimary} href="/buy-number">Buy another number</Link><Link className={styles.expiredSecondary} href="/orders">View order details</Link><a className={styles.expiredSecondary} href="https://t.me/wickspendsupport" target="_blank" rel="noopener noreferrer">Help with expired number</a>
         <div className={styles.expiredNote}><b>You will not be charged twice</b><p>Any approved refund returns to your WickSpend Wallet.</p></div>
       </section> : <>
       <header className={styles.header}>
-        <h1>OTP</h1><p>Receive SMS/OTP in real time.</p>
+        <h1>Your number &amp; SMS code</h1><p>Copy your number, use it in the app, then check here for the code.</p>
         <button className={styles.refreshTop} type="button" disabled={busy || !reference} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button>
       </header>
 
+      {reference && !data && <section className={styles.emptyRecovery} role="status"><h2>Checking your number…</h2><p>We are restoring the number and SMS status. Check My Orders if it takes longer.</p><Link href="/orders">View my orders</Link></section>}
       {data && !cancelled && <>
+        <nav className={styles.otpWorkflow} aria-label="How to use your number"><div><span>1</span><strong>Copy number</strong></div><div><span>2</span><strong>Use in app</strong></div><div><span>3</span><strong>Copy SMS</strong></div></nav>
         <section className={styles.card}>
-          <div className={styles.service}>{service}</div><div className={styles.country}>{country}</div><div className={styles.number}>{phone}</div>
-          <div className={styles.status}><span>{displayStatus}</span><span className={styles.statusDot}/></div>
-          <button className={styles.copyNumber} type="button" disabled={!phoneOf(data)} onClick={() => copy(phoneOf(data), "Number Copied")}>{phoneOf(data) ? "Copy Number" : "Awaiting Number"}</button>
+          <div className={styles.stepHint}>Step 1 · Your number for {service}</div><div className={styles.service}>{service}</div><div className={styles.country}>{country}</div><div className={styles.number}>{phone}</div>
+          <div className={styles.status} role="status" aria-live="polite"><span className={styles.statusDot}/><span>{displayStatus}</span></div>
+          <button className={styles.copyNumber} type="button" disabled={!phoneOf(data)} onClick={() => copy(phoneOf(data), "Number copied")}>{phoneOf(data) ? "Copy this number" : "Waiting for number"}</button><p className={styles.statusInstruction}>{waitingNumber ? "The provider is assigning your number. We check automatically." : "Enter this number in the selected app, then return here for the verification code."}</p>
         </section>
         <section className={styles.info}>
-          <div><small>Time Remaining</small><strong>{remaining}</strong></div><div><small>Purchased At</small><strong>{clock(created)}</strong></div>
+          <div><small>Time left (if provided)</small><strong>{remaining}</strong></div><div><small>Purchased at</small><strong>{clock(created)}</strong></div>
           <div><small>Expires At</small><strong>{clock(expires)}</strong></div><div><small>Total Price</small><strong>{amountOf(data)}</strong></div>
         </section>
       </>}
@@ -316,11 +345,13 @@ export default function OtpPage() {
         </section>
         <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a>{!terminal && <button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button>}</div>
       </> : <>
-        <section className={styles.state}>{waitingNumber ? <><h2>Confirming your number…</h2><p>The provider has not assigned a phone number yet.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Checking automatically</div></> : otp ? <><div className={styles.listen}>OTP received</div><div className={styles.digits}>{otp.replace(/\s/g, "").slice(0, 6).padEnd(6, "•").split("").map((d, i) => <div className={styles.digit} style={{ animationDelay: `${i * 45}ms` }} key={`${d}-${i}`}>{d}</div>)}</div><button className={styles.copyOtp} type="button" onClick={() => copy(otp, "OTP Copied")}>Copy OTP</button><p className={styles.receivedAgo}>Received just now</p></> : <><h2>Waiting for code…</h2><p>We’ll automatically detect your SMS/OTP.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Listening securely</div></>}</section>
+        <section className={styles.state}>{waitingNumber ? <><h2>Step 1 · Waiting for number</h2><p>The provider is assigning your number. We check automatically about every 5 seconds.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Checking automatically</div></> : otp ? <><div className={styles.listen}>Step 3 · SMS code received</div><div className={styles.digits} aria-label="Received verification code">{otp.replace(/\s/g, "").split("").map((digit,index) => <div className={styles.digit} style={{animationDelay: String(index * 45) + "ms"}} key={index} aria-hidden="true">{digit}</div>)}</div><span className={styles.codeText}>Full code: <strong>{otp}</strong></span><button className={styles.copyOtp} type="button" onClick={() => copy(otp, "SMS code copied")}>Copy full SMS code</button><p className={styles.receivedAgo}>Paste the code into {service}. Return here from My Orders if needed.</p></> : <><h2>Step 2 · Waiting for SMS code</h2><p>Use your number in {service}. Return here to copy the code. We check about every 5 seconds.</p><div className={styles.dots}>{[0,1,2,3,4].map(i => <span className={styles.dot} key={i}/>)}</div><div className={styles.listen}>Still waiting? Tap Refresh to check now.</div></>}</section>
         <div className={styles.actions}><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Refresh"}</button><a href={target} target="_blank" rel="noreferrer">Open Target Site</a>{!terminal && <button type="button" className={styles.cancel} disabled={busy} onClick={() => setConfirm(true)}>Cancel Number</button>}</div>
       </>)}
 
+      {data && !cancelled && !otp && !waitingNumber && !terminal && <section className={styles.helpCard}><h2>No SMS code yet?</h2><p>Check that you entered the correct number in {service}. Keep this page open while waiting. Delivery is not guaranteed.</p><div><button type="button" disabled={busy} onClick={() => refresh()}>{busy ? "Checking…" : "Check for SMS"}</button><Link href="/help-support">Get help</Link></div><small>Only cancel if you no longer need the number. Refunds depend on the provider's confirmed result.</small></section>}
       {message && !cancelled && <p className={`${styles.message} ${/unable|failed|missing|sign in|not confirmed/i.test(message) ? styles.error : ""}`} role="status">{message}</p>}
+      {(waitingNumber || (!!data && !otp && !terminal) || cancelError || /unable|failed|not confirmed|error/i.test(message)) && <a className={styles.humanSupport} href="https://t.me/wickspendsupport" target="_blank" rel="noopener noreferrer">Number or OTP not arriving? Contact support on Telegram</a>}
       </>}
     </div>
 
