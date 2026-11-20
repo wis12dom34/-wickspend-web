@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search, X, Check } from "reicon-react";
 import { PageShell } from "@/components/PageShell";
 import { ApiError, api } from "@/lib/api";
 import { getSessionToken } from "@/lib/session";
@@ -9,6 +10,22 @@ import { NUMBER_SERVICE_NAMES } from "@/lib/number-service-names";
 
 type CountryOption = { flag: string; name: string; code: string; iso?: string };
 type ServiceOption = { name: string; code: string };
+type ReviewOffer = { offer: any; key: string };
+
+function openNumberStatus(reference: string, numberContext: string) {
+  if (!reference.trim()) return;
+  for (const storageName of ["sessionStorage", "localStorage"] as const) {
+    try {
+      const storage = window[storageName];
+      storage.setItem("wickspend:lastNumberReference", reference);
+      storage.setItem(`wickspend:numberContext:${reference}`, numberContext);
+    } catch {
+      // The URL remains usable when browser storage is unavailable.
+    }
+  }
+  window.location.assign(`/otp?reference=${encodeURIComponent(reference)}`);
+}
+
 
 const fallbackCountries: CountryOption[] = [
   { flag: "🇳🇬", name: "Nigeria", code: "19", iso: "NG" },
@@ -244,6 +261,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [balance, setBalance] = useState("—");
   const [picker, setPicker] = useState<"country" | "service" | null>(null);
+  const [reviewOffer, setReviewOffer] = useState<ReviewOffer | null>(null);
   const [search, setSearch] = useState("");
   const [loadingServices, setLoadingServices] = useState(false);
   const [topOtpPicks, setTopOtpPicks] = useState<any[]>([]);
@@ -339,6 +357,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
     priceRequest.current++;
     setPrices([]);
     setSheetOpen(false);
+    setReviewOffer(null);
     setLoadingPrices(false);
     setMessage("");
     setMessageTitle("");
@@ -368,6 +387,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
     const selectedCountryCode = country;
     const selectedServiceCode = currentServiceCode();
     setLoadingPrices(true);
+    setReviewOffer(null);
     setSheetOpen(false);
     setMessageTitle("");
     setMessage("Checking live prices…");
@@ -430,6 +450,12 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       const payload = result?.data || result?.order || result;
       const reference = String(payload?.reference || result?.reference || "").trim();
       const purchasedNumber = String(payload?.number || payload?.phone_number || result?.number || result?.phone_number || "").trim();
+      const numberContext = JSON.stringify({
+        service: selectedService?.name || currentServiceCode(),
+        service_code: currentServiceCode(),
+        country: selectedCountry?.name || country,
+        country_code: country,
+      });
       const confirmed = result?.ok === true && reference && purchasedNumber && result?.provider_pending !== true;
 
       if (!confirmed) {
@@ -439,6 +465,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
         if (result?.provider_pending === true) {
           setMessageTitle("Purchase pending");
           setMessage("We’re still confirming this number. A success state will appear only after the purchase is confirmed.");
+          if (reference) openNumberStatus(reference, numberContext);
         } else if (unavailable) {
           setMessageTitle("Number unavailable");
           setMessage(result?.refunded === true
@@ -453,17 +480,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
       }
 
       setMessage("Number purchased successfully.");
-      const numberContext = JSON.stringify({
-        service: selectedService?.name || currentServiceCode(),
-        service_code: currentServiceCode(),
-        country: selectedCountry?.name || country,
-        country_code: country,
-      });
-      window.sessionStorage.setItem("wickspend:lastNumberReference", reference);
-      window.localStorage.setItem("wickspend:lastNumberReference", reference);
-      window.sessionStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
-      window.localStorage.setItem(`wickspend:numberContext:${reference}`, numberContext);
-      window.location.assign(`/otp?reference=${encodeURIComponent(reference)}`);
+      openNumberStatus(reference, numberContext);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : null;
       const code = String(apiError?.code || "").toUpperCase();
@@ -477,8 +494,10 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
           : "This number is no longer available. Please choose another number.");
         await refreshFailedSelection();
       } else {
-        setMessageTitle("");
-        setMessage(err instanceof Error ? err.message : "Unable to purchase this number");
+        setSheetOpen(false);
+        setReviewOffer(null);
+        setMessageTitle("Purchase not confirmed");
+        setMessage(err instanceof Error ? err.message : "Unable to confirm this purchase. Please check My Orders before retrying.");
       }
     } finally {
       buyingRef.current = false;
@@ -498,26 +517,37 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
   return (
     <PageShell title={seoTitle} subtitle={premium ? "Choose a Premium USA service" : "Choose a country and service"}>
       <section className="seoIntroCard" aria-label="About buying virtual numbers"><p>{seoIntro}</p></section>
+      <section className="buyNumberSteps" aria-label="How to buy a number" style={{margin:"0 0 14px",padding:"14px",border:"1px solid #e4eaf4",borderRadius:18,background:"#f7f9fc"}}>
+        <h2 style={{margin:"0 0 10px",fontSize:15,color:"#171719"}}>Buy a number in 3 simple steps</h2>
+        <ol style={{margin:0,padding:0,listStyle:"none",display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+          {[["1","Choose","App & country"],["2","Check","Live prices"],["3","Confirm","Then get OTP"]].map(([number,title,subtitle]) => <li key={number} style={{minWidth:0,padding:"10px 8px",border:"1px solid #e7edf5",borderRadius:12,background:"#fff"}}>
+            <span style={{display:"inline-grid",placeItems:"center",width:22,height:22,borderRadius:11,background:"#e9f1ff",color:"#0b5cdf",fontWeight:750,fontSize:11}} aria-hidden="true">{number}</span>
+            <strong style={{display:"block",fontSize:12,marginTop:5}}>{title}</strong>
+            <small style={{display:"block",color:"#616b7c",fontSize:10,lineHeight:1.3}}>{subtitle}</small>
+          </li>)}
+        </ol>
+        <p style={{margin:"10px 0 0",color:"#5d6675",fontSize:11,lineHeight:1.5}}>Viewing prices is free. Your wallet is charged only if you confirm a purchase.</p>
+      </section>
       <form className="buyNumberPanel" onSubmit={load}>
         <button type="button" className="selectorCard" onClick={() => openPicker("country")}>
           <span className="selectorIcon">{selectedCountry?.flag || "🌐"}</span>
-          <span className="selectorCopy"><small>Country</small><strong>{selectedCountry?.name || "Choose country"}</strong></span>
+          <span className="selectorCopy"><small>Step 1 · Country</small><strong>{selectedCountry?.name || "Choose country"}</strong></span>
           <span className="selectorChevron">⌄</span>
         </button>
 
         <button type="button" className="selectorCard" onClick={() => openPicker("service")}>
           <span className="selectorIcon serviceSelectorIcon"><ServiceBrandIcon service={selectedService?.name || friendlyServiceName(service)} code={selectedService?.code || service}/></span>
-          <span className="selectorCopy"><small>Service</small><strong>{loadingServices ? "Loading services…" : selectedService?.name || friendlyServiceName(service)}</strong></span>
+          <span className="selectorCopy"><small>Step 1 · App or service</small><strong>{loadingServices ? "Loading services…" : selectedService?.name || friendlyServiceName(service)}</strong></span>
           <span className="selectorChevron">⌄</span>
         </button>
 
         <div className="purchaseSummary">
-          <div><small>Wallet</small><strong>{balance}</strong></div>
-          <div><small>Validity</small><strong>20 min</strong></div>
-          <div><small>Avg. wait</small><strong>1–5 min</strong></div>
+          <div><small>Your wallet</small><strong>{balance}</strong></div>
+          <div><small>Price</small><strong>Shown next</strong></div>
+          <div><small>SMS status</small><strong>Track after buying</strong></div>
         </div>
 
-        <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices || loadingServices}>{loadingPrices ? "Checking…" : "View Prices"}</button>
+        <button className="buyNumberCta" type="submit" disabled={buying || loadingPrices || loadingServices}>{loadingPrices ? "Checking live prices…" : "Step 2 · See Prices"}</button>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
           <button type="button" onClick={openPremiumFlow} style={{minHeight:58,border:"1px solid rgba(0,0,0,.08)",borderRadius:18,background:"#fff",boxShadow:"0 5px 16px rgba(0,0,0,.055)",padding:"10px 12px",display:"grid",gap:4,textAlign:"left"}}>
             <span style={{fontSize:8,color:"#6e6e73"}}>🇺🇸 Premium USA</span><strong style={{fontSize:10,lineHeight:1.25}}>Buy Premium USA Number</strong>
@@ -565,7 +595,7 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
                         {Number(item?.stock || 0) > 0 && <span>{new Intl.NumberFormat("en-NG", { notation:"compact", maximumFractionDigits:1 }).format(Number(item.stock))} live stock</span>}
                       </div>
                     </div>
-                    {selectable && <button type="button" onClick={() => { resetSelection("country", code); setMessageTitle("Top OTP pick selected"); setMessage(`${item?.country_name || countryInfo?.name} selected. Tap View Prices to choose a live provider.`); window.scrollTo({top:0,behavior:"smooth"}); }} style={{border:0,borderRadius:12,background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"9px 11px",flex:"0 0 auto"}}>Use</button>}
+                    {selectable && <button type="button" onClick={() => { resetSelection("country", code); setMessageTitle("Top OTP pick selected"); setMessage(`${item?.country_name || countryInfo?.name} selected. Tap See Prices to compare available numbers.`); window.scrollTo({top:0,behavior:"smooth"}); }} style={{border:0,borderRadius:12,background:"#111",color:"#fff",fontSize:11,fontWeight:700,padding:"9px 11px",flex:"0 0 auto"}}>Use</button>}
                   </div>
                 );
               })}
@@ -582,10 +612,10 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
               <div style={{width:38,height:5,borderRadius:99,background:"rgba(0,0,0,.16)",margin:"0 auto 12px"}} />
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10}}>
                 <strong style={{fontSize:18}}>{picker === "country" ? "Choose country" : `Choose service${serviceOptions.length ? ` · ${serviceOptions.length}` : ""}`}</strong>
-                <button type="button" onClick={closePicker} aria-label="Close" style={{width:32,height:32,border:0,borderRadius:16,background:"rgba(0,0,0,.06)",fontSize:18,lineHeight:1}}>×</button>
+                <button type="button" onClick={closePicker} aria-label="Close" style={{width:32,height:32,border:0,borderRadius:16,background:"rgba(0,0,0,.06)",fontSize:18,lineHeight:1}}><X size={18} aria-hidden="true"/></button>
               </div>
               <label style={{height:46,border:"1px solid rgba(0,0,0,.1)",borderRadius:15,display:"flex",alignItems:"center",gap:9,padding:"0 13px",background:"#fff"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{flex:"0 0 auto"}}><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2"/><path d="m16.5 16.5 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                <Search size={18} weight="Outline" aria-hidden="true" style={{flex:"0 0 auto"}}/>
                 <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={picker === "country" ? "Search countries" : "Search all services"} style={{border:0,outline:0,width:"100%",fontSize:16,background:"transparent",color:"#111"}} />
               </label>
             </div>
@@ -594,13 +624,13 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
                 <button key={item.code} type="button" onClick={() => { resetSelection("country", item.code); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.code === country ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
                   <span style={{fontSize:24,width:30,textAlign:"center"}}>{item.flag}</span>
                   <span style={{flex:1}}>{item.name}</span>
-                  {item.code === country && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+                  {item.code === country && <span aria-hidden="true" style={{fontSize:18}}><Check size={18}/></span>}
                 </button>
               )) : filteredServices.map((item) => (
                 <button key={item.code} type="button" onClick={() => { resetSelection("service", item.code); closePicker(); }} style={{width:"100%",minHeight:54,border:0,borderBottom:"1px solid rgba(0,0,0,.055)",background:item.code === service ? "rgba(0,0,0,.05)" : "transparent",borderRadius:12,display:"flex",alignItems:"center",gap:12,padding:"8px 12px",textAlign:"left",fontSize:16}}>
                   <span style={{width:30,height:30,display:"inline-flex"}}><ServiceBrandIcon service={item.name} code={item.code}/></span>
                   <span style={{flex:1}}>{item.name}</span>
-                  {item.code === service && <span aria-hidden="true" style={{fontSize:18}}>✓</span>}
+                  {item.code === service && <span aria-hidden="true" style={{fontSize:18}}><Check size={18}/></span>}
                 </button>
               ))}
               {picker === "service" && loadingServices && <p style={{padding:"24px 12px",margin:0,textAlign:"center",color:"#6e6e73"}}>Loading all services…</p>}
@@ -615,10 +645,23 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
           <section className="priceSheet" role="dialog" aria-modal="true" aria-label="Choose a number" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="sheetHandle" aria-label="Close" disabled={buying} onClick={() => setSheetOpen(false)} />
             <div className="priceSheetHeading">
-              <h2>Available prices</h2>
-              <p>Live price and availability for {selectedCountry?.name || "your country"} · {selectedService?.name || friendlyServiceName(service)}.</p>
+              <h2>{reviewOffer ? "Review your purchase" : "Step 2 · Choose an available number"}</h2>
+              <p>{reviewOffer ? "Check the details below. Confirming can charge your WickSpend wallet." : `Compare current prices for ${selectedCountry?.name || "your country"} · ${selectedService?.name || friendlyServiceName(service)}. Tap Review before paying.`}</p>
             </div>
-            <div className="priceSheetList">
+            {reviewOffer ? (
+              <div className="purchaseReview" style={{padding:"16px",display:"grid",gap:12}}>
+                <div style={{padding:14,border:"1px solid #e5eaf0",borderRadius:14,background:"#f8fafc",display:"grid",gap:10}}>
+                  <div><small style={{color:"#667085",display:"block"}}>App or service</small><strong>{selectedService?.name || friendlyServiceName(service)}</strong></div>
+                  <div><small style={{color:"#667085",display:"block"}}>Country</small><strong>{selectedCountry?.name || country}</strong></div>
+                  <div><small style={{color:"#667085",display:"block"}}>Current offer price</small><strong style={{fontSize:22,color:"#111"}}>{formatNgn(priceNgn(reviewOffer.offer))}</strong></div>
+                  <div><small style={{color:"#667085",display:"block"}}>Your wallet</small><strong>{balance}</strong></div>
+                </div>
+                <p style={{margin:0,fontSize:12,lineHeight:1.5,color:"#5d6675"}}>This is a one-time SMS number, not a long-term rental. Availability and final purchase status are checked when you confirm. OTP arrival is not guaranteed; any refund follows WickSpend’s existing order and provider rules.</p>
+                {message && messageTitle !== "Purchase pending" && <p role="status" style={{margin:0,fontSize:12,color:"#a32921"}}>{message}</p>}
+                <button type="button" className="buyNumberCta" disabled={buying} aria-busy={buying} onClick={() => buy(reviewOffer.offer,reviewOffer.key)}>{buying ? "Confirming purchase…" : "Confirm & buy number"}</button>
+                <button type="button" disabled={buying} onClick={() => {setReviewOffer(null);setMessage("");setMessageTitle("");}} style={{minHeight:44,border:"1px solid #d8e1ee",borderRadius:14,background:"#fff",color:"#25334a",fontWeight:650,fontSize:13}}>Back to prices</button>
+              </div>
+            ) : (<div className="priceSheetList">
               {prices.map((p: any, i) => {
                 const formattedPrice = formatNgn(priceNgn(p));
                 const available = availabilityCount(p);
@@ -648,17 +691,17 @@ export default function BuyNumberClient({ initialCountry = "19", initialService 
                       <small className="priceRowAvailability">{availabilityLabel}</small>
                       {providerSignal && <small style={{display:"block",marginTop:3,color:providerSamples >= 3 ? "#157a3a" : "#6e6e73",fontWeight:600}}>{providerSignal}</small>}
                     </div>
-                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => buy(p, rowKey)}>{isBuyingThisOffer ? "Buying…" : "Buy"}</button>
+                    <button className="priceBuyButton" type="button" disabled={isBuyingThisOffer || unavailable} aria-busy={isBuyingThisOffer} onClick={() => { setMessage(""); setMessageTitle(""); setReviewOffer({offer:p,key:rowKey}); }}>{isBuyingThisOffer ? "Buying…" : "Review"}</button>
                   </div>
                 );
               })}
-            </div>
+            </div>)}
           </section>
         </div>
       )}
       <section className="seoContent" aria-label="Virtual number buying guide">
         <h2>How buying a virtual number works</h2>
-        <p>Select a supported country and service, then use <strong>View Prices</strong> to check current provider offers. Pricing, stock and availability stay live and are confirmed during purchase.</p>
+        <p>Select a supported country and service, then use <strong>See Prices</strong> to compare available offers. A separate review screen appears before you confirm payment. Pricing, stock and availability stay live and are confirmed during purchase.</p>
         <h2>How OTP and SMS delivery works</h2>
         <p>After a successful purchase, WickSpend opens the OTP screen for that number. Incoming messages appear there when the provider receives them. Delivery timing depends on the selected service and provider.</p>
         <h2>When a number is unavailable</h2>
