@@ -189,3 +189,71 @@
 @media (prefers-reduced-motion: reduce) {
   .homeShell .quickActionCard { transition: none; }
 }
+
+/* Beginner-first dashboard: progressive disclosure, no changes to checkout or backend. */
+.homeShell .homeChooseHeading { margin-bottom: 10px !important; }
+.homeShell .homeChooseHeading h2 { font-size: clamp(17px, 3.8vw, 21px); line-height: 1.25; }
+.homeShell .homeChooseHeading p { margin: 4px 0 0; color: #697386; font-size: 12px; line-height: 1.5; }
+.homeShell .homePrimaryActionGrid.homeActionGrid { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile {
+  min-width: 0; min-height: 132px; height: auto; padding: 15px 14px;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
+  text-align: left; gap: 7px; background: #fff; border: 1px solid #e3e8f0; border-radius: 18px;
+}
+.homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile > span {
+  width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center;
+  color: #0866f5; background: #eff5ff; border-radius: 11px;
+}
+.homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile > span svg { width: 23px; height: 23px; }
+.homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile b {
+  color: #171719; font-size: 14px; line-height: 1.25; font-weight: 700; text-align: left;
+}
+.homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile small {
+  color: #697386; font-size: 11px; line-height: 1.4; text-align: left;
+}
+.homeShell .homeMoreServices { margin-top: 12px; border: 1px solid #e3e8f0; border-radius: 14px; overflow: hidden; background: #fff; }
+.homeShell .homeMoreServices > summary {
+  min-height: 46px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; list-style: none; color: #1d4ed8; font-size: 13px; font-weight: 700; touch-action: manipulation;
+}
+.homeShell .homeMoreServices > summary::-webkit-details-marker { display: none; }
+.homeShell .homeMoreServices[open] > summary span { transform: rotate(180deg); }
+.homeShell .homeMoreGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 0 12px 12px; }
+.homeShell .homeMoreLink {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; min-width: 0; padding: 8px;
+  text-decoration: none; color: #202734; background: #f6f8fc; border-radius: 11px;
+}
+.homeShell .homeMoreLink > span { display: grid; place-items: center; width: 22px; min-width: 22px; height: 22px; color: #0866f5; }
+.homeShell .homeMoreLink svg { width: 21px; height: 21px; }
+.homeShell .homeMoreLink b { font-size: 11px; line-height: 1.25; }
+.homeShell .homeGetStarted { background: #f7f9fd; border: 1px solid #e6ecf5; border-radius: 18px; padding: 2px 14px 14px; margin-top: 16px; }
+.homeShell .homeGetStarted .sectionTitle { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.homeShell .homeGuideLink { font-size: 12px; line-height: 1.4; color: #0866f5; font-weight: 650; text-decoration: none; }
+.homeShell .homeGuideIntro { font-size: 12px; line-height: 1.5; color: #697386; margin: 0 0 10px; }
+.homeShell .homeGuideSteps { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.homeShell .homeGuideSteps > li { display: flex; gap: 10px; align-items: center; min-width: 0; padding: 9px 10px; background: #fff; border-radius: 12px; }
+.homeShell .homeGuideSteps > li > span { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; background: #eaf2ff; color: #1d4ed8; border-radius: 50%; font-size: 12px; font-weight: 750; }
+.homeShell .homeGuideSteps > li > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.homeShell .homeGuideSteps b { color: #202734; font-size: 12px; line-height: 1.35; }
+.homeShell .homeGuideSteps small { color: #697386; font-size: 10px; line-height: 1.4; }
+.homeShell .homeGuideSteps a { flex: 0 0 auto; color: #0866f5; font-size: 11px; font-weight: 650; text-decoration: none; }
+.homeShell .homeHelpLink { min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; margin-top: 9px; color: #1d4ed8; font-size: 12px; font-weight: 650; text-decoration: none; }
+.homeShell .homeMoreServices summary:focus-visible, .homeShell .homeMoreLink:focus-visible,
+.homeShell .homeGuideSteps a:focus-visible, .homeShell .homeGuideLink:focus-visible {
+  outline: 2px solid #0866f5; outline-offset: 2px;
+}
+@media (max-width: 359px) {
+  .homeShell .homePrimaryActionGrid.homeActionGrid { gap: 9px; }
+  .homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile { padding: 12px; min-height: 139px; }
+  .homeShell .homePrimaryActionGrid.homeActionGrid > .homeActionTile b { font-size: 12px; }
+  .homeShell .homeGuideSteps > li { flex-wrap: wrap; }
+  .homeShell .homeGuideSteps > li > a { margin-left: 36px; }
+}
+@media (min-width: 700px) {
+  .homeShell .homeChooseService, .homeShell .homeGetStarted { grid-column: 1 / -1; }
+  .homeShell .homePrimaryActionGrid.homeActionGrid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .homeShell .homeGetStarted { padding: 4px 18px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .homeShell .homeMoreServices > summary span { transition: none; }
+}
