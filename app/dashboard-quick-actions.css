@@ -257,3 +257,12 @@
 @media (prefers-reduced-motion: reduce) {
   .homeShell .homeMoreServices > summary span { transition: none; }
 }
+
+/* Keep expanded secondary services tappable on narrow screens.
+   Customers can still reach Support through the bottom Help navigation. */
+@media (max-width: 699px) {
+  body:has(.homeShell .homeMoreServices[open]) .smartSupportRoot:not(:has(.smartSupportPanel)) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
